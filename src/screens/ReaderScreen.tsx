@@ -63,7 +63,7 @@ export function ReaderScreen() {
   // Charger la pièce au montage
   useEffect(() => {
     if (!playId) {
-      navigate('/library')
+      navigate('/')
       return
     }
 
@@ -73,7 +73,7 @@ export function ReaderScreen() {
         const play = await playsRepository.get(playId)
         if (!play) {
           addError('Pièce non trouvée')
-          navigate('/library')
+          navigate('/')
           return
         }
         loadPlay(play)
@@ -89,7 +89,7 @@ export function ReaderScreen() {
       } catch (error) {
         console.error('Error loading play:', error)
         addError('Erreur lors du chargement de la pièce')
-        navigate('/library')
+        navigate('/')
       } finally {
         stopLoading()
       }
@@ -243,14 +243,14 @@ export function ReaderScreen() {
       handleStop()
     }
     closePlay()
-    navigate('/library')
+    navigate('/')
   }
 
   const handleChangeCharacter = () => {
     if (isPlaying) {
       handleStop()
     }
-    navigate(`/play/${playId}`)
+    navigate(`/play/${playId}/detail`)
   }
 
   // Navigation scènes
@@ -259,6 +259,10 @@ export function ReaderScreen() {
     currentPlay &&
     (currentSceneIndex < currentPlay.ast.acts[currentActIndex].scenes.length - 1 ||
       currentActIndex < currentPlay.ast.acts.length - 1)
+
+  // Déterminer le mode
+  const isSilentMode = playSettings?.readingMode === 'silent'
+  const isItalianMode = playSettings?.readingMode === 'italian'
 
   // Rendu
   if (!currentPlay) {
@@ -269,7 +273,8 @@ export function ReaderScreen() {
     )
   }
 
-  if (!userCharacter) {
+  // En mode silencieux, pas besoin de personnage sélectionné
+  if (!isSilentMode && !userCharacter) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="text-center max-w-md">
@@ -279,13 +284,12 @@ export function ReaderScreen() {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Veuillez sélectionner votre personnage pour utiliser le mode lecteur.
           </p>
-          <Button onClick={() => navigate(`/play/${playId}`)}>Sélectionner un personnage</Button>
+          <Button onClick={() => navigate(`/play/${playId}/detail`)}>Sélectionner un personnage</Button>
         </div>
       </div>
     )
   }
 
-  const isItalianMode = playSettings?.readingMode === 'italian'
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="reader-screen">
@@ -294,50 +298,88 @@ export function ReaderScreen() {
         className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0"
         data-testid="reader-header"
       >
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          <div className="flex items-center gap-4">
-            <Button variant="secondary" onClick={handleClose} data-testid="close-button">
-              ← Retour
-            </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1
-                  className="text-xl font-bold text-gray-900 dark:text-gray-100"
-                  data-testid="play-title"
-                >
-                  {getPlayTitle(currentPlay)}
-                </h1>
-                {isItalianMode && (
-                  <span
-                    className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded font-semibold"
-                    data-testid="reading-mode"
+        {isSilentMode ? (
+          /* Header épuré pour mode silencieux */
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            {/* Gauche : icône retour */}
+            <button
+              onClick={handleClose}
+              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
+              aria-label="Retour à l'accueil"
+              data-testid="close-button"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+
+            {/* Centre : titre tronqué */}
+            <h1
+              className="flex-1 mx-4 text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
+              data-testid="play-title"
+            >
+              {getPlayTitle(currentPlay)}
+            </h1>
+
+            {/* Droite : icône aide */}
+            <button
+              onClick={() => setShowSummary(!showSummary)}
+              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
+              aria-label="Aide"
+              data-testid="help-button"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          /* Header complet pour modes audio et italiennes */
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-4">
+              <Button variant="secondary" onClick={handleClose} data-testid="close-button">
+                ← Retour
+              </Button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1
+                    className="text-xl font-bold text-gray-900 dark:text-gray-100"
+                    data-testid="play-title"
                   >
-                    MODE ITALIENNES
-                  </span>
-                )}
+                    {getPlayTitle(currentPlay)}
+                  </h1>
+                  {isItalianMode && (
+                    <span
+                      className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded font-semibold"
+                      data-testid="reading-mode"
+                    >
+                      MODE ITALIENNES
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="user-character">
+                  Mode Lecteur - {userCharacter?.name}
+                </p>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="user-character">
-                Mode Lecteur - {userCharacter.name}
-              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setShowSummary(!showSummary)}
+                data-testid="summary-button"
+              >
+                {showSummary ? 'Masquer sommaire' : 'Sommaire'}
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleChangeCharacter}
+                data-testid="change-character-button"
+              >
+                Changer de personnage
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setShowSummary(!showSummary)}
-              data-testid="summary-button"
-            >
-              {showSummary ? 'Masquer sommaire' : 'Sommaire'}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={handleChangeCharacter}
-              data-testid="change-character-button"
-            >
-              Changer de personnage
-            </Button>
-          </div>
-        </div>
+        )}
       </header>
 
       {/* Sommaire (modal overlay) */}
@@ -384,7 +426,7 @@ export function ReaderScreen() {
             lines={currentScene.lines}
             currentLineIndex={currentLineIndex}
             readingMode={playSettings.readingMode}
-            userCharacterId={userCharacter.id}
+            userCharacterId={userCharacter?.id}
             hideUserLines={playSettings.hideUserLines}
             showBefore={playSettings.showBefore}
             showAfter={playSettings.showAfter}
@@ -404,10 +446,9 @@ export function ReaderScreen() {
         <SceneNavigation
           currentActIndex={currentActIndex}
           currentSceneIndex={currentSceneIndex}
-          totalActs={currentPlay.ast.acts.length}
-          totalScenesInAct={currentPlay.ast.acts[currentActIndex].scenes.length}
           onPreviousScene={handlePreviousScene}
           onNextScene={handleNextScene}
+          onOpenSummary={() => setShowSummary(true)}
           canGoPrevious={canGoPreviousScene}
           canGoNext={!!canGoNextScene}
           disabled={isPlaying}
