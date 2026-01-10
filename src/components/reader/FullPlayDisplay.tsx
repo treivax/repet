@@ -161,14 +161,17 @@ export function FullPlayDisplay({
 
                 {/* Lignes de cette scène */}
                 {scene.lines.map((line, lineIdx) => {
+                  // Capturer l'index global dans une constante locale pour éviter le bug de closure
+                  const currentGlobalIndex = globalLineIndex
+
                   const isCurrentLine =
                     actIdx === currentActIndex &&
                     sceneIdx === currentSceneIndex &&
                     lineIdx === currentLineIndex
 
                   const isPlaying =
-                    playingLineIndex !== undefined && globalLineIndex === playingLineIndex
-                  const hasBeenRead = readLinesSet.has(globalLineIndex)
+                    playingLineIndex !== undefined && currentGlobalIndex === playingLineIndex
+                  const hasBeenRead = readLinesSet.has(currentGlobalIndex)
 
                   const currentLineElement = isCurrentLine ? (
                     <div
@@ -178,7 +181,7 @@ export function FullPlayDisplay({
                         isCurrentLine ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
                       }`}
                       data-testid="current-line"
-                      data-line-index={globalLineIndex}
+                      data-line-index={currentGlobalIndex}
                       data-act-index={actIdx}
                       data-scene-index={sceneIdx}
                       data-local-line-index={lineIdx}
@@ -193,7 +196,7 @@ export function FullPlayDisplay({
                         isPlaying={isPlaying}
                         hasBeenRead={hasBeenRead}
                         charactersMap={charactersMap}
-                        onClick={onLineClick ? () => onLineClick(globalLineIndex) : undefined}
+                        onClick={onLineClick ? () => onLineClick(currentGlobalIndex) : undefined}
                         isPaused={isPaused}
                         progressPercentage={isPlaying ? progressPercentage : 0}
                         elapsedTime={isPlaying ? elapsedTime : 0}
@@ -202,12 +205,12 @@ export function FullPlayDisplay({
                     </div>
                   ) : (
                     <div
-                      key={`line-${globalLineIndex}`}
+                      key={`line-${currentGlobalIndex}`}
                       className={`transition-opacity ${
                         isCurrentLine ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
                       }`}
-                      data-testid={`line-${globalLineIndex}`}
-                      data-line-index={globalLineIndex}
+                      data-testid={`line-${currentGlobalIndex}`}
+                      data-line-index={currentGlobalIndex}
                       data-act-index={actIdx}
                       data-scene-index={sceneIdx}
                       data-local-line-index={lineIdx}
@@ -222,7 +225,7 @@ export function FullPlayDisplay({
                         isPlaying={isPlaying}
                         hasBeenRead={hasBeenRead}
                         charactersMap={charactersMap}
-                        onClick={onLineClick ? () => onLineClick(globalLineIndex) : undefined}
+                        onClick={onLineClick ? () => onLineClick(currentGlobalIndex) : undefined}
                         isPaused={isPaused}
                         progressPercentage={isPlaying ? progressPercentage : 0}
                         elapsedTime={isPlaying ? elapsedTime : 0}

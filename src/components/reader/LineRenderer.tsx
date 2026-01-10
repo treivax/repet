@@ -135,14 +135,6 @@ export function LineRenderer({
   elapsedTime = 0,
   estimatedDuration = 0,
 }: Props) {
-  // Debug: vérifier si onClick est reçu
-  console.log('🔍 DEBUG LineRenderer:', {
-    lineType: line.type,
-    characterId: line.characterId,
-    readingMode,
-    onClickDefined: !!onClick,
-  })
-
   // Déterminer si c'est une réplique utilisateur
   const isUserLine =
     readingMode === 'italian' && userCharacterId && line.characterId === userCharacterId
@@ -215,28 +207,13 @@ export function LineRenderer({
       }
     `.trim()
 
-    console.log('🎨 CSS Classes Applied:', {
-      cardClasses,
-      hasCursorPointer: cardClasses.includes('cursor-pointer'),
-      isPlaying,
-      isClicked,
-      characterId: line.characterId,
-    })
-
     // Handler de clic : mode audio ou mode silencieux
     const handleClick = () => {
-      console.log('🔥 CLICK DETECTED in handleClick!', {
-        onClickDefined: !!onClick,
-        characterId: line.characterId,
-        readingMode,
-      })
       if (onClick) {
         // Mode audio : appeler le callback
-        console.log('🔥 Calling onClick callback...')
         onClick()
       } else {
         // Mode silencieux : toggle sélection visuelle uniquement
-        console.log('🔥 No onClick - setting visual feedback only')
         setIsClicked(true)
       }
     }
@@ -245,10 +222,6 @@ export function LineRenderer({
       <div
         className={cardClasses}
         onClick={(e) => {
-          console.log('🔥 onClick EVENT FIRED on card!', {
-            target: e.target,
-            currentTarget: e.currentTarget,
-          })
           e.stopPropagation()
           handleClick()
         }}
