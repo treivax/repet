@@ -297,12 +297,31 @@ export function PlayScreen() {
 
   // Fonction pour lire une ligne (avec index global)
   const speakLine = (globalLineIndex: number) => {
-    if (!playSettings || !currentPlay) return
+    console.log('🎤 speakLine START', {
+      globalLineIndex,
+      playSettings: !!playSettings,
+      currentPlay: !!currentPlay,
+    })
+
+    if (!playSettings || !currentPlay) {
+      console.log('⚠️ speakLine ABORT - missing playSettings or currentPlay')
+      return
+    }
 
     const coords = getLineCoordinates(globalLineIndex)
-    if (!coords) return
+    console.log('🎤 getLineCoordinates result:', { coords: !!coords, line: coords?.line })
+
+    if (!coords) {
+      console.log('⚠️ speakLine ABORT - coords is null')
+      return
+    }
 
     const { line } = coords
+    console.log('🎤 Line to speak:', {
+      type: line.type,
+      characterId: line.characterId,
+      text: line.text.substring(0, 50) + '...',
+    })
 
     // Arrêter toute lecture en cours complètement
     if (utteranceRef.current) {
@@ -316,38 +335,58 @@ export function PlayScreen() {
       stopPlayback()
     }
 
+    console.log('🎤 Setting state...', { globalLineIndex })
     setPlayingLineIndex(globalLineIndex)
     setIsPaused(false)
     setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
+    console.log('🎤 State set, isPlayingRef.current =', isPlayingRef.current)
 
     // Sélection de la voix
     let selectedVoice: SpeechSynthesisVoice | null = null
     if (line.characterId && playSettings.characterVoices[line.characterId]) {
       const gender = playSettings.characterVoices[line.characterId]
       selectedVoice = voiceManager.selectVoiceForGender(gender)
+      console.log('🎤 Voice selected from characterVoices:', { gender, voice: selectedVoice?.name })
     } else if (line.characterId && charactersMap[line.characterId]?.gender) {
       selectedVoice = voiceManager.selectVoiceForGender(charactersMap[line.characterId].gender!)
+      console.log('🎤 Voice selected from character gender:', {
+        gender: charactersMap[line.characterId].gender,
+        voice: selectedVoice?.name,
+      })
     }
 
     // Didascalies : voix off si activée
     if (line.type === 'stage-direction' && playSettings.voiceOffEnabled) {
       selectedVoice = voiceManager.selectVoiceForGender('neutral')
+      console.log('🎤 Voice selected for stage direction (voiceOff)')
     }
 
     // Mode italiennes : répliques utilisateur à volume 0
     const isUserLine = userCharacter && line.characterId === userCharacter.id
     const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
+    console.log('🎤 Volume settings:', {
+      isUserLine,
+      volume,
+      readingMode: playSettings.readingMode,
+    })
 
+    console.log('🎤 Creating utterance...', { text: line.text.substring(0, 50) })
     const utterance = new SpeechSynthesisUtterance(line.text)
     if (selectedVoice) utterance.voice = selectedVoice
     utterance.rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
     utterance.volume = volume
+    console.log('🎤 Utterance created:', {
+      voice: utterance.voice?.name,
+      rate: utterance.rate,
+      volume: utterance.volume,
+    })
 
     // Estimer et démarrer le tracking de la durée
     const rate = utterance.rate
     const totalWords = countWords(line.text)
     const duration = estimateLineDuration(line.text, rate)
+    console.log('🎤 Starting progress tracking:', { duration, totalWords, rate })
     startProgressTracking(duration, totalWords)
 
     // Événement onboundary pour tracking mot par mot (précision accrue)
@@ -394,10 +433,22 @@ export function PlayScreen() {
     }
 
     utteranceRef.current = utterance
+    console.log('🎤 Calling window.speechSynthesis.speak()')
+    console.log('🎤 speechSynthesis state:', {
+      speaking: window.speechSynthesis.speaking,
+      pending: window.speechSynthesis.pending,
+      paused: window.speechSynthesis.paused,
+    })
     window.speechSynthesis.speak(utterance)
+    console.log('🎤 speak() called, new state:', {
+      speaking: window.speechSynthesis.speaking,
+      pending: window.speechSynthesis.pending,
+      paused: window.speechSynthesis.paused,
+    })
 
     // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
     scrollToLine(globalLineIndex)
+    console.log('🎤 speakLine COMPLETE')
   }
 
   // Fonction pour scroller vers une ligne
