@@ -1,0 +1,333 @@
+/**
+ * Copyright (c) 2025 Répét Contributors
+ * Licensed under the MIT License
+ * See LICENSE file in the project root for full license text
+ */
+
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { usePlayStore } from '../state/playStore'
+import { useSettingsStore } from '../state/settingsStore'
+import { useUIStore } from '../state/uiStore'
+import { playsRepository } from '../core/storage/plays'
+import { ttsEngine } from '../core/tts'
+import { Button } from '../components/common/Button'
+import { Spinner } from '../components/common/Spinner'
+import { CharacterSelector } from '../components/play/CharacterSelector'
+import { LineCue } from '../components/reader/LineCue'
+import { NavigationControls } from '../components/reader/NavigationControls'
+import { SceneNavigator } from '../components/reader/SceneNavigator'
+import type { Character } from '../core/models/Character'
+
+/**
+ * Écran de lecture d'une pièce
+ * Affiche les lignes, permet la navigation et la lecture TTS
+ */
+export function PlayScreen() {
+  const { playId } = useParams<{ playId: string }>()
+  const navigate = useNavigate()
+
+  // State
+  const {
+    currentPlay,
+    userCharacter,
+    currentLineIndex,
+    loadPlay,
+    setUserCharacter,
+    nextLine,
+    previousLine,
+    goToScene,
+    closePlay,
+  } = usePlayStore()
+
+  const { speed, volume, selectedVoice, autoPlay, readingMode, hideUserLinesInItalian } =
+    useSettingsStore()
+  const { startLoading, stopLoading, addError } = useUIStore()
+
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showCharacterSelector, setShowCharacterSelector] = useState(false)
+  const [revealLine, setRevealLine] = useState(false)
+
+  // Charger la pièce au montage
+  useEffect(() => {
+    if (!playId) {
+      navigate('/library')
+      return
+    }
+
+    const loadPlayData = async () => {
+      startLoading()
+      try {
+        const play = await playsRepository.get(playId)
+        if (!play) {
+          addError('Pièce non trouvée')
+          navigate('/library')
+          return
+        }
+        loadPlay(play)
+      } catch (error) {
+        console.error('Error loading play:', error)
+        addError('Erreur lors du chargement de la pièce')
+        navigate('/library')
+      } finally {
+        stopLoading()
+      }
+    }
+
+    loadPlayData()
+  }, [playId, navigate, loadPlay, startLoading, stopLoading, addError])
+
+  // Afficher le sélecteur de personnage si pas encore sélectionné
+  useEffect(() => {
+    if (currentPlay && !userCharacter) {
+      setShowCharacterSelector(true)
+    }
+  }, [currentPlay, userCharacter])
+
+  // Nettoyer TTS au démontage
+  useEffect(() => {
+    return () => {
+      ttsEngine.stop()
+    }
+  }, [])
+
+  // Handlers
+  const handleCharacterSelect = (character: Character | null) => {
+    setUserCharacter(character)
+    setShowCharacterSelector(false)
+  }
+
+  const handlePlayLine = async () => {
+    if (!currentPlay || isPlaying) return
+
+    const line = currentPlay.lines[currentLineIndex]
+    if (!line || !line.text) return
+
+    setIsPlaying(true)
+    try {
+      ttsEngine.speak({
+        text: line.text,
+        voiceURI: selectedVoice ?? undefined,
+        rate: speed,
+        volume: volume,
+        lineId: line.id,
+      })
+
+      // Auto-play: passer à la ligne suivante
+      if (autoPlay && currentLineIndex < currentPlay.lines.length - 1) {
+        nextLine()
+      }
+    } catch (error) {
+      console.error('TTS error:', error)
+      addError('Erreur de lecture vocale')
+    } finally {
+      setIsPlaying(false)
+    }
+  }
+
+  const handleStopPlaying = () => {
+    ttsEngine.stop()
+    setIsPlaying(false)
+  }
+
+  const handleNext = () => {
+    if (isPlaying) {
+      handleStopPlaying()
+    }
+    setRevealLine(false)
+    nextLine()
+  }
+
+  const handlePrevious = () => {
+    if (isPlaying) {
+      handleStopPlaying()
+    }
+    setRevealLine(false)
+    previousLine()
+  }
+
+  const handleGoToScene = (actIndex: number, sceneIndex: number) => {
+    if (isPlaying) {
+      handleStopPlaying()
+    }
+    setRevealLine(false)
+    goToScene(actIndex, sceneIndex)
+  }
+
+  const handleClose = () => {
+    if (isPlaying) {
+      handleStopPlaying()
+    }
+    closePlay()
+    navigate('/library')
+  }
+
+  // Rendu
+  if (!currentPlay) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  const currentLine = currentPlay.lines[currentLineIndex]
+  const canGoPrevious = currentLineIndex > 0
+  const canGoNext = currentLineIndex < currentPlay.lines.length - 1
+
+  // Mode italiennes : masquer les lignes de l'utilisateur
+  const isItalianMode = readingMode === 'italian'
+  const shouldHideLine = !!(
+    isItalianMode &&
+    hideUserLinesInItalian &&
+    userCharacter &&
+    currentLine?.characterId === userCharacter.id &&
+    !revealLine
+  )
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between max-w-4xl mx-auto">
+          <div className="flex items-center gap-4">
+            <Button variant="secondary" onClick={handleClose}>
+              ← Retour
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold text-gray-900">{currentPlay.title}</h1>
+                {isItalianMode && (
+                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded font-semibold">
+                    MODE ITALIENNES
+                  </span>
+                )}
+              </div>
+              {currentPlay.author && <p className="text-sm text-gray-600">{currentPlay.author}</p>}
+            </div>
+          </div>
+          <Button variant="secondary" onClick={() => setShowCharacterSelector(true)}>
+            {userCharacter ? userCharacter.name : 'Choisir personnage'}
+          </Button>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <div className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full">
+        {/* Scene Navigator */}
+        <div className="bg-white border-b border-gray-200 px-4 py-2">
+          <SceneNavigator
+            play={currentPlay}
+            currentActIndex={currentPlay.lines[currentLineIndex]?.actIndex ?? 0}
+            currentSceneIndex={currentPlay.lines[currentLineIndex]?.sceneIndex ?? 0}
+            onNavigate={handleGoToScene}
+          />
+        </div>
+
+        {/* Line display */}
+        <div className="flex-1 overflow-y-auto px-4 py-8">
+          {currentLine ? (
+            <LineCue
+              line={currentLine}
+              character={
+                currentLine.characterId
+                  ? currentPlay.characters.find((c) => c.id === currentLine.characterId) || null
+                  : null
+              }
+              isUserLine={userCharacter ? currentLine.characterId === userCharacter.id : false}
+              isCurrent={true}
+              hidden={shouldHideLine}
+            />
+          ) : (
+            <div className="text-center text-gray-500 mt-8">Aucune ligne à afficher</div>
+          )}
+
+          {/* Reveal button for Italian mode */}
+          {isItalianMode &&
+            hideUserLinesInItalian &&
+            userCharacter &&
+            currentLine?.characterId === userCharacter.id && (
+              <div className="mt-6 text-center">
+                <Button
+                  variant={revealLine ? 'secondary' : 'primary'}
+                  onClick={() => setRevealLine(!revealLine)}
+                >
+                  {revealLine ? '🔒 Masquer à nouveau' : '👁️ Révéler ma réplique'}
+                </Button>
+                <p className="mt-2 text-xs text-gray-500">
+                  {revealLine
+                    ? 'Vous pouvez masquer à nouveau pour répéter'
+                    : 'Cliquez pour voir votre réplique si nécessaire'}
+                </p>
+              </div>
+            )}
+
+          {/* Context: Previous and next lines */}
+          <div className="mt-8 space-y-4 opacity-50">
+            {currentLineIndex > 0 && currentPlay.lines[currentLineIndex - 1] && (
+              <div className="text-sm text-gray-600">
+                <div className="font-semibold">
+                  {currentPlay.lines[currentLineIndex - 1].characterId
+                    ? currentPlay.characters.find(
+                        (c) => c.id === currentPlay.lines[currentLineIndex - 1].characterId
+                      )?.name || 'Didascalie'
+                    : 'Didascalie'}
+                </div>
+                <div className="italic">{currentPlay.lines[currentLineIndex - 1].text}</div>
+              </div>
+            )}
+            {currentLineIndex < currentPlay.lines.length - 1 &&
+              currentPlay.lines[currentLineIndex + 1] && (
+                <div className="text-sm text-gray-600">
+                  <div className="font-semibold">
+                    {currentPlay.lines[currentLineIndex + 1].characterId
+                      ? currentPlay.characters.find(
+                          (c) => c.id === currentPlay.lines[currentLineIndex + 1].characterId
+                        )?.name || 'Didascalie'
+                      : 'Didascalie'}
+                  </div>
+                  <div className="italic">{currentPlay.lines[currentLineIndex + 1].text}</div>
+                </div>
+              )}
+          </div>
+        </div>
+
+        {/* Navigation Controls */}
+        <div className="bg-white border-t border-gray-200 px-4 py-4">
+          <NavigationControls
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onTogglePlay={isPlaying ? handleStopPlaying : handlePlayLine}
+            canGoPrevious={canGoPrevious}
+            canGoNext={canGoNext}
+            isPlaying={isPlaying}
+            audioEnabled={true}
+          />
+        </div>
+      </div>
+
+      {/* Character Selector Modal */}
+      {showCharacterSelector && currentPlay.characters && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900">Choisissez votre personnage</h2>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[60vh]">
+              <CharacterSelector
+                characters={currentPlay.characters}
+                selectedCharacter={userCharacter}
+                onSelectCharacter={handleCharacterSelect}
+              />
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end">
+              <Button variant="secondary" onClick={() => setShowCharacterSelector(false)}>
+                Fermer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
