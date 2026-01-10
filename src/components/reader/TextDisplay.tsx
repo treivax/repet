@@ -61,6 +61,15 @@ interface Props {
 
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
+
+  /** Pourcentage de progression de la lecture (0-100) */
+  progressPercentage?: number
+
+  /** Temps écoulé en secondes */
+  elapsedTime?: number
+
+  /** Durée estimée totale en secondes */
+  estimatedDuration?: number
 }
 
 /**
@@ -85,6 +94,9 @@ export function TextDisplay({
   sceneTitle,
   onLineClick,
   isPaused,
+  progressPercentage,
+  elapsedTime,
+  estimatedDuration,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const currentLineRef = useRef<HTMLDivElement>(null)
@@ -171,6 +183,9 @@ export function TextDisplay({
                 charactersMap={charactersMap}
                 onClick={onLineClick ? () => onLineClick(index) : undefined}
                 isPaused={isPaused}
+                progressPercentage={isPlaying ? progressPercentage : 0}
+                elapsedTime={isPlaying ? elapsedTime : 0}
+                estimatedDuration={isPlaying ? estimatedDuration : 0}
               />
             </div>
           )

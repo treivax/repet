@@ -54,10 +54,17 @@ export function PlayScreen() {
   const [readLinesSet, setReadLinesSet] = useState<Set<number>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
 
+  // États pour le tracking du temps de lecture
+  const [estimatedDuration, setEstimatedDuration] = useState<number>(0) // en secondes
+  const [elapsedTime, setElapsedTime] = useState<number>(0) // en secondes
+  const [progressPercentage, setProgressPercentage] = useState<number>(0)
+
   // Refs pour gérer la lecture audio
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const isPlayingRef = useRef(false)
   const currentSceneRef = useRef(currentScene)
+  const startTimeRef = useRef<number>(0)
+  const progressIntervalRef = useRef<number | null>(null)
 
   // Mettre à jour la ref de la scène courante
   useEffect(() => {
@@ -129,14 +136,96 @@ export function PlayScreen() {
     })
   }
 
+  /**
+   * Estime la durée de lecture d'une ligne en secondes
+   * Basé sur le nombre de mots et la vitesse de lecture (rate)
+   * Formule approximative : (nombre de mots / rate) × temps moyen par mot
+   */
+  const estimateLineDuration = (text: string, rate: number): number => {
+    // Nettoyer le texte et compter les mots
+    const words = text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0)
+    const wordCount = words.length
+
+    // Vitesse moyenne : environ 2.5 mots par seconde à rate=1
+    // Cette valeur peut être ajustée selon les observations
+    const baseWordsPerSecond = 2.5
+    const wordsPerSecond = baseWordsPerSecond * rate
+
+    // Calculer la durée estimée
+    const estimatedSeconds = wordCount / wordsPerSecond
+
+    // Ajouter un petit buffer pour la latence
+    return estimatedSeconds + 0.3
+  }
+
+  /**
+   * Met à jour la progression de lecture en temps réel
+   */
+  const updateProgress = () => {
+    if (!isPlayingRef.current || estimatedDuration === 0) return
+
+    const now = performance.now()
+    const elapsed = (now - startTimeRef.current) / 1000 // convertir en secondes
+
+    setElapsedTime(elapsed)
+    setProgressPercentage(Math.min((elapsed / estimatedDuration) * 100, 100))
+  }
+
+  /**
+   * Démarre le tracking de progression
+   */
+  const startProgressTracking = (duration: number) => {
+    setEstimatedDuration(duration)
+    setElapsedTime(0)
+    setProgressPercentage(0)
+    startTimeRef.current = performance.now()
+
+    // Nettoyer l'ancien interval s'il existe
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+    }
+
+    // Mettre à jour la progression toutes les 100ms
+    progressIntervalRef.current = window.setInterval(updateProgress, 100)
+  }
+
+  /**
+   * Arrête le tracking de progression
+   */
+  const stopProgressTracking = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+    setEstimatedDuration(0)
+    setElapsedTime(0)
+    setProgressPercentage(0)
+  }
+
+  // Nettoyer l'interval au démontage
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+    }
+  }, [])
+
   // Fonction pour lire une ligne
   const speakLine = (line: Line, lineIndex: number) => {
     if (!playSettings || !currentSceneRef.current) return
 
     // Arrêter toute lecture en cours complètement
     if (utteranceRef.current) {
+      // Désactiver les callbacks avant cancel pour éviter interférences
+      utteranceRef.current.onend = null
+      utteranceRef.current.onerror = null
       window.speechSynthesis.cancel()
       utteranceRef.current = null
+      stopProgressTracking()
     }
 
     setPlayingLineIndex(lineIndex)
@@ -167,7 +256,14 @@ export function PlayScreen() {
     utterance.rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
     utterance.volume = volume
 
+    // Estimer et démarrer le tracking de la durée
+    const rate = utterance.rate
+    const duration = estimateLineDuration(line.text, rate)
+    startProgressTracking(duration)
+
     utterance.onend = () => {
+      stopProgressTracking()
+
       if (!isPlayingRef.current || !currentSceneRef.current) return
 
       // Passer à la ligne suivante automatiquement
@@ -182,6 +278,8 @@ export function PlayScreen() {
     }
 
     utterance.onerror = (event) => {
+      stopProgressTracking()
+
       // Ne rien faire si on a déjà arrêté manuellement
       if (!isPlayingRef.current) return
       console.error('Erreur de lecture TTS', event)
@@ -210,6 +308,7 @@ export function PlayScreen() {
     isPlayingRef.current = false
     setPlayingLineIndex(undefined)
     setIsPaused(false)
+    stopProgressTracking()
   }
 
   // Fonction pour mettre en pause/reprendre
@@ -461,6 +560,9 @@ export function PlayScreen() {
             sceneTitle={currentScene.title}
             onLineClick={handleLineClick}
             isPaused={isPaused}
+            progressPercentage={progressPercentage}
+            elapsedTime={elapsedTime}
+            estimatedDuration={estimatedDuration}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

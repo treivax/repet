@@ -104,6 +104,15 @@ interface Props {
 
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
+
+  /** Pourcentage de progression de la lecture (0-100) */
+  progressPercentage?: number
+
+  /** Temps écoulé en secondes */
+  elapsedTime?: number
+
+  /** Durée estimée totale en secondes */
+  estimatedDuration?: number
 }
 
 /**
@@ -122,6 +131,9 @@ export function LineRenderer({
   charactersMap,
   onClick,
   isPaused,
+  progressPercentage = 0,
+  elapsedTime = 0,
+  estimatedDuration = 0,
 }: Props) {
   // Déterminer si c'est une réplique utilisateur
   const isUserLine =
@@ -249,8 +261,50 @@ export function LineRenderer({
         {shouldReveal && (
           <div className="mt-1 text-xs text-green-600 dark:text-green-400">✓ Révélée</div>
         )}
-        {isPlaying && isPaused && (
-          <div className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">⏸ En pause</div>
+        {isPlaying && (
+          <div className="mt-2 flex items-center gap-2">
+            {/* Indicateur de progression circulaire */}
+            <svg className="h-6 w-6 -rotate-90 transform" viewBox="0 0 24 24">
+              {/* Cercle de fond */}
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                className="text-gray-300 dark:text-gray-600"
+              />
+              {/* Cercle de progression */}
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeDasharray={`${2 * Math.PI * 10}`}
+                strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
+                className={
+                  isPaused
+                    ? 'text-yellow-500 dark:text-yellow-400'
+                    : 'text-blue-500 dark:text-blue-400'
+                }
+                strokeLinecap="round"
+              />
+            </svg>
+            {/* Temps restant */}
+            <div
+              className={`text-xs font-medium ${
+                isPaused
+                  ? 'text-yellow-600 dark:text-yellow-400'
+                  : 'text-blue-600 dark:text-blue-400'
+              }`}
+            >
+              {isPaused ? '⏸ En pause · ' : ''}
+              {Math.max(0, Math.ceil(estimatedDuration - elapsedTime))}s
+            </div>
+          </div>
         )}
       </div>
     )
