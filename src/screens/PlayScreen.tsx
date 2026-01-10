@@ -444,11 +444,6 @@ export function PlayScreen() {
   }
 
   // Handler pour le clic en dehors d'une ligne
-  const handleBackgroundClick = () => {
-    if (isPlayingRef.current) {
-      stopPlayback()
-    }
-  }
 
   const handlePreviousScene = () => {
     stopPlayback()
@@ -515,7 +510,7 @@ export function PlayScreen() {
   // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
   const handleReadingModeClick = () => {
     if (playId) {
-      navigate(`/reader/${playId}`)
+      navigate(`/play/${playId}/detail`)
     }
   }
 
@@ -548,11 +543,7 @@ export function PlayScreen() {
   }
 
   return (
-    <div
-      className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900"
-      data-testid="play-screen"
-      onClick={handleBackgroundClick}
-    >
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="play-screen">
       {/* Header */}
       <header
         className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0"
