@@ -27,13 +27,23 @@ Cette version majeure réécrit les composants clés pour respecter strictement 
 
 ### 🐛 Bug Fixes
 
+#### Correction Critique - Bug de Clic Bloquant (2025-01-XX)
+
+- **PROBLÈME MAJEUR RÉSOLU** - Les cartes n'étaient pas cliquables en mode audio et italiennes
+  - **Cause racine** : Le div racine avec `onClick={handleBackgroundClick}` interceptait TOUS les clics
+  - **Solution** : Suppression complète de `handleBackgroundClick`
+  - **Impact** : Restauration totale de la fonctionnalité de lecture
+- **Corrections appliquées** :
+  - ✅ Cartes cliquables en mode audio - Lecture audio fonctionne
+  - ✅ Cartes cliquables en mode italiennes - Synthèse vocale déclenchée
+  - ✅ Mode silencieux préservé - Effet visuel uniquement
+  - ✅ Navigation corrigée vers `/play/:playId/detail` (PlayDetailScreen)
+
 #### Tag de Méthode de Lecture
 
-- **Correction route de navigation** - Utilisation de la route correcte `/reader/:playId` au lieu de `/play/:playId/reader`
-- **Correction clic en mode audio** - Le callback `onLineClick` est maintenant passé uniquement en mode audio
-  - Les cartes sont désormais cliquables en mode audio
-  - En mode silencieux, les cartes ont seulement un effet visuel sans déclencher la synthèse vocale
-  - Résolution du problème où les cartes n'étaient plus sélectionnables après le passage à l'affichage complet
+- **Correction route de navigation** - Utilisation de `/play/:playId/detail` pour aller vers l'écran de sélection
+- **Première tentative (échec)** - Passage conditionnel de `onLineClick` n'a pas résolu le problème
+  - Le vrai problème était `handleBackgroundClick` qui bloquait tous les clics
 
 #### Parser Conforme à la Spec
 
