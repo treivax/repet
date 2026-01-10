@@ -98,6 +98,12 @@ interface Props {
 
   /** Map des personnages pour récupérer les noms */
   charactersMap: Record<string, Character>
+
+  /** Callback optionnel pour le clic (mode audio) */
+  onClick?: () => void
+
+  /** La lecture est-elle en pause (mode audio) */
+  isPaused?: boolean
 }
 
 /**
@@ -114,6 +120,8 @@ export function LineRenderer({
   isPlaying,
   hasBeenRead,
   charactersMap,
+  onClick,
+  isPaused,
 }: Props) {
   // Déterminer si c'est une réplique utilisateur
   const isUserLine =
@@ -178,30 +186,50 @@ export function LineRenderer({
       my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
       ${
         isPlaying
-          ? 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
+          ? isPaused
+            ? 'bg-yellow-50 dark:bg-yellow-900/10 shadow-md border-l-4 border-yellow-500'
+            : 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
           : isClicked
             ? 'bg-gray-100 dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700'
             : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
       }
     `.trim()
 
+    // Handler de clic : mode audio ou mode silencieux
+    const handleClick = () => {
+      if (onClick) {
+        // Mode audio : appeler le callback
+        onClick()
+      } else {
+        // Mode silencieux : toggle sélection visuelle uniquement
+        setIsClicked(true)
+      }
+    }
+
     return (
       <div
         className={cardClasses}
-        onMouseDown={() => setIsClicked(true)}
-        onMouseUp={() => setIsClicked(false)}
-        onMouseLeave={() => setIsClicked(false)}
-        onTouchStart={() => setIsClicked(true)}
-        onTouchEnd={() => setIsClicked(false)}
-        onTouchCancel={() => setIsClicked(false)}
+        onClick={(e) => {
+          e.stopPropagation()
+          handleClick()
+        }}
+        onMouseDown={() => !onClick && setIsClicked(true)}
+        onMouseUp={() => !onClick && setIsClicked(false)}
+        onMouseLeave={() => !onClick && setIsClicked(false)}
+        onTouchStart={() => !onClick && setIsClicked(true)}
+        onTouchEnd={() => !onClick && setIsClicked(false)}
+        onTouchCancel={() => !onClick && setIsClicked(false)}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            setIsClicked(true)
-            // Désélectionner automatiquement après un court délai
-            setTimeout(() => setIsClicked(false), 150)
+            if (onClick) {
+              onClick()
+            } else {
+              setIsClicked(true)
+              setTimeout(() => setIsClicked(false), 150)
+            }
           }
         }}
       >
@@ -220,6 +248,9 @@ export function LineRenderer({
         </div>
         {shouldReveal && (
           <div className="mt-1 text-xs text-green-600 dark:text-green-400">✓ Révélée</div>
+        )}
+        {isPlaying && isPaused && (
+          <div className="mt-1 text-xs text-yellow-600 dark:text-yellow-400">⏸ En pause</div>
         )}
       </div>
     )
