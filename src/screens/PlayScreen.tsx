@@ -431,13 +431,24 @@ export function PlayScreen() {
 
   // Handler pour le clic sur une ligne (reçoit l'index global)
   const handleLineClick = (globalLineIndex: number) => {
-    if (!currentPlay) return
+    console.log('🎯 handleLineClick CALLED!', {
+      globalLineIndex,
+      playingLineIndex,
+      currentPlay: !!currentPlay,
+    })
+
+    if (!currentPlay) {
+      console.log('⚠️ No currentPlay - returning early')
+      return
+    }
 
     // Si c'est la ligne en cours de lecture
     if (playingLineIndex === globalLineIndex) {
+      console.log('🎯 Same line - toggling pause/resume')
       // Toggle pause/resume
       pausePlayback()
     } else {
+      console.log('🎯 New line - calling speakLine')
       // Démarrer la nouvelle lecture (speakLine gère l'arrêt de l'ancienne)
       speakLine(globalLineIndex)
     }
