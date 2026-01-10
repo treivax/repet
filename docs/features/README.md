@@ -11,6 +11,7 @@ Fonctionnalité permettant d'afficher et de modifier rapidement la méthode de l
 - **[Résumé Exécutif](reading-mode-tag-summary.md)** - Vue d'ensemble et impact
 - **[Documentation Technique](reading-mode-tag.md)** - Implémentation et tests
 - **[Guide Visuel](reading-mode-tag-visual.md)** - Schémas et exemples visuels
+- **[Post-Mortem Bugs](reading-mode-tag-bugfixes.md)** - Corrections et leçons apprises
 
 #### Aperçu Rapide
 
@@ -133,11 +134,18 @@ Stratégie de test...
 
 ### Fonctionnalités Documentées
 
-| Fonctionnalité | Résumé | Technique | Visuel | Total |
-|----------------|--------|-----------|--------|-------|
-| Tag Méthode de Lecture | ✅ | ✅ | ✅ | 705 lignes |
+| Fonctionnalité | Résumé | Technique | Visuel | Post-Mortem | Total |
+|----------------|--------|-----------|--------|-------------|-------|
+| Tag Méthode de Lecture | ✅ | ✅ | ✅ | ✅ | 1027 lignes |
 
-**Total** : 1 fonctionnalité · 705 lignes de documentation
+**Total** : 1 fonctionnalité · 1027 lignes de documentation
+
+### Corrections et Bugs
+
+| Bug | Statut | Document |
+|-----|--------|----------|
+| Route 404 sur navigation | ✅ Corrigé | [Post-Mortem](reading-mode-tag-bugfixes.md) |
+| Cartes non cliquables en mode audio | ✅ Corrigé | [Post-Mortem](reading-mode-tag-bugfixes.md) |
 
 ---
 
