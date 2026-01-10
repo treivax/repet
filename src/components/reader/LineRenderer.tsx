@@ -4,9 +4,72 @@
  * See LICENSE file in the project root for full license text
  */
 
+import { useState } from 'react'
 import type { Line } from '../../core/models/Line'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
+
+/**
+ * Génère une couleur unique pour un personnage basée sur son ID
+ */
+function getCharacterColor(characterId: string): string {
+  // Utiliser un hash simple du characterId pour générer une couleur cohérente
+  let hash = 0
+  for (let i = 0; i < characterId.length; i++) {
+    hash = characterId.charCodeAt(i) + ((hash << 5) - hash)
+  }
+
+  // Palette de couleurs prédéfinies pour une bonne lisibilité
+  const colors = [
+    'text-blue-700 dark:text-blue-400',
+    'text-green-700 dark:text-green-400',
+    'text-purple-700 dark:text-purple-400',
+    'text-pink-700 dark:text-pink-400',
+    'text-indigo-700 dark:text-indigo-400',
+    'text-red-700 dark:text-red-400',
+    'text-orange-700 dark:text-orange-400',
+    'text-teal-700 dark:text-teal-400',
+    'text-cyan-700 dark:text-cyan-400',
+    'text-rose-700 dark:text-rose-400',
+  ]
+
+  const index = Math.abs(hash) % colors.length
+  return colors[index]
+}
+
+/**
+ * Parse le texte pour extraire les didascalies (texte entre parenthèses)
+ * et retourne un tableau de segments avec leur type
+ */
+function parseTextWithStageDirections(
+  text: string
+): Array<{ type: 'text' | 'stage-direction'; content: string }> {
+  const segments: Array<{ type: 'text' | 'stage-direction'; content: string }> = []
+  let currentPos = 0
+  let openParen = -1
+
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(' && openParen === -1) {
+      // Début d'une didascalie
+      if (i > currentPos) {
+        segments.push({ type: 'text', content: text.substring(currentPos, i) })
+      }
+      openParen = i
+    } else if (text[i] === ')' && openParen !== -1) {
+      // Fin d'une didascalie
+      segments.push({ type: 'stage-direction', content: text.substring(openParen + 1, i) })
+      currentPos = i + 1
+      openParen = -1
+    }
+  }
+
+  // Ajouter le reste du texte
+  if (currentPos < text.length) {
+    segments.push({ type: 'text', content: text.substring(currentPos) })
+  }
+
+  return segments
+}
 
 interface Props {
   /** Ligne à afficher */
@@ -60,11 +123,12 @@ export function LineRenderer({
   const shouldHide = isUserLine && hideUserLines && !showBefore && !hasBeenRead
   const shouldReveal = isUserLine && hideUserLines && showAfter && hasBeenRead
 
+  // État local pour savoir si la carte est cliquée/active
+  const [isClicked, setIsClicked] = useState(false)
+
   // Rendu selon le type de ligne
   if (line.type === 'stage-direction') {
-    return (
-      <div className="my-4 text-center italic text-gray-600 dark:text-gray-400">{line.text}</div>
-    )
+    return <div className="my-4 italic text-gray-500 dark:text-gray-500">{line.text}</div>
   }
 
   if (line.type === 'dialogue') {
@@ -101,15 +165,59 @@ export function LineRenderer({
       textClasses += ' text-gray-900 dark:text-gray-100'
     }
 
-    // Indicateur visuel si ligne en cours de lecture
-    const borderClasses = isPlaying
-      ? 'border-l-4 border-blue-500 pl-4 bg-blue-50 dark:bg-blue-900/10 py-2 rounded-r'
-      : ''
+    // Couleur du nom du personnage
+    const characterColor = line.characterId
+      ? getCharacterColor(line.characterId)
+      : 'text-gray-900 dark:text-gray-100'
+
+    // Parser le texte pour extraire les didascalies
+    const textSegments = parseTextWithStageDirections(line.text)
+
+    // Classes pour la carte cliquable
+    const cardClasses = `
+      my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
+      ${
+        isPlaying
+          ? 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
+          : isClicked
+            ? 'bg-gray-100 dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
+      }
+    `.trim()
 
     return (
-      <div className={`my-4 ${borderClasses}`}>
-        <div className="font-bold uppercase text-gray-900 dark:text-gray-100">{characterName}</div>
-        <div className={textClasses}>{line.text}</div>
+      <div
+        className={cardClasses}
+        onMouseDown={() => setIsClicked(true)}
+        onMouseUp={() => setIsClicked(false)}
+        onMouseLeave={() => setIsClicked(false)}
+        onTouchStart={() => setIsClicked(true)}
+        onTouchEnd={() => setIsClicked(false)}
+        onTouchCancel={() => setIsClicked(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setIsClicked(true)
+            // Désélectionner automatiquement après un court délai
+            setTimeout(() => setIsClicked(false), 150)
+          }
+        }}
+      >
+        <div className={`font-bold uppercase ${characterColor}`}>{characterName}</div>
+        <div className={textClasses}>
+          {textSegments.map((segment, idx) => {
+            if (segment.type === 'stage-direction') {
+              return (
+                <span key={idx} className="italic text-gray-500 dark:text-gray-500">
+                  ({segment.content})
+                </span>
+              )
+            }
+            return <span key={idx}>{segment.content}</span>
+          })}
+        </div>
         {shouldReveal && (
           <div className="mt-1 text-xs text-green-600 dark:text-green-400">✓ Révélée</div>
         )}
