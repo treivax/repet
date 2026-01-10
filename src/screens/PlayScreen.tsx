@@ -65,6 +65,7 @@ export function PlayScreen() {
   const currentSceneRef = useRef(currentScene)
   const startTimeRef = useRef<number>(0)
   const progressIntervalRef = useRef<number | null>(null)
+  const estimatedDurationRef = useRef<number>(0)
 
   // Mettre à jour la ref de la scène courante
   useEffect(() => {
@@ -165,19 +166,20 @@ export function PlayScreen() {
    * Met à jour la progression de lecture en temps réel
    */
   const updateProgress = () => {
-    if (!isPlayingRef.current || estimatedDuration === 0) return
+    if (!isPlayingRef.current || estimatedDurationRef.current === 0) return
 
     const now = performance.now()
     const elapsed = (now - startTimeRef.current) / 1000 // convertir en secondes
 
     setElapsedTime(elapsed)
-    setProgressPercentage(Math.min((elapsed / estimatedDuration) * 100, 100))
+    setProgressPercentage(Math.min((elapsed / estimatedDurationRef.current) * 100, 100))
   }
 
   /**
    * Démarre le tracking de progression
    */
   const startProgressTracking = (duration: number) => {
+    estimatedDurationRef.current = duration
     setEstimatedDuration(duration)
     setElapsedTime(0)
     setProgressPercentage(0)
@@ -200,6 +202,7 @@ export function PlayScreen() {
       clearInterval(progressIntervalRef.current)
       progressIntervalRef.current = null
     }
+    estimatedDurationRef.current = 0
     setEstimatedDuration(0)
     setElapsedTime(0)
     setProgressPercentage(0)
