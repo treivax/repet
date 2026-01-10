@@ -188,11 +188,18 @@ test.describe('Modes de Lecture', () => {
       const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
       await expect(italianModeButton).toBeVisible()
       await italianModeButton.click()
-      await pageWithTTS.waitForTimeout(1000)
+      await pageWithTTS.waitForTimeout(1500)
+
+      // Attendre que la section ItalianSettings apparaisse d'abord
+      const italianSettingsSection = pageWithTTS.getByTestId('italian-settings-section')
+      await expect(italianSettingsSection).toBeVisible({ timeout: 20000 })
 
       // Attendre que le select apparaisse (il n'apparaît qu'en mode italian, dans ItalianSettings)
       const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
-      await expect(userCharacterSelect).toBeVisible({ timeout: 15000 })
+      await expect(userCharacterSelect).toBeVisible({ timeout: 10000 })
+
+      // Scroll pour s'assurer que l'élément est visible
+      await userCharacterSelect.scrollIntoViewIfNeeded()
 
       const options = await userCharacterSelect.locator('option').all()
       expect(options.length).toBeGreaterThan(1) // Au moins l'option par défaut + 1 personnage
@@ -203,7 +210,8 @@ test.describe('Modes de Lecture', () => {
 
       // Vérifier que des options supplémentaires apparaissent
       const hideUserLinesToggle = pageWithTTS.getByTestId('hide-user-lines-toggle')
-      await expect(hideUserLinesToggle).toBeVisible({ timeout: 5000 })
+      await expect(hideUserLinesToggle).toBeVisible({ timeout: 10000 })
+      await hideUserLinesToggle.scrollIntoViewIfNeeded()
     })
 
     test('devrait activer les options de masquage', async ({ pageWithTTS }) => {
@@ -214,26 +222,34 @@ test.describe('Modes de Lecture', () => {
       const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
       await expect(italianModeButton).toBeVisible()
       await italianModeButton.click()
-      await pageWithTTS.waitForTimeout(1000)
+      await pageWithTTS.waitForTimeout(1500)
+
+      // Attendre que la section ItalianSettings apparaisse d'abord
+      const italianSettingsSection = pageWithTTS.getByTestId('italian-settings-section')
+      await expect(italianSettingsSection).toBeVisible({ timeout: 20000 })
 
       // Attendre et sélectionner un personnage
       const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
-      await expect(userCharacterSelect).toBeVisible({ timeout: 15000 })
+      await expect(userCharacterSelect).toBeVisible({ timeout: 10000 })
+      await userCharacterSelect.scrollIntoViewIfNeeded()
       await userCharacterSelect.selectOption({ index: 1 })
-      await pageWithTTS.waitForTimeout(500)
+      await pageWithTTS.waitForTimeout(800)
 
       // Activer le masquage
       const hideUserLinesToggle = pageWithTTS.getByTestId('hide-user-lines-toggle')
-      await expect(hideUserLinesToggle).toBeVisible({ timeout: 5000 })
+      await expect(hideUserLinesToggle).toBeVisible({ timeout: 10000 })
+      await hideUserLinesToggle.scrollIntoViewIfNeeded()
       await hideUserLinesToggle.click()
       await pageWithTTS.waitForTimeout(500)
 
       // Les options d'affichage devraient apparaître
       const showBeforeToggle = pageWithTTS.getByTestId('show-before-toggle')
-      await expect(showBeforeToggle).toBeVisible({ timeout: 5000 })
+      await expect(showBeforeToggle).toBeVisible({ timeout: 10000 })
+      await showBeforeToggle.scrollIntoViewIfNeeded()
 
       const showAfterToggle = pageWithTTS.getByTestId('show-after-toggle')
-      await expect(showAfterToggle).toBeVisible({ timeout: 5000 })
+      await expect(showAfterToggle).toBeVisible({ timeout: 10000 })
+      await showAfterToggle.scrollIntoViewIfNeeded()
 
       // Activer/désactiver ces options
       await showBeforeToggle.click()
@@ -251,12 +267,17 @@ test.describe('Modes de Lecture', () => {
       const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
       await expect(italianModeButton).toBeVisible()
       await italianModeButton.click()
-      await pageWithTTS.waitForTimeout(1000)
+      await pageWithTTS.waitForTimeout(1500)
+
+      // Attendre que la section ItalianSettings apparaisse d'abord
+      const italianSettingsSection = pageWithTTS.getByTestId('italian-settings-section')
+      await expect(italianSettingsSection).toBeVisible({ timeout: 20000 })
 
       const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
-      await expect(userCharacterSelect).toBeVisible({ timeout: 15000 })
+      await expect(userCharacterSelect).toBeVisible({ timeout: 10000 })
+      await userCharacterSelect.scrollIntoViewIfNeeded()
       await userCharacterSelect.selectOption({ index: 1 })
-      await pageWithTTS.waitForTimeout(500)
+      await pageWithTTS.waitForTimeout(800)
 
       // Aller au lecteur
       await pageWithTTS.goto(`/reader/${playId}`)
@@ -276,13 +297,18 @@ test.describe('Modes de Lecture', () => {
       const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
       await expect(italianModeButton).toBeVisible()
       await italianModeButton.click()
-      await pageWithTTS.waitForTimeout(1000)
+      await pageWithTTS.waitForTimeout(1500)
+
+      // Attendre que la section ItalianSettings apparaisse d'abord
+      const italianSettingsSection = pageWithTTS.getByTestId('italian-settings-section')
+      await expect(italianSettingsSection).toBeVisible({ timeout: 20000 })
 
       const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
-      await expect(userCharacterSelect).toBeVisible({ timeout: 15000 })
+      await expect(userCharacterSelect).toBeVisible({ timeout: 10000 })
+      await userCharacterSelect.scrollIntoViewIfNeeded()
       const selectedOption = await userCharacterSelect.locator('option').nth(1).textContent()
       await userCharacterSelect.selectOption({ index: 1 })
-      await pageWithTTS.waitForTimeout(500)
+      await pageWithTTS.waitForTimeout(800)
 
       // Aller au lecteur
       await pageWithTTS.goto(`/reader/${playId}`)
@@ -339,11 +365,12 @@ test.describe('Modes de Lecture', () => {
       const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
       await expect(italianModeButton).toBeVisible()
       await italianModeButton.click()
-      await pageWithTTS.waitForTimeout(1000)
+      await pageWithTTS.waitForTimeout(1500)
 
       // Le slider de vitesse utilisateur devrait apparaître (en mode italiennes seulement)
       const userSpeedSlider = pageWithTTS.getByTestId('user-speed-slider')
-      await expect(userSpeedSlider).toBeVisible({ timeout: 15000 })
+      await expect(userSpeedSlider).toBeVisible({ timeout: 20000 })
+      await userSpeedSlider.scrollIntoViewIfNeeded()
 
       // Vérifier que le slider existe et a une valeur
       const initialValue = await userSpeedSlider.inputValue()

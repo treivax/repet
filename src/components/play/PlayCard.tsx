@@ -41,7 +41,7 @@ export function PlayCard({ play, onClick, showConfigButton = false }: PlayCardPr
 
   const handleConfigClick = (event: React.MouseEvent) => {
     event.stopPropagation()
-    navigate(`/play/${play.id}/config`)
+    navigate(`/play/${play.id}/detail`)
   }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {

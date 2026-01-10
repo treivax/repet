@@ -34,7 +34,6 @@ export function VoiceAssignment({
   const genderOptions: Array<{ value: Gender; label: string; icon: string }> = [
     { value: 'male', label: 'Homme', icon: '♂' },
     { value: 'female', label: 'Femme', icon: '♀' },
-    { value: 'neutral', label: 'Neutre', icon: '◯' },
   ]
 
   if (characters.length === 0) {
@@ -50,7 +49,7 @@ export function VoiceAssignment({
   return (
     <div className="space-y-2">
       {characters.map((character) => {
-        const currentGender = characterVoices[character.id] || 'neutral'
+        const currentGender = characterVoices[character.id]
 
         return (
           <div

@@ -66,6 +66,9 @@ export function PlayScreen() {
   const startTimeRef = useRef<number>(0)
   const progressIntervalRef = useRef<number | null>(null)
   const estimatedDurationRef = useRef<number>(0)
+  const totalWordsRef = useRef<number>(0)
+  const wordsSpokenRef = useRef<number>(0)
+  const useBoundaryTrackingRef = useRef<boolean>(true)
 
   // Mettre à jour la ref de la scène courante
   useEffect(() => {
@@ -138,17 +141,22 @@ export function PlayScreen() {
   }
 
   /**
+   * Compte le nombre de mots dans un texte
+   */
+  const countWords = (text: string): number => {
+    return text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length
+  }
+
+  /**
    * Estime la durée de lecture d'une ligne en secondes
    * Basé sur le nombre de mots et la vitesse de lecture (rate)
    * Formule approximative : (nombre de mots / rate) × temps moyen par mot
    */
   const estimateLineDuration = (text: string, rate: number): number => {
-    // Nettoyer le texte et compter les mots
-    const words = text
-      .trim()
-      .split(/\s+/)
-      .filter((word) => word.length > 0)
-    const wordCount = words.length
+    const wordCount = countWords(text)
 
     // Vitesse moyenne : environ 2.5 mots par seconde à rate=1
     // Cette valeur peut être ajustée selon les observations
@@ -164,22 +172,39 @@ export function PlayScreen() {
 
   /**
    * Met à jour la progression de lecture en temps réel
+   * Utilise le tracking mot par mot si disponible, sinon l'estimation temps
    */
   const updateProgress = () => {
     if (!isPlayingRef.current || estimatedDurationRef.current === 0) return
 
-    const now = performance.now()
-    const elapsed = (now - startTimeRef.current) / 1000 // convertir en secondes
+    let percentage = 0
+    let elapsed = 0
+
+    if (useBoundaryTrackingRef.current && totalWordsRef.current > 0) {
+      // Méthode précise : basée sur les mots prononcés (via onboundary)
+      percentage = (wordsSpokenRef.current / totalWordsRef.current) * 100
+
+      // Estimer le temps écoulé basé sur les mots prononcés
+      const wordsPerSecond = totalWordsRef.current / estimatedDurationRef.current
+      elapsed = wordsSpokenRef.current / wordsPerSecond
+    } else {
+      // Méthode fallback : basée sur le temps écoulé
+      const now = performance.now()
+      elapsed = (now - startTimeRef.current) / 1000
+      percentage = (elapsed / estimatedDurationRef.current) * 100
+    }
 
     setElapsedTime(elapsed)
-    setProgressPercentage(Math.min((elapsed / estimatedDurationRef.current) * 100, 100))
+    setProgressPercentage(Math.min(percentage, 100))
   }
 
   /**
    * Démarre le tracking de progression
    */
-  const startProgressTracking = (duration: number) => {
+  const startProgressTracking = (duration: number, totalWords: number) => {
     estimatedDurationRef.current = duration
+    totalWordsRef.current = totalWords
+    wordsSpokenRef.current = 0
     setEstimatedDuration(duration)
     setElapsedTime(0)
     setProgressPercentage(0)
@@ -203,6 +228,8 @@ export function PlayScreen() {
       progressIntervalRef.current = null
     }
     estimatedDurationRef.current = 0
+    totalWordsRef.current = 0
+    wordsSpokenRef.current = 0
     setEstimatedDuration(0)
     setElapsedTime(0)
     setProgressPercentage(0)
@@ -226,6 +253,7 @@ export function PlayScreen() {
       // Désactiver les callbacks avant cancel pour éviter interférences
       utteranceRef.current.onend = null
       utteranceRef.current.onerror = null
+      utteranceRef.current.onboundary = null
       window.speechSynthesis.cancel()
       utteranceRef.current = null
       stopProgressTracking()
@@ -261,8 +289,20 @@ export function PlayScreen() {
 
     // Estimer et démarrer le tracking de la durée
     const rate = utterance.rate
+    const totalWords = countWords(line.text)
     const duration = estimateLineDuration(line.text, rate)
-    startProgressTracking(duration)
+    startProgressTracking(duration, totalWords)
+
+    // Événement onboundary pour tracking mot par mot (précision accrue)
+    utterance.onboundary = (event) => {
+      if (!isPlayingRef.current) return
+
+      // L'événement se déclenche à chaque frontière de mot
+      if (event.name === 'word') {
+        wordsSpokenRef.current += 1
+        // updateProgress sera appelé par l'interval, pas besoin de l'appeler ici
+      }
+    }
 
     utterance.onend = () => {
       stopProgressTracking()
@@ -286,6 +326,12 @@ export function PlayScreen() {
       // Ne rien faire si on a déjà arrêté manuellement
       if (!isPlayingRef.current) return
       console.error('Erreur de lecture TTS', event)
+
+      // Désactiver le tracking par boundary si erreur
+      if (event.error === 'synthesis-unavailable' || event.error === 'not-allowed') {
+        useBoundaryTrackingRef.current = false
+      }
+
       stopPlayback()
     }
 

@@ -4,26 +4,26 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { Button } from '../common/Button';
+import { Button } from '../common/Button'
 
 /**
  * Props du composant NavigationControls
  */
 export interface NavigationControlsProps {
   /** Peut aller à la ligne précédente */
-  canGoPrevious: boolean;
+  canGoPrevious: boolean
   /** Peut aller à la ligne suivante */
-  canGoNext: boolean;
+  canGoNext: boolean
   /** Audio en cours de lecture */
-  isPlaying?: boolean;
+  isPlaying?: boolean
   /** Callback précédent */
-  onPrevious: () => void;
+  onPrevious: () => void
   /** Callback suivant */
-  onNext: () => void;
+  onNext: () => void
   /** Callback play/pause */
-  onTogglePlay?: () => void;
+  onTogglePlay?: () => void
   /** Mode audio activé */
-  audioEnabled?: boolean;
+  audioEnabled?: boolean
 }
 
 /**
@@ -48,19 +48,10 @@ export function NavigationControls({
         onClick={onPrevious}
         disabled={!canGoPrevious}
         aria-label="Ligne précédente"
+        data-testid="previous-button"
       >
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19l-7-7 7-7"
-          />
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
         Précédent
       </Button>
@@ -72,15 +63,11 @@ export function NavigationControls({
           size="lg"
           onClick={onTogglePlay}
           aria-label={isPlaying ? 'Pause' : 'Lecture'}
+          data-testid="play-pause-button"
         >
           {isPlaying ? (
             <>
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -92,12 +79,7 @@ export function NavigationControls({
             </>
           ) : (
             <>
-              <svg
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -124,22 +106,13 @@ export function NavigationControls({
         onClick={onNext}
         disabled={!canGoNext}
         aria-label="Ligne suivante"
+        data-testid="next-button"
       >
         Suivant
-        <svg
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 5l7 7-7 7"
-          />
+        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </Button>
     </div>
-  );
+  )
 }

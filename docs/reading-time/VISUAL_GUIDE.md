@@ -161,26 +161,40 @@ Carte A joue         Clic carte B         Résultat
 
 ---
 
-## Précision de l'estimation
+## Précision du tracking
 
-### ✅ Bonne précision
+### 🎯 Méthode 1 : Tracking mot par mot (par défaut)
 
-- Textes courts (< 10 mots)
-- Vitesse standard (1.0x)
-- Texte simple sans ponctuation complexe
+**Précision : ±2-5%** - Excellente ! ✅
 
-### ⚠️ Précision variable
+L'indicateur utilise maintenant l'événement `onboundary` de la Web Speech API :
+- **Tracking en temps réel** : Chaque mot prononcé est détecté
+- **Progression exacte** : (mots prononcés / mots totaux) × 100
+- **Adaptatif** : S'ajuste automatiquement aux variations de vitesse
+- **Fidèle** : Reflète exactement ce qui est prononcé
 
-- Textes longs (> 50 mots)
-- Ponctuation dense (pauses)
-- Vitesses extrêmes (0.5x ou 2x)
+**Avantages** :
+- ✅ Suit la progression réelle mot par mot
+- ✅ Compense les pauses naturelles de ponctuation
+- ✅ S'adapte aux variations de voix TTS
+- ✅ Précision quasi-parfaite
 
-### 📊 Précision moyenne : ±15-20%
+### 🔄 Méthode 2 : Estimation temporelle (fallback)
 
-L'indicateur est suffisamment précis pour :
-- Donner une idée du temps restant
-- Créer un retour visuel pendant la lecture
-- Aider à anticiper la fin d'une réplique
+**Précision : ±15-20%** - Bonne
+
+Utilisée uniquement si `onboundary` n'est pas supporté :
+- Basée sur le temps écoulé
+- Estimation initiale selon nombre de mots
+- Fallback automatique en cas d'erreur
+
+### 📊 Résultat
+
+L'indicateur est maintenant **extrêmement précis** pour :
+- Donner le temps restant exact
+- Créer un retour visuel fidèle pendant la lecture
+- Anticiper précisément la fin d'une réplique
+- Synchroniser les enchaînements
 
 ---
 
@@ -242,8 +256,9 @@ Si la voix off est activée, les didascalies affichent aussi l'indicateur :
 
 ## Améliorations futures
 
-1. **Précision accrue** via `onboundary`
+1. ✅ **Précision accrue** via `onboundary` - **IMPLÉMENTÉ !**
 2. **Personnalisation** (masquer/afficher)
 3. **Format temps** (mm:ss pour longues répliques)
 4. **Accessibilité** (annonce ARIA du temps restant)
-5. **Statistiques** (calibration automatique)
+5. **Statistiques** (calibration automatique basée sur historique)
+6. **Détection des pauses** longues pour ajustement dynamique

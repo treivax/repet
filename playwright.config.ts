@@ -62,10 +62,11 @@ export default defineConfig({
       use: { ...devices['Pixel 5'] },
     },
 
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 13'] },
-    },
+    // TODO: Activer après installation des dépendances WebKit
+    // {
+    //   name: 'mobile-safari',
+    //   use: { ...devices['iPhone 13'] },
+    // },
   ],
 
   /* Run your local dev server before starting the tests */

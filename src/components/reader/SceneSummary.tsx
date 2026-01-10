@@ -115,7 +115,7 @@ export function SceneSummary({
                                 ? 'bg-blue-100 font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                 : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                             }`}
-                            data-testid={`scene-${actIndex}-${sceneIndex}`}
+                            data-testid={`scene-button-${actIndex}-${sceneIndex}`}
                           >
                             Scène {scene.sceneNumber}
                             {scene.title && ` - ${scene.title}`}

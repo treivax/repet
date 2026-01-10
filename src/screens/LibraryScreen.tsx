@@ -12,8 +12,11 @@ import { PlayCard } from '../components/play/PlayCard'
 import { Modal } from '../components/common/Modal'
 import { useUIStore } from '../state/uiStore'
 import { playsRepository } from '../core/storage/plays'
+import { parsePlayText } from '../core/parser/textParser'
+import { validateFile, validateTextContent } from '../utils/validation'
 import type { Play } from '../core/models/Play'
 import { getPlayTitle, getPlayAuthor, getPlayCategory } from '../core/models/playHelpers'
+import { generateUUID } from '../utils/uuid'
 
 /**
  * Écran LibraryScreen
@@ -25,6 +28,7 @@ export function LibraryScreen() {
   const [filteredPlays, setFilteredPlays] = useState<Play[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [isImporting, setIsImporting] = useState(false)
   const [playToDelete, setPlayToDelete] = useState<Play | null>(null)
   const addError = useUIStore((state) => state.addError)
 
@@ -67,7 +71,7 @@ export function LibraryScreen() {
   }, [searchQuery, plays])
 
   const handlePlayClick = (play: Play) => {
-    navigate(`/play/${play.id}`)
+    navigate(`/play/${play.id}/detail`)
   }
 
   const handleDeleteClick = (play: Play, event: React.MouseEvent) => {
@@ -96,6 +100,58 @@ export function LibraryScreen() {
     setPlayToDelete(null)
   }
 
+  const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const fileValidation = validateFile(file)
+    if (!fileValidation.valid) {
+      addError(fileValidation.error || 'Fichier invalide')
+      event.target.value = ''
+      return
+    }
+
+    setIsImporting(true)
+    try {
+      const text = await file.text()
+      const contentValidation = validateTextContent(text)
+      if (!contentValidation.valid) {
+        addError(contentValidation.error || 'Contenu invalide')
+        event.target.value = ''
+        setIsImporting(false)
+        return
+      }
+
+      const ast = parsePlayText(text, file.name)
+
+      // Convertir l'AST en objet Play
+      const now = new Date()
+      const play: Play = {
+        id: generateUUID(),
+        fileName: file.name,
+        ast,
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      await playsRepository.add(play)
+
+      // Mettre à jour la liste
+      const allPlays = await playsRepository.getAll()
+      const sorted = allPlays.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      setPlays(sorted)
+      setFilteredPlays(sorted)
+
+      // Naviguer vers le détail de la pièce nouvellement importée
+      navigate(`/play/${play.id}/detail`)
+    } catch {
+      addError("Erreur lors de l'importation")
+    } finally {
+      setIsImporting(false)
+      event.target.value = ''
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
@@ -117,8 +173,22 @@ export function LibraryScreen() {
             {plays.length} pièce{plays.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button variant="primary" onClick={() => navigate('/')}>
-          Importer une pièce
+        <input
+          type="file"
+          accept=".txt"
+          onChange={handleFileImport}
+          className="hidden"
+          id="file-input"
+          data-testid="file-input"
+          disabled={isImporting}
+        />
+        <Button
+          variant="primary"
+          loading={isImporting}
+          disabled={isImporting}
+          onClick={() => document.getElementById('file-input')?.click()}
+        >
+          {isImporting ? 'Import en cours...' : 'Importer une pièce'}
         </Button>
       </div>
 
@@ -162,7 +232,10 @@ export function LibraryScreen() {
           <h3 className="mt-2 text-lg font-medium text-gray-900">Aucune pièce</h3>
           <p className="mt-1 text-gray-600">Commencez par importer votre première pièce</p>
           <div className="mt-6">
-            <Button variant="primary" onClick={() => navigate('/')}>
+            <Button
+              variant="primary"
+              onClick={() => document.getElementById('file-input')?.click()}
+            >
               Importer une pièce
             </Button>
           </div>

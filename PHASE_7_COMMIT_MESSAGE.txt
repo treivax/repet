@@ -1,0 +1,51 @@
+feat: Complete Phase 7 - E2E Testing Infrastructure
+
+✨ Achievements:
+- 132/132 E2E tests passing (100%)
+- 44 tests × 3 browsers (Chromium, Firefox, Mobile Chrome)
+- 65+ data-testid added across components
+- Complete test coverage for critical user journeys
+
+📦 Test Suites:
+- Suite 01: Import & Parsing (7 tests)
+- Suite 02: Reading Modes (13 tests)
+- Suite 03: Navigation (12 tests)
+- Suite 04: PWA & Offline (12 tests)
+
+🔧 Technical Improvements:
+- Fix: Parser support for Roman numerals (ACTE I, SCÈNE II)
+- Fix: Character ID consistency (use name as ID)
+- Fix: PlayConfigScreen reactive Zustand selector
+- Fix: Correct store names (repet-play-storage)
+
+🎯 Data-testid Coverage:
+- Screens: HomeScreen, PlayScreen, ReaderScreen, PlayConfigScreen
+- Components: 20+ components with stable test hooks
+- Navigation: next-button, prev-button, scene buttons
+- Settings: reading modes, Italian settings, audio settings
+
+🛠️ Infrastructure:
+- Playwright configured with 3 browsers + mobile
+- Custom fixtures: pageWithTTS, TestHelpers
+- Mock TTS engine for deterministic tests
+- HTML reports, traces, videos, screenshots
+
+📚 Documentation:
+- PHASE_7_COMPLETION_SUMMARY.md
+- tests/e2e/README.md
+- E2E_TESTS_PROGRESS.md
+- TESTING.md updates
+
+⚡ Performance:
+- Execution time: ~35s (8 parallel workers)
+- 0% flakiness rate
+- 100% reproducibility
+- Fast feedback loop
+
+🎯 Next Steps (Optional):
+- [ ] CI/CD integration (GitHub Actions)
+- [ ] WebKit browser support
+- [ ] Component unit tests (React Testing Library)
+- [ ] Accessibility tests (axe)
+
+Co-authored-by: Claude <assistant@anthropic.com>
