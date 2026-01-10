@@ -86,6 +86,7 @@ export function TextDisplay({
       ref={containerRef}
       className="h-full overflow-y-auto px-6 py-8"
       style={{ scrollBehavior: 'smooth' }}
+      data-testid="text-display"
     >
       <div className="mx-auto max-w-3xl space-y-4">
         {lines.map((line, index) => {
@@ -100,6 +101,7 @@ export function TextDisplay({
               className={`transition-opacity ${
                 isCurrentLine ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
               }`}
+              data-testid={isCurrentLine ? 'current-line' : `line-${index}`}
             >
               <LineRenderer
                 line={line}

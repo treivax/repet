@@ -55,12 +55,16 @@ export function PlaybackControls({
   // En mode silencieux, pas de contrôles audio
   if (readingMode === 'silent') {
     return (
-      <div className="flex items-center justify-center gap-3 border-t border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800">
+      <div
+        className="flex items-center justify-center gap-3 border-t border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800"
+        data-testid="playback-controls"
+      >
         <button
           onClick={onPrevious}
           disabled={!canGoPrevious || disabled}
           className="rounded-full bg-gray-100 p-3 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           aria-label="Ligne précédente"
+          data-testid="prev-button"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -77,14 +81,10 @@ export function PlaybackControls({
           disabled={!canGoNext || disabled}
           className="rounded-full bg-gray-100 p-3 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           aria-label="Ligne suivante"
+          data-testid="next-button"
         >
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
@@ -92,13 +92,17 @@ export function PlaybackControls({
   }
 
   return (
-    <div className="flex items-center justify-center gap-3 border-t border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800">
+    <div
+      className="flex items-center justify-center gap-3 border-t border-gray-200 bg-white px-4 py-4 dark:border-gray-700 dark:bg-gray-800"
+      data-testid="playback-controls"
+    >
       {/* Bouton précédent */}
       <button
         onClick={onPrevious}
         disabled={!canGoPrevious || disabled}
         className="rounded-full bg-gray-100 p-3 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
         aria-label="Ligne précédente"
+        data-testid="prev-button"
       >
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
@@ -117,14 +121,10 @@ export function PlaybackControls({
           disabled={disabled}
           className="rounded-full bg-blue-600 p-4 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Pause"
+          data-testid="pause-button"
         >
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 9v6m4-6v6"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
           </svg>
         </button>
       ) : (
@@ -133,6 +133,7 @@ export function PlaybackControls({
           disabled={disabled}
           className="rounded-full bg-blue-600 p-4 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Lecture"
+          data-testid="play-button"
         >
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -151,6 +152,7 @@ export function PlaybackControls({
         disabled={disabled}
         className="rounded-full bg-gray-100 p-3 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
         aria-label="Arrêter"
+        data-testid="stop-button"
       >
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path
@@ -168,6 +170,7 @@ export function PlaybackControls({
         disabled={!canGoNext || disabled}
         className="rounded-full bg-gray-100 p-3 text-gray-700 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
         aria-label="Ligne suivante"
+        data-testid="next-button"
       >
         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path

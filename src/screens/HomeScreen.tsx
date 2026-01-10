@@ -89,13 +89,17 @@ export function HomeScreen() {
         <p className="mt-2 text-lg text-gray-600">Répétez vos pièces de théâtre en italiennes</p>
       </div>
 
-      <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+      <div
+        className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-8 text-center"
+        data-testid="import-section"
+      >
         <input
           type="file"
           accept=".txt"
           onChange={handleFileImport}
           className="hidden"
           id="file-input"
+          data-testid="file-input"
           disabled={isLoading}
         />
         <Button
@@ -105,13 +109,14 @@ export function HomeScreen() {
           disabled={isLoading}
           fullWidth
           onClick={() => document.getElementById('file-input')?.click()}
+          data-testid="import-button"
         >
           {isLoading ? 'Import en cours...' : 'Choisir un fichier'}
         </Button>
       </div>
 
       {recentPlays.length > 0 && (
-        <div>
+        <div data-testid="recent-plays">
           <h2 className="mb-4 text-2xl font-semibold">Pièces récentes</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {recentPlays.map((play) => (

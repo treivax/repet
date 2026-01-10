@@ -95,6 +95,7 @@ export function SceneSummary({
                           ? 'text-blue-600 dark:text-blue-400'
                           : 'text-gray-900 dark:text-gray-100'
                       }`}
+                      data-testid={`act-${actIndex}`}
                     >
                       ACTE {act.actNumber}
                       {act.title && ` - ${act.title}`}
@@ -103,8 +104,7 @@ export function SceneSummary({
                     {/* Scènes de l'acte */}
                     <div className="ml-4 space-y-1">
                       {act.scenes.map((scene, sceneIndex) => {
-                        const isCurrentScene =
-                          isCurrentAct && sceneIndex === currentSceneIndex
+                        const isCurrentScene = isCurrentAct && sceneIndex === currentSceneIndex
 
                         return (
                           <button
@@ -115,6 +115,7 @@ export function SceneSummary({
                                 ? 'bg-blue-100 font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                                 : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                             }`}
+                            data-testid={`scene-${actIndex}-${sceneIndex}`}
                           >
                             Scène {scene.sceneNumber}
                             {scene.title && ` - ${scene.title}`}

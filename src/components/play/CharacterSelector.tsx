@@ -4,19 +4,19 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { Character } from '../../core/models/Character';
-import { CharacterBadge } from './CharacterBadge';
+import { Character } from '../../core/models/Character'
+import { CharacterBadge } from './CharacterBadge'
 
 /**
  * Props du composant CharacterSelector
  */
 export interface CharacterSelectorProps {
   /** Liste des personnages */
-  characters: Character[];
+  characters: Character[]
   /** Personnage sélectionné */
-  selectedCharacter: Character | null;
+  selectedCharacter: Character | null
   /** Callback de sélection */
-  onSelectCharacter: (character: Character | null) => void;
+  onSelectCharacter: (character: Character | null) => void
 }
 
 /**
@@ -31,25 +31,23 @@ export function CharacterSelector({
   const handleSelect = (character: Character) => {
     if (selectedCharacter?.id === character.id) {
       // Désélectionner si déjà sélectionné
-      onSelectCharacter(null);
+      onSelectCharacter(null)
     } else {
-      onSelectCharacter(character);
+      onSelectCharacter(character)
     }
-  };
+  }
 
   if (characters.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
         <p className="text-gray-600">Aucun personnage disponible</p>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-gray-700">
-        Sélectionnez votre personnage
-      </h3>
+    <div className="space-y-3" data-testid="character-selector">
+      <h3 className="text-sm font-medium text-gray-700">Sélectionnez votre personnage</h3>
 
       <div className="flex flex-wrap gap-2">
         {characters.map((character) => (
@@ -59,6 +57,7 @@ export function CharacterSelector({
             size="md"
             selected={selectedCharacter?.id === character.id}
             onClick={handleSelect}
+            data-testid={`character-badge-${character.id}`}
           />
         ))}
       </div>
@@ -69,5 +68,5 @@ export function CharacterSelector({
         </p>
       )}
     </div>
-  );
+  )
 }

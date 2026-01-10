@@ -74,6 +74,7 @@ export function ItalianSettings({
           onChange={(e) => onUserCharacterChange(e.target.value || undefined)}
           disabled={disabled}
           className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          data-testid="user-character-select"
         >
           <option value="">-- Aucun personnage sélectionné --</option>
           {characters.map((character) => (
@@ -114,6 +115,7 @@ export function ItalianSettings({
                 ${disabled ? 'cursor-not-allowed opacity-50' : ''}
                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
               `}
+              data-testid="hide-user-lines-toggle"
             >
               <span
                 aria-hidden="true"
@@ -159,6 +161,7 @@ export function ItalianSettings({
                     ${disabled ? 'cursor-not-allowed opacity-50' : ''}
                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
                   `}
+                  data-testid="show-before-toggle"
                 >
                   <span
                     aria-hidden="true"
@@ -197,6 +200,7 @@ export function ItalianSettings({
                     ${disabled ? 'cursor-not-allowed opacity-50' : ''}
                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
                   `}
+                  data-testid="show-after-toggle"
                 >
                   <span
                     aria-hidden="true"

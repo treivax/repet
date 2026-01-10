@@ -8,429 +8,347 @@ import { test, expect, TestHelpers } from './fixtures'
 import path from 'path'
 
 test.describe('Modes de Lecture', () => {
-  test.beforeEach(async ({ page, pageWithTTS }) => {
+  let playId: string
+
+  test.beforeEach(async ({ pageWithTTS }) => {
     const helpers = new TestHelpers(pageWithTTS)
     await helpers.clearStorage()
     await pageWithTTS.goto('/')
 
     // Importer une pièce de test
     const filePath = path.join(process.cwd(), 'examples', 'ALEGRIA.txt')
-    const fileInput = pageWithTTS.locator('input[type="file"]').first()
-
-    if ((await fileInput.count()) > 0) {
-      await fileInput.setInputFiles(filePath)
-    } else {
-      const fileChooserPromise = pageWithTTS.waitForEvent('filechooser')
-      await pageWithTTS.getByRole('button', { name: /importer/i }).first().click()
-      const fileChooser = await fileChooserPromise
-      await fileChooser.setFiles(filePath)
-    }
-
+    const fileInput = pageWithTTS.getByTestId('file-input')
+    await fileInput.setInputFiles(filePath)
     await pageWithTTS.waitForTimeout(1500)
+
+    // Extraire l'ID de la pièce depuis l'URL ou le DOM
+    const playCard = pageWithTTS.locator('[data-testid^="play-card-"]').first()
+    const testId = await playCard.getAttribute('data-testid')
+    if (testId) {
+      playId = testId.replace('play-card-', '')
+    }
   })
 
   test.describe('Mode Silencieux', () => {
-    test('devrait afficher le texte sans TTS', async ({ pageWithTTS }) => {
-      // Aller sur le reader (si pas déjà)
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
+    test('devrait permettre de configurer le mode silencieux', async ({ pageWithTTS }) => {
+      // Cliquer sur le bouton de config
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      // Sélectionner mode silencieux
-      const modeSelector = pageWithTTS.locator(
-        'select[data-testid="reading-mode"], select:has(option:text("Silencieux"))'
-      )
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('silent')
-      }
+      // Sélectionner le mode silencieux
+      const silentModeButton = pageWithTTS.getByTestId('reading-mode-silent')
+      await silentModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
 
-      // Vérifier que le texte est visible
-      const textDisplay = pageWithTTS.locator('[data-testid="text-display"], .text-display, .reader-content')
-      await expect(textDisplay.first()).toBeVisible()
-
-      // Vérifier que les contrôles audio ne sont pas actifs
-      const playButton = pageWithTTS.locator('button[data-testid="play-button"], button:has-text("Lecture")')
-      if ((await playButton.count()) > 0) {
-        // Le bouton existe mais ne devrait pas déclencher TTS en mode silencieux
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(200)
-
-        const helpers = new TestHelpers(pageWithTTS)
-        const utterances = await helpers.getTTSUtterances()
-        expect(utterances.length).toBe(0)
-      }
+      // Vérifier que le mode est sélectionné
+      await expect(silentModeButton).toHaveClass(/border-blue-500/)
     })
 
-    test('devrait permettre la navigation ligne par ligne', async ({ pageWithTTS }) => {
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
+    test('devrait permettre la navigation sans TTS', async ({ pageWithTTS }) => {
+      // Config: mode silencieux
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
+
+      const silentModeButton = pageWithTTS.getByTestId('reading-mode-silent')
+      await silentModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
+
+      // Sélectionner un personnage pour accéder au lecteur
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      if (await userCharacterSelect.isVisible()) {
+        const options = await userCharacterSelect.locator('option').all()
+        if (options.length > 1) {
+          await userCharacterSelect.selectOption({ index: 1 })
+        }
       }
 
-      // Bouton suivant
-      const nextButton = pageWithTTS.locator(
-        'button[data-testid="next-button"], button:has-text("Suivant")'
-      )
-      if ((await nextButton.count()) > 0) {
-        const initialText = await pageWithTTS
-          .locator('[data-testid="current-line"], .current-line, .line.active')
-          .first()
-          .textContent()
+      // Aller au lecteur
+      await pageWithTTS.goto(`/reader/${playId}`)
+      await pageWithTTS.waitForTimeout(1000)
 
-        await nextButton.first().click()
-        await pageWithTTS.waitForTimeout(300)
+      // Vérifier que le lecteur est affiché
+      const readerScreen = pageWithTTS.getByTestId('reader-screen')
+      await expect(readerScreen).toBeVisible()
 
-        const newText = await pageWithTTS
-          .locator('[data-testid="current-line"], .current-line, .line.active')
-          .first()
-          .textContent()
+      // Utiliser les boutons de navigation
+      const nextButton = pageWithTTS.getByTestId('next-button')
+      await nextButton.click()
+      await pageWithTTS.waitForTimeout(200)
 
-        // Le texte devrait avoir changé
-        expect(newText).not.toBe(initialText)
-      }
+      const helpers = new TestHelpers(pageWithTTS)
+      const utterances = await helpers.getTTSUtterances()
+      // En mode silencieux, pas de TTS
+      expect(utterances.length).toBe(0)
     })
   })
 
   test.describe('Mode Audio', () => {
-    test('devrait lire toutes les répliques avec TTS', async ({ pageWithTTS }) => {
+    test('devrait permettre de configurer le mode audio', async ({ pageWithTTS }) => {
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
+
+      // Sélectionner le mode audio
+      const audioModeButton = pageWithTTS.getByTestId('reading-mode-audio')
+      await audioModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
+
+      // Vérifier que le mode est sélectionné
+      await expect(audioModeButton).toHaveClass(/border-blue-500/)
+    })
+
+    test('devrait démarrer la lecture TTS en mode audio', async ({ pageWithTTS }) => {
       const helpers = new TestHelpers(pageWithTTS)
 
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
+      // Config: mode audio
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
+
+      const audioModeButton = pageWithTTS.getByTestId('reading-mode-audio')
+      await audioModeButton.click()
+
+      // Sélectionner un personnage
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      if (await userCharacterSelect.isVisible()) {
+        const options = await userCharacterSelect.locator('option').all()
+        if (options.length > 1) {
+          await userCharacterSelect.selectOption({ index: 1 })
+        }
       }
 
-      // Sélectionner mode audio
-      const modeSelector = pageWithTTS.locator(
-        'select[data-testid="reading-mode"], select:has(option:text("Audio"))'
-      )
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('audio')
-        await pageWithTTS.waitForTimeout(300)
-      }
+      // Aller au lecteur
+      await pageWithTTS.goto(`/reader/${playId}`)
+      await pageWithTTS.waitForTimeout(1000)
 
       // Démarrer la lecture
-      const playButton = pageWithTTS.locator(
-        'button[data-testid="play-button"], button:has-text("Lecture"), button:has-text("Play")'
-      )
-      if ((await playButton.count()) > 0) {
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(500)
+      const playButton = pageWithTTS.getByTestId('play-button')
+      await playButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-        // Vérifier que TTS a été appelé
-        const utterances = await helpers.getTTSUtterances()
-        expect(utterances.length).toBeGreaterThan(0)
-      }
+      // Vérifier que TTS a été appelé
+      const utterances = await helpers.getTTSUtterances()
+      expect(utterances.length).toBeGreaterThan(0)
+
+      // Vérifier que le bouton pause est maintenant visible
+      const pauseButton = pageWithTTS.getByTestId('pause-button')
+      await expect(pauseButton).toBeVisible()
     })
 
-    test('devrait permettre de mettre en pause', async ({ pageWithTTS }) => {
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
+    test('devrait permettre de mettre en pause et reprendre', async ({ pageWithTTS }) => {
+      // Config: mode audio
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      // Mode audio
-      const modeSelector = pageWithTTS.locator(
-        'select[data-testid="reading-mode"], select:has(option:text("Audio"))'
-      )
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('audio')
-        await pageWithTTS.waitForTimeout(300)
-      }
+      const audioModeButton = pageWithTTS.getByTestId('reading-mode-audio')
+      await audioModeButton.click()
 
-      // Play
-      const playButton = pageWithTTS.locator(
-        'button[data-testid="play-button"], button:has-text("Lecture"), button:has-text("Play")'
-      )
-      if ((await playButton.count()) > 0) {
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(300)
-
-        // Pause
-        const pauseButton = pageWithTTS.locator(
-          'button[data-testid="pause-button"], button:has-text("Pause")'
-        )
-        if ((await pauseButton.count()) > 0) {
-          await pauseButton.first().click()
-          await pageWithTTS.waitForTimeout(200)
-
-          // Vérifier état pause
-          const isPaused = await pageWithTTS.evaluate(() => {
-            return (window as any).__mockSpeechSynthesis?.paused || false
-          })
-          expect(isPaused).toBeTruthy()
-        }
-      }
-    })
-
-    test('devrait lire les didascalies avec voix off si activée', async ({ pageWithTTS }) => {
-      const helpers = new TestHelpers(pageWithTTS)
-
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
-
-      // Activer voix off
-      const settingsLink = pageWithTTS.locator('[href*="/settings"], button:has-text("Paramètres")')
-      if ((await settingsLink.count()) > 0) {
-        await settingsLink.first().click()
-        await pageWithTTS.waitForTimeout(300)
-
-        const voiceOffToggle = pageWithTTS.locator(
-          'input[type="checkbox"][data-testid="voice-off-enabled"]'
-        )
-        if ((await voiceOffToggle.count()) > 0) {
-          await voiceOffToggle.check()
-        }
-
-        // Retour au reader
-        const backButton = pageWithTTS.locator('button:has-text("Retour"), a[href*="/reader"]')
-        if ((await backButton.count()) > 0) {
-          await backButton.first().click()
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      if (await userCharacterSelect.isVisible()) {
+        const options = await userCharacterSelect.locator('option').all()
+        if (options.length > 1) {
+          await userCharacterSelect.selectOption({ index: 1 })
         }
       }
 
-      // Mode audio
-      const modeSelector = pageWithTTS.locator(
-        'select[data-testid="reading-mode"], select:has(option:text("Audio"))'
-      )
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('audio')
-      }
+      await pageWithTTS.goto(`/reader/${playId}`)
+      await pageWithTTS.waitForTimeout(1000)
 
-      // Lancer lecture
-      const playButton = pageWithTTS.locator('button[data-testid="play-button"]')
-      if ((await playButton.count()) > 0) {
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(500)
+      // Démarrer
+      const playButton = pageWithTTS.getByTestId('play-button')
+      await playButton.click()
+      await pageWithTTS.waitForTimeout(300)
 
-        // Vérifier que des utterances ont été émises
-        const utterances = await helpers.getTTSUtterances()
-        expect(utterances.length).toBeGreaterThan(0)
-      }
+      // Pause
+      const pauseButton = pageWithTTS.getByTestId('pause-button')
+      await pauseButton.click()
+      await pageWithTTS.waitForTimeout(200)
+
+      // Le bouton play devrait réapparaître
+      await expect(playButton).toBeVisible()
     })
   })
 
   test.describe('Mode Italiennes', () => {
+    test('devrait permettre de configurer le mode italiennes', async ({ pageWithTTS }) => {
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
+
+      // Sélectionner le mode italiennes
+      const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
+      await italianModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
+
+      // Vérifier que le mode est sélectionné
+      await expect(italianModeButton).toHaveClass(/border-blue-500/)
+    })
+
     test('devrait permettre de sélectionner le personnage utilisateur', async ({ pageWithTTS }) => {
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      // Mode italien
-      const modeSelector = pageWithTTS.locator(
-        'select[data-testid="reading-mode"], select:has(option:text("Italien"))'
-      )
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('italian')
-        await pageWithTTS.waitForTimeout(300)
-      }
-
-      // Sélecteur de personnage utilisateur
-      const characterSelector = pageWithTTS.locator(
-        'select[data-testid="user-character"], select:has(option:not(:empty))'
-      )
-      if ((await characterSelector.count()) > 0) {
-        const options = await characterSelector.locator('option').allTextContents()
-        expect(options.length).toBeGreaterThan(1) // Au moins "Aucun" + personnages
-      }
-    })
-
-    test('devrait masquer les répliques utilisateur avant lecture', async ({ pageWithTTS }) => {
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
-
-      // Mode italien
-      const modeSelector = pageWithTTS.locator('select[data-testid="reading-mode"]')
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('italian')
-        await pageWithTTS.waitForTimeout(300)
-      }
+      const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
+      await italianModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
 
       // Sélectionner un personnage
-      const characterSelector = pageWithTTS.locator('select[data-testid="user-character"]')
-      if ((await characterSelector.count()) > 0) {
-        const firstCharacterOption = await characterSelector.locator('option').nth(1).getAttribute('value')
-        if (firstCharacterOption) {
-          await characterSelector.selectOption(firstCharacterOption)
-          await pageWithTTS.waitForTimeout(300)
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      await expect(userCharacterSelect).toBeVisible()
 
-          // Vérifier que certaines lignes sont masquées
-          const hiddenLines = pageWithTTS.locator('.line.hidden, .line[data-hidden="true"]')
-          const count = await hiddenLines.count()
-          // Au moins quelques lignes devraient être masquées
-          expect(count).toBeGreaterThanOrEqual(0)
-        }
-      }
+      const options = await userCharacterSelect.locator('option').all()
+      expect(options.length).toBeGreaterThan(1) // Au moins l'option par défaut + 1 personnage
+
+      // Sélectionner le premier personnage
+      await userCharacterSelect.selectOption({ index: 1 })
+
+      // Vérifier que des options supplémentaires apparaissent
+      const hideUserLinesToggle = pageWithTTS.getByTestId('hide-user-lines-toggle')
+      await expect(hideUserLinesToggle).toBeVisible()
     })
 
-    test('devrait lire avec volume 0 pour répliques utilisateur', async ({ pageWithTTS }) => {
-      const helpers = new TestHelpers(pageWithTTS)
+    test('devrait activer les options de masquage', async ({ pageWithTTS }) => {
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
-
-      // Mode italien
-      const modeSelector = pageWithTTS.locator('select[data-testid="reading-mode"]')
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('italian')
-        await pageWithTTS.waitForTimeout(300)
-      }
+      const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
+      await italianModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
 
       // Sélectionner un personnage
-      const characterSelector = pageWithTTS.locator('select[data-testid="user-character"]')
-      if ((await characterSelector.count()) > 0) {
-        const options = await characterSelector.locator('option').all()
-        if (options.length > 1) {
-          await characterSelector.selectOption({ index: 1 })
-          await pageWithTTS.waitForTimeout(300)
-        }
-      }
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      await userCharacterSelect.selectOption({ index: 1 })
+      await pageWithTTS.waitForTimeout(300)
 
-      // Lancer lecture
-      const playButton = pageWithTTS.locator('button[data-testid="play-button"]')
-      if ((await playButton.count()) > 0) {
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(500)
+      // Activer le masquage
+      const hideUserLinesToggle = pageWithTTS.getByTestId('hide-user-lines-toggle')
+      await hideUserLinesToggle.click()
+      await pageWithTTS.waitForTimeout(300)
 
-        // Vérifier les utterances
-        const utterances = await helpers.getTTSUtterances()
-        if (utterances.length > 0) {
-          // Certains devraient avoir volume 0 (répliques utilisateur)
-          const hasVolumeZero = utterances.some((u: any) => u.volume === 0)
-          // Note: dépend de l'implémentation, peut ne pas être testé si non implémenté
-          expect(utterances.length).toBeGreaterThan(0)
-        }
-      }
+      // Les options d'affichage devraient apparaître
+      const showBeforeToggle = pageWithTTS.getByTestId('show-before-toggle')
+      await expect(showBeforeToggle).toBeVisible()
+
+      const showAfterToggle = pageWithTTS.getByTestId('show-after-toggle')
+      await expect(showAfterToggle).toBeVisible()
+
+      // Activer/désactiver ces options
+      await showBeforeToggle.click()
+      await pageWithTTS.waitForTimeout(200)
+
+      await showAfterToggle.click()
+      await pageWithTTS.waitForTimeout(200)
     })
 
-    test('devrait révéler les répliques après leur lecture', async ({ pageWithTTS }) => {
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
-      }
+    test('devrait afficher le badge MODE ITALIENNES dans le lecteur', async ({ pageWithTTS }) => {
+      // Config: mode italiennes
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      // Mode italien
-      const modeSelector = pageWithTTS.locator('select[data-testid="reading-mode"]')
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('italian')
-        await pageWithTTS.waitForTimeout(300)
-      }
+      const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
+      await italianModeButton.click()
 
-      // Sélectionner personnage
-      const characterSelector = pageWithTTS.locator('select[data-testid="user-character"]')
-      if ((await characterSelector.count()) > 0) {
-        const options = await characterSelector.locator('option').all()
-        if (options.length > 1) {
-          await characterSelector.selectOption({ index: 1 })
-          await pageWithTTS.waitForTimeout(300)
-        }
-      }
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      await userCharacterSelect.selectOption({ index: 1 })
 
-      // Compter lignes masquées avant
-      const hiddenBefore = await pageWithTTS.locator('.line.hidden, .line[data-hidden="true"]').count()
+      // Aller au lecteur
+      await pageWithTTS.goto(`/reader/${playId}`)
+      await pageWithTTS.waitForTimeout(1000)
 
-      // Lancer lecture
-      const playButton = pageWithTTS.locator('button[data-testid="play-button"]')
-      if ((await playButton.count()) > 0) {
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(1000)
-
-        // Compter lignes masquées après
-        const hiddenAfter = await pageWithTTS.locator('.line.hidden, .line[data-hidden="true"]').count()
-
-        // Certaines lignes devraient avoir été révélées
-        // Note: dépend de la vitesse de lecture mockée
-        expect(hiddenAfter).toBeLessThanOrEqual(hiddenBefore)
-      }
+      // Vérifier le badge
+      const readingModeBadge = pageWithTTS.getByTestId('reading-mode')
+      await expect(readingModeBadge).toBeVisible()
+      await expect(readingModeBadge).toHaveText(/MODE ITALIENNES/i)
     })
 
-    test('devrait utiliser des vitesses séparées pour utilisateur et autres', async ({ pageWithTTS }) => {
-      const helpers = new TestHelpers(pageWithTTS)
+    test('devrait afficher le personnage utilisateur dans le header', async ({ pageWithTTS }) => {
+      // Config
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      const readerLink = pageWithTTS.getByRole('link', { name: /lire/i }).or(
-        pageWithTTS.locator('[href*="/reader"]')
-      )
-      if ((await readerLink.count()) > 0) {
-        await readerLink.first().click()
-        await pageWithTTS.waitForTimeout(500)
+      const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
+      await italianModeButton.click()
+
+      const userCharacterSelect = pageWithTTS.getByTestId('user-character-select')
+      const selectedOption = await userCharacterSelect.locator('option').nth(1).textContent()
+      await userCharacterSelect.selectOption({ index: 1 })
+
+      // Aller au lecteur
+      await pageWithTTS.goto(`/reader/${playId}`)
+      await pageWithTTS.waitForTimeout(1000)
+
+      // Vérifier l'affichage du personnage
+      const userCharacter = pageWithTTS.getByTestId('user-character')
+      await expect(userCharacter).toBeVisible()
+      if (selectedOption) {
+        await expect(userCharacter).toContainText(selectedOption)
       }
+    })
+  })
 
-      // Mode italien
-      const modeSelector = pageWithTTS.locator('select[data-testid="reading-mode"]')
-      if ((await modeSelector.count()) > 0) {
-        await modeSelector.selectOption('italian')
-        await pageWithTTS.waitForTimeout(300)
-      }
+  test.describe('Réglages Audio', () => {
+    test('devrait permettre de configurer la voix off', async ({ pageWithTTS }) => {
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-      // Configurer vitesses différentes
-      const userSpeedInput = pageWithTTS.locator('input[data-testid="user-speed"]')
-      const defaultSpeedInput = pageWithTTS.locator('input[data-testid="default-speed"]')
+      // Toggle voix off
+      const voiceOffToggle = pageWithTTS.getByTestId('voice-off-toggle')
+      await expect(voiceOffToggle).toBeVisible()
 
-      if ((await userSpeedInput.count()) > 0 && (await defaultSpeedInput.count()) > 0) {
-        await userSpeedInput.fill('0.5')
-        await defaultSpeedInput.fill('1.5')
-        await pageWithTTS.waitForTimeout(300)
-      }
+      await voiceOffToggle.click()
+      await pageWithTTS.waitForTimeout(200)
 
-      // Sélectionner personnage
-      const characterSelector = pageWithTTS.locator('select[data-testid="user-character"]')
-      if ((await characterSelector.count()) > 0) {
-        const options = await characterSelector.locator('option').all()
-        if (options.length > 1) {
-          await characterSelector.selectOption({ index: 1 })
-        }
-      }
+      // Toggle à nouveau
+      await voiceOffToggle.click()
+      await pageWithTTS.waitForTimeout(200)
+    })
 
-      // Lancer lecture
-      const playButton = pageWithTTS.locator('button[data-testid="play-button"]')
-      if ((await playButton.count()) > 0) {
-        await playButton.first().click()
-        await pageWithTTS.waitForTimeout(500)
+    test('devrait permettre de régler la vitesse par défaut', async ({ pageWithTTS }) => {
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
 
-        // Vérifier que différentes vitesses ont été utilisées
-        const utterances = await helpers.getTTSUtterances()
-        if (utterances.length > 1) {
-          const rates = utterances.map((u: any) => u.rate)
-          const uniqueRates = [...new Set(rates)]
-          // Devrait avoir au moins 2 vitesses différentes si implémenté
-          expect(utterances.length).toBeGreaterThan(0)
-        }
-      }
+      const defaultSpeedSlider = pageWithTTS.getByTestId('default-speed-slider')
+      await expect(defaultSpeedSlider).toBeVisible()
+
+      // Changer la vitesse
+      await defaultSpeedSlider.fill('1.5')
+      await pageWithTTS.waitForTimeout(200)
+
+      const value = await defaultSpeedSlider.inputValue()
+      expect(parseFloat(value)).toBeCloseTo(1.5, 1)
+    })
+
+    test('devrait permettre de régler la vitesse utilisateur en mode italiennes', async ({
+      pageWithTTS,
+    }) => {
+      const configButton = pageWithTTS.getByTestId('config-button')
+      await configButton.click()
+      await pageWithTTS.waitForTimeout(500)
+
+      // Passer en mode italiennes
+      const italianModeButton = pageWithTTS.getByTestId('reading-mode-italian')
+      await italianModeButton.click()
+      await pageWithTTS.waitForTimeout(300)
+
+      // Le slider de vitesse utilisateur devrait apparaître
+      const userSpeedSlider = pageWithTTS.getByTestId('user-speed-slider')
+      await expect(userSpeedSlider).toBeVisible()
+
+      // Changer la vitesse
+      await userSpeedSlider.fill('0.8')
+      await pageWithTTS.waitForTimeout(200)
+
+      const value = await userSpeedSlider.inputValue()
+      expect(parseFloat(value)).toBeCloseTo(0.8, 1)
     })
   })
 })

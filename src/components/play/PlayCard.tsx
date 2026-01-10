@@ -59,10 +59,14 @@ export function PlayCard({ play, onClick, showConfigButton = false }: PlayCardPr
       role="button"
       tabIndex={0}
       aria-label={`Ouvrir ${getPlayTitle(play)}`}
+      data-testid={`play-card-${play.id}`}
     >
       {/* Titre */}
       <div className="mb-2 flex items-start justify-between gap-2">
-        <h3 className="flex-1 text-lg font-semibold text-gray-900 group-hover:text-blue-600 dark:text-gray-100">
+        <h3
+          className="flex-1 text-lg font-semibold text-gray-900 group-hover:text-blue-600 dark:text-gray-100"
+          data-testid="play-title"
+        >
           {getPlayTitle(play)}
         </h3>
 
@@ -73,6 +77,7 @@ export function PlayCard({ play, onClick, showConfigButton = false }: PlayCardPr
             className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
             aria-label="Configurer cette pièce"
             title="Configuration"
+            data-testid="config-button"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path
@@ -95,32 +100,32 @@ export function PlayCard({ play, onClick, showConfigButton = false }: PlayCardPr
       {/* Métadonnées */}
       <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
         {getPlayAuthor(play) && (
-          <p>
+          <p data-testid="play-author">
             <span className="font-medium">Auteur :</span> {getPlayAuthor(play)}
           </p>
         )}
 
         {getPlayYear(play) && (
-          <p>
+          <p data-testid="play-year">
             <span className="font-medium">Année :</span> {getPlayYear(play)}
           </p>
         )}
 
         {getPlayCategory(play) && (
-          <p>
+          <p data-testid="play-category">
             <span className="font-medium">Catégorie :</span> {getPlayCategory(play)}
           </p>
         )}
 
-        <p>
+        <p data-testid="play-characters-count">
           <span className="font-medium">Personnages :</span> {getPlayCharacters(play).length}
         </p>
 
-        <p>
+        <p data-testid="play-lines-count">
           <span className="font-medium">Lignes :</span> {getPlayLines(play).length}
         </p>
 
-        <p className="text-xs text-gray-500 dark:text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-500" data-testid="play-created-date">
           Importé le {formatDate(play.createdAt)}
         </p>
       </div>

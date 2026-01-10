@@ -14,60 +14,37 @@ test.describe('Import et Parsing de Pièce', () => {
     await page.goto('/')
   })
 
-  test('devrait afficher la page d\'accueil', async ({ page }) => {
+  test("devrait afficher la page d'accueil", async ({ page }) => {
     await expect(page).toHaveTitle(/Répét/)
 
     // Vérifier présence du bouton d'import
-    const importButton = page.getByRole('button', { name: /importer/i }).first()
+    const importButton = page.getByTestId('import-button')
     await expect(importButton).toBeVisible()
   })
 
   test('devrait importer ALEGRIA.txt avec succès', async ({ page }) => {
     const filePath = path.join(process.cwd(), 'examples', 'ALEGRIA.txt')
 
-    // Attendre le file chooser
-    const fileChooserPromise = page.waitForEvent('filechooser')
+    // Utiliser l'input file directement
+    const fileInput = page.getByTestId('file-input')
+    await fileInput.setInputFiles(filePath)
 
-    // Déclencher l'import (peut être un bouton ou un input file)
-    const importTrigger = page.locator('input[type="file"]').or(
-      page.getByRole('button', { name: /importer/i }).first()
-    )
+    // Attendre la navigation vers /play/:id
+    await page.waitForURL(/\/play\//, { timeout: 5000 })
 
-    if (await importTrigger.getAttribute('type') === 'file') {
-      await importTrigger.setInputFiles(filePath)
-    } else {
-      await importTrigger.click()
-      const fileChooser = await fileChooserPromise
-      await fileChooser.setFiles(filePath)
-    }
-
-    // Attendre la navigation ou l'affichage du succès
-    await page.waitForTimeout(1000)
-
-    // Vérifier que la pièce est chargée
-    // Soit on est sur /reader, soit on voit la pièce dans la liste
-    const isOnReader = page.url().includes('/reader')
-    const playInList = page.getByText(/alégria/i).or(page.getByText(/ALEGRIA/i))
-
-    const success = isOnReader || (await playInList.count()) > 0
-    expect(success).toBeTruthy()
+    // Vérifier qu'on est sur la page de la pièce et que le modal de sélection de personnage s'affiche
+    const characterSelectorModal = page.getByTestId('character-selector-modal')
+    await expect(characterSelectorModal).toBeVisible({ timeout: 10000 })
   })
 
   test('devrait parser correctement les métadonnées', async ({ page }) => {
     const filePath = path.join(process.cwd(), 'examples', 'ALEGRIA.txt')
 
     // Import
-    const fileInput = page.locator('input[type="file"]').first()
-    if (await fileInput.count() > 0) {
-      await fileInput.setInputFiles(filePath)
-    } else {
-      const fileChooserPromise = page.waitForEvent('filechooser')
-      await page.getByRole('button', { name: /importer/i }).first().click()
-      const fileChooser = await fileChooserPromise
-      await fileChooser.setFiles(filePath)
-    }
+    const fileInput = page.getByTestId('file-input')
+    await fileInput.setInputFiles(filePath)
 
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(1500)
 
     // Vérifier métadonnées via l'UI ou le storage
     const metadata = await page.evaluate(() => {
@@ -105,17 +82,10 @@ test.describe('Import et Parsing de Pièce', () => {
     const filePath = path.join(process.cwd(), 'examples', 'ALEGRIA.txt')
 
     // Import
-    const fileInput = page.locator('input[type="file"]').first()
-    if (await fileInput.count() > 0) {
-      await fileInput.setInputFiles(filePath)
-    } else {
-      const fileChooserPromise = page.waitForEvent('filechooser')
-      await page.getByRole('button', { name: /importer/i }).first().click()
-      const fileChooser = await fileChooserPromise
-      await fileChooser.setFiles(filePath)
-    }
+    const fileInput = page.getByTestId('file-input')
+    await fileInput.setInputFiles(filePath)
 
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(1500)
 
     // Vérifier structure AST
     const ast = await page.evaluate(() => {
@@ -162,82 +132,38 @@ test.describe('Import et Parsing de Pièce', () => {
     const filePath = path.join(process.cwd(), 'examples', 'ALEGRIA.txt')
 
     // Import
-    const fileInput = page.locator('input[type="file"]').first()
-    if (await fileInput.count() > 0) {
-      await fileInput.setInputFiles(filePath)
-    } else {
-      const fileChooserPromise = page.waitForEvent('filechooser')
-      await page.getByRole('button', { name: /importer/i }).first().click()
-      const fileChooser = await fileChooserPromise
-      await fileChooser.setFiles(filePath)
-    }
+    const fileInput = page.getByTestId('file-input')
+    await fileInput.setInputFiles(filePath)
 
-    await page.waitForTimeout(1000)
+    // Attendre la navigation
+    await page.waitForURL(/\/play\//, { timeout: 5000 })
+    await page.waitForTimeout(500)
 
-    // Vérifier personnages
-    const characters = await page.evaluate(() => {
-      return new Promise((resolve) => {
-        const request = indexedDB.open('repet-db')
-        request.onsuccess = () => {
-          const db = request.result
-          if (!db.objectStoreNames.contains('plays')) {
-            resolve([])
-            return
-          }
-          const transaction = db.transaction(['plays'], 'readonly')
-          const store = transaction.objectStore('plays')
-          const getAllRequest = store.getAll()
-          getAllRequest.onsuccess = () => {
-            const plays = getAllRequest.result
-            if (plays && plays.length > 0) {
-              resolve(plays[0].ast?.characters || [])
-            } else {
-              resolve([])
-            }
-          }
-          getAllRequest.onerror = () => resolve([])
-        }
-        request.onerror = () => resolve([])
-      })
-    })
+    // Vérifier personnages via le modal de sélection
+    const characterSelectorModal = page.getByTestId('character-selector-modal')
+    await expect(characterSelectorModal).toBeVisible({ timeout: 10000 })
 
-    expect(Array.isArray(characters)).toBeTruthy()
-    expect((characters as any[]).length).toBeGreaterThan(0)
+    // Vérifier qu'il y a des badges de personnages
+    const characterSelector = page.getByTestId('character-selector')
+    await expect(characterSelector).toBeVisible()
 
-    // Vérifier qu'au moins un personnage a un nom
-    const hasNames = (characters as any[]).some(c => c.name && c.name.length > 0)
-    expect(hasNames).toBeTruthy()
+    // Compter les badges de personnages
+    const characterBadges = page.locator('[data-testid^="character-badge-"]')
+    const count = await characterBadges.count()
+    expect(count).toBeGreaterThan(0)
+
+    // Vérifier qu'au moins un badge contient un nom
+    const firstBadge = characterBadges.first()
+    const text = await firstBadge.textContent()
+    expect(text).toBeTruthy()
+    expect(text!.trim().length).toBeGreaterThan(0)
   })
 
   test('devrait rejeter un fichier non-.txt', async ({ page }) => {
-    // Créer un fichier temporaire non-.txt
-    const buffer = Buffer.from('Test content')
-
-    const fileChooserPromise = page.waitForEvent('filechooser')
-
-    const importTrigger = page.locator('input[type="file"]').or(
-      page.getByRole('button', { name: /importer/i }).first()
-    )
-
-    if (await importTrigger.getAttribute('type') === 'file') {
-      // Input file direct - vérifier accept attribute
-      const acceptAttr = await importTrigger.getAttribute('accept')
-      expect(acceptAttr).toContain('.txt')
-    } else {
-      await importTrigger.click()
-      const fileChooser = await fileChooserPromise
-
-      // Essayer d'uploader un .pdf (simulé)
-      // Note: Playwright ne peut pas vraiment uploader un mauvais type si l'input a accept=".txt"
-      // Ce test vérifie plutôt la présence de la restriction
-      const fileInputs = await page.locator('input[type="file"]').all()
-      for (const input of fileInputs) {
-        const accept = await input.getAttribute('accept')
-        if (accept) {
-          expect(accept).toContain('.txt')
-        }
-      }
-    }
+    // Vérifier que l'input file a l'attribut accept=".txt"
+    const fileInput = page.getByTestId('file-input')
+    const acceptAttr = await fileInput.getAttribute('accept')
+    expect(acceptAttr).toContain('.txt')
   })
 
   test('devrait gérer les erreurs de parsing gracieusement', async ({ page }) => {
@@ -249,20 +175,16 @@ test.describe('Import et Parsing de Pièce', () => {
     // Le test vérifie juste qu'il n'y a pas de crash
 
     try {
-      const fileInput = page.locator('input[type="file"]').first()
-      if (await fileInput.count() > 0) {
-        await fileInput.setInputFiles({
-          name: 'invalid.txt',
-          mimeType: 'text/plain',
-          buffer: buffer,
-        })
-      }
+      const fileInput = page.getByTestId('file-input')
+      await fileInput.setInputFiles({
+        name: 'invalid.txt',
+        mimeType: 'text/plain',
+        buffer: buffer,
+      })
 
       await page.waitForTimeout(1000)
 
       // Vérifier qu'on n'a pas crashé
-      const errorMessage = page.getByText(/erreur/i).or(page.getByText(/error/i))
-      // Soit on affiche une erreur, soit on ne fait rien, mais pas de crash
       const pageIsResponsive = await page.locator('body').isVisible()
       expect(pageIsResponsive).toBeTruthy()
     } catch (error) {

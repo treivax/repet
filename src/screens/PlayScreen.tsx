@@ -18,7 +18,12 @@ import { LineCue } from '../components/reader/LineCue'
 import { NavigationControls } from '../components/reader/NavigationControls'
 import { SceneNavigator } from '../components/reader/SceneNavigator'
 import type { Character } from '../core/models/Character'
-import { getPlayTitle, getPlayAuthor, getPlayCharacters, getPlayLines } from '../core/models/playHelpers'
+import {
+  getPlayTitle,
+  getPlayAuthor,
+  getPlayCharacters,
+  getPlayLines,
+} from '../core/models/playHelpers'
 
 /**
  * Écran de lecture d'une pièce
@@ -187,7 +192,7 @@ export function PlayScreen() {
   )
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50" data-testid="play-screen">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between max-w-4xl mx-auto">
@@ -204,10 +209,16 @@ export function PlayScreen() {
                   </span>
                 )}
               </div>
-              {getPlayAuthor(currentPlay) && <p className="text-sm text-gray-600">{getPlayAuthor(currentPlay)}</p>}
+              {getPlayAuthor(currentPlay) && (
+                <p className="text-sm text-gray-600">{getPlayAuthor(currentPlay)}</p>
+              )}
             </div>
           </div>
-          <Button variant="secondary" onClick={() => setShowCharacterSelector(true)}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowCharacterSelector(true)}
+            data-testid="choose-character-button"
+          >
             {userCharacter ? userCharacter.name : 'Choisir personnage'}
           </Button>
         </div>
@@ -232,7 +243,8 @@ export function PlayScreen() {
               line={currentLine}
               character={
                 currentLine.characterId
-                  ? getPlayCharacters(currentPlay).find((c) => c.id === currentLine.characterId) || null
+                  ? getPlayCharacters(currentPlay).find((c) => c.id === currentLine.characterId) ||
+                    null
                   : null
               }
               isUserLine={userCharacter ? currentLine.characterId === userCharacter.id : false}
@@ -283,11 +295,14 @@ export function PlayScreen() {
                   <div className="font-semibold">
                     {getPlayLines(currentPlay)[currentLineIndex + 1].characterId
                       ? getPlayCharacters(currentPlay).find(
-                          (c) => c.id === getPlayLines(currentPlay)[currentLineIndex + 1].characterId
+                          (c) =>
+                            c.id === getPlayLines(currentPlay)[currentLineIndex + 1].characterId
                         )?.name || 'Didascalie'
                       : 'Didascalie'}
                   </div>
-                  <div className="italic">{getPlayLines(currentPlay)[currentLineIndex + 1].text}</div>
+                  <div className="italic">
+                    {getPlayLines(currentPlay)[currentLineIndex + 1].text}
+                  </div>
                 </div>
               )}
           </div>
@@ -309,7 +324,10 @@ export function PlayScreen() {
 
       {/* Character Selector Modal */}
       {showCharacterSelector && getPlayCharacters(currentPlay) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+          data-testid="character-selector-modal"
+        >
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
             <div className="p-4 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-900">Choisissez votre personnage</h2>
@@ -322,7 +340,11 @@ export function PlayScreen() {
               />
             </div>
             <div className="p-4 border-t border-gray-200 flex justify-end">
-              <Button variant="secondary" onClick={() => setShowCharacterSelector(false)}>
+              <Button
+                variant="secondary"
+                onClick={() => setShowCharacterSelector(false)}
+                data-testid="close-character-selector"
+              >
                 Fermer
               </Button>
             </div>

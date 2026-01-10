@@ -288,35 +288,52 @@ export function ReaderScreen() {
   const isItalianMode = playSettings?.readingMode === 'italian'
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="reader-screen">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0">
+      <header
+        className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0"
+        data-testid="reader-header"
+      >
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
-            <Button variant="secondary" onClick={handleClose}>
+            <Button variant="secondary" onClick={handleClose} data-testid="close-button">
               ← Retour
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                <h1
+                  className="text-xl font-bold text-gray-900 dark:text-gray-100"
+                  data-testid="play-title"
+                >
                   {getPlayTitle(currentPlay)}
                 </h1>
                 {isItalianMode && (
-                  <span className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded font-semibold">
+                  <span
+                    className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded font-semibold"
+                    data-testid="reading-mode"
+                  >
                     MODE ITALIENNES
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="user-character">
                 Mode Lecteur - {userCharacter.name}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setShowSummary(!showSummary)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowSummary(!showSummary)}
+              data-testid="summary-button"
+            >
               {showSummary ? 'Masquer sommaire' : 'Sommaire'}
             </Button>
-            <Button variant="secondary" onClick={handleChangeCharacter}>
+            <Button
+              variant="secondary"
+              onClick={handleChangeCharacter}
+              data-testid="change-character-button"
+            >
               Changer de personnage
             </Button>
           </div>
@@ -328,10 +345,12 @@ export function ReaderScreen() {
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
           onClick={() => setShowSummary(false)}
+          data-testid="summary-overlay"
         >
           <div
             className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            data-testid="scene-summary"
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
@@ -359,7 +378,7 @@ export function ReaderScreen() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden" data-testid="text-display-container">
         {currentScene && playSettings ? (
           <TextDisplay
             lines={currentScene.lines}

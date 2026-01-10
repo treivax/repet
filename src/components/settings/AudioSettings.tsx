@@ -81,6 +81,7 @@ export function AudioSettings({
             ${disabled ? 'cursor-not-allowed opacity-50' : ''}
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
           `}
+          data-testid="voice-off-toggle"
         >
           <span
             aria-hidden="true"
@@ -113,6 +114,7 @@ export function AudioSettings({
           onChange={(e) => onDefaultSpeedChange(parseFloat(e.target.value))}
           disabled={disabled}
           className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 dark:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+          data-testid="default-speed-slider"
           style={{
             background: `linear-gradient(to right, rgb(59, 130, 246) 0%, rgb(59, 130, 246) ${
               ((defaultSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) * 100
@@ -151,6 +153,7 @@ export function AudioSettings({
             onChange={(e) => onUserSpeedChange(parseFloat(e.target.value))}
             disabled={disabled}
             className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 dark:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="user-speed-slider"
             style={{
               background: `linear-gradient(to right, rgb(59, 130, 246) 0%, rgb(59, 130, 246) ${
                 ((userSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) * 100

@@ -4,21 +4,23 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { Character } from '../../core/models/Character';
-import { generateCharacterColor } from '../../utils/colors';
+import { Character } from '../../core/models/Character'
+import { generateCharacterColor } from '../../utils/colors'
 
 /**
  * Props du composant CharacterBadge
  */
 export interface CharacterBadgeProps {
   /** Personnage à afficher */
-  character: Character;
+  character: Character
   /** Taille du badge */
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg'
   /** Badge sélectionné */
-  selected?: boolean;
+  selected?: boolean
   /** Callback au clic */
-  onClick?: (character: Character) => void;
+  onClick?: (character: Character) => void
+  /** data-testid for testing */
+  'data-testid'?: string
 }
 
 /**
@@ -28,7 +30,7 @@ const sizeClasses = {
   sm: 'px-2 py-1 text-xs',
   md: 'px-3 py-1.5 text-sm',
   lg: 'px-4 py-2 text-base',
-};
+}
 
 /**
  * Composant CharacterBadge
@@ -39,20 +41,21 @@ export function CharacterBadge({
   size = 'md',
   selected = false,
   onClick,
+  'data-testid': dataTestId,
 }: CharacterBadgeProps) {
-  const color = generateCharacterColor(character.name);
-  const isClickable = !!onClick;
+  const color = generateCharacterColor(character.name)
+  const isClickable = !!onClick
 
   const handleClick = () => {
-    onClick?.(character);
-  };
+    onClick?.(character)
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onClick?.(character);
+      event.preventDefault()
+      onClick?.(character)
     }
-  };
+  }
 
   const baseClasses = [
     'inline-flex items-center gap-2 rounded-full font-medium transition-all',
@@ -61,7 +64,7 @@ export function CharacterBadge({
     selected ? 'ring-2 ring-offset-2' : '',
   ]
     .filter(Boolean)
-    .join(' ');
+    .join(' ')
 
   return (
     <span
@@ -78,6 +81,7 @@ export function CharacterBadge({
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       aria-pressed={isClickable ? selected : undefined}
+      data-testid={dataTestId}
     >
       {/* Indicateur couleur */}
       <span
@@ -91,10 +95,8 @@ export function CharacterBadge({
 
       {/* Badge genre (optionnel) */}
       {character.gender && character.gender !== 'neutral' && (
-        <span className="text-xs opacity-70">
-          {character.gender === 'male' ? '♂' : '♀'}
-        </span>
+        <span className="text-xs opacity-70">{character.gender === 'male' ? '♂' : '♀'}</span>
       )}
     </span>
-  );
+  )
 }

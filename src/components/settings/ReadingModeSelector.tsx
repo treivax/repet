@@ -62,6 +62,7 @@ export function ReadingModeSelector({ value, onChange, disabled = false }: Props
                 ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
                 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
               `}
+              data-testid={`reading-mode-${mode.value}`}
             >
               {/* Indicateur de sélection */}
               {isSelected && (
