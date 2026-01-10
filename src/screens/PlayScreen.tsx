@@ -257,15 +257,32 @@ export function PlayScreen() {
     lineIndex: number
     line: Line
   } | null => {
-    if (!currentPlay) return null
+    console.log('📍 getLineCoordinates START', { globalIndex, currentPlay: !!currentPlay })
 
+    if (!currentPlay) {
+      console.log('📍 No currentPlay - returning null')
+      return null
+    }
+
+    console.log('📍 Total acts:', currentPlay.ast.acts.length)
     let currentIndex = 0
     for (let actIdx = 0; actIdx < currentPlay.ast.acts.length; actIdx++) {
       const act = currentPlay.ast.acts[actIdx]
+      console.log(`📍 Act ${actIdx}: ${act.scenes.length} scenes`)
       for (let sceneIdx = 0; sceneIdx < act.scenes.length; sceneIdx++) {
         const scene = act.scenes[sceneIdx]
+        console.log(`📍 Act ${actIdx} Scene ${sceneIdx}: ${scene.lines.length} lines`)
         for (let lineIdx = 0; lineIdx < scene.lines.length; lineIdx++) {
+          console.log(
+            `📍 Checking index ${currentIndex} vs ${globalIndex} (Act ${actIdx}, Scene ${sceneIdx}, Line ${lineIdx})`
+          )
           if (currentIndex === globalIndex) {
+            console.log('📍 FOUND! Returning coordinates', {
+              actIndex: actIdx,
+              sceneIndex: sceneIdx,
+              lineIndex: lineIdx,
+              lineType: scene.lines[lineIdx].type,
+            })
             return {
               actIndex: actIdx,
               sceneIndex: sceneIdx,
@@ -277,6 +294,7 @@ export function PlayScreen() {
         }
       }
     }
+    console.log('📍 NOT FOUND - reached end', { currentIndex, globalIndex })
     return null
   }
 
