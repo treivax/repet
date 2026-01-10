@@ -22,7 +22,9 @@ Vous devriez voir une zone de texte avec des messages.
 1. Sélectionner une pièce
 2. Choisir "Lecture audio"
 3. Une fois sur l'écran de lecture, **noter les messages** qui apparaissent dans la console
-4. Essayer de **cliquer sur une carte** de réplique
+4. ⚠️ **IMPORTANT** : Essayer de cliquer sur une **RÉPLIQUE DE DIALOGUE** (pas une didascalie en italique)
+   - Les didascalies (texte en italique gris) ne sont pas cliquables
+   - Chercher une carte avec un NOM DE PERSONNAGE en gras suivi de texte
 5. **Noter ce qui se passe** :
    - Le curseur change-t-il en main (pointeur) au survol ?
    - Y a-t-il un changement visuel au clic ?
@@ -35,7 +37,9 @@ Vous devriez voir une zone de texte avec des messages.
 2. Choisir "Italiennes"
 3. Choisir un personnage (ex: ARLEQUIN)
 4. Une fois sur l'écran de lecture, **noter les messages** dans la console
-5. Essayer de **cliquer sur une carte d'un AUTRE personnage** (pas le vôtre)
+5. ⚠️ **IMPORTANT** : Essayer de cliquer sur une **RÉPLIQUE D'UN AUTRE PERSONNAGE** (pas le vôtre, et pas une didascalie)
+   - Chercher une carte avec le NOM d'un autre personnage en gras
+   - NE PAS cliquer sur les didascalies (italique gris)
 6. **Noter ce qui se passe** :
    - Le curseur change-t-il ?
    - Changement visuel au clic ?
@@ -78,9 +82,10 @@ Vous devriez voir une zone de texte avec des messages.
 ```
 
 **À vérifier** :
+- `lineType` : Doit être `'dialogue'` pour une réplique cliquable (si `'stage-direction'`, c'est normal que ce ne soit pas cliquable)
 - `readingMode` : Doit correspondre au mode choisi
 - `onClickDefined` : 
-  - Doit être `true` en mode audio et italiennes
+  - Doit être `true` en mode audio et italiennes (pour les dialogues)
   - Doit être `false` en mode silencieux
 
 ## 📝 Informations à Collecter
@@ -172,6 +177,17 @@ Une fois les informations collectées, je pourrai :
 2. Appliquer la correction ciblée
 3. Retirer les logs de débogage
 4. Valider que tout fonctionne
+
+---
+
+## ⚠️ Note Importante
+
+**Les didascalies ne sont PAS cliquables** - C'est normal !
+
+Les didascalies sont les indications scéniques en italique (ex: "(Il sort)", "(à part)", etc.). 
+Seules les **répliques de dialogue** (avec nom de personnage en gras) sont cliquables en mode audio et italiennes.
+
+Si vous ne testez qu'avec des didascalies, il est normal que rien ne se passe au clic.
 
 ---
 
