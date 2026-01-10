@@ -668,7 +668,16 @@ export function PlayScreen() {
             readLinesSet={readLinesSet}
             charactersMap={charactersMap}
             playTitle={getPlayTitle(currentPlay)}
-            onLineClick={playSettings.readingMode === 'audio' ? handleLineClick : undefined}
+            onLineClick={(() => {
+              const shouldHaveClick =
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+              console.log('🔍 DEBUG PlayScreen:', {
+                readingMode: playSettings.readingMode,
+                shouldHaveClick,
+                handleLineClickDefined: !!handleLineClick,
+              })
+              return shouldHaveClick ? handleLineClick : undefined
+            })()}
             isPaused={isPaused}
             progressPercentage={progressPercentage}
             elapsedTime={elapsedTime}

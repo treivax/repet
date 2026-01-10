@@ -135,6 +135,14 @@ export function LineRenderer({
   elapsedTime = 0,
   estimatedDuration = 0,
 }: Props) {
+  // Debug: vérifier si onClick est reçu
+  console.log('🔍 DEBUG LineRenderer:', {
+    lineType: line.type,
+    characterId: line.characterId,
+    readingMode,
+    onClickDefined: !!onClick,
+  })
+
   // Déterminer si c'est une réplique utilisateur
   const isUserLine =
     readingMode === 'italian' && userCharacterId && line.characterId === userCharacterId
