@@ -13,6 +13,18 @@ Cette version majeure réécrit les composants clés pour respecter strictement 
 
 ### ✨ Features
 
+#### Tag de Méthode de Lecture (2025-01-XX)
+
+- **Affichage du mode de lecture actif** - Tag visible dans le header pour tous les modes
+  - Mode silencieux : tag `LECTURE` (bleu)
+  - Mode audio : tag `LECTURE AUDIO` (vert)
+  - Mode italiennes : tag `ITALIENNES (PERSONNAGE)` (violet) avec le nom du personnage sélectionné
+- **Navigation rapide** - Clic sur le tag pour changer de méthode de lecture
+  - Redirection directe vers l'écran de sélection de méthode (`/play/:id/reader`)
+  - Pas de retour à l'écran d'accueil
+  - Conservation du contexte de la pièce en cours
+- **Design cohérent** - Couleurs distinctes par mode avec effet hover
+
 #### Parser Conforme à la Spec
 
 - **Nouveau parser textParser.ts** - Réécriture complète du parser

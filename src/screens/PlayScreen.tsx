@@ -496,6 +496,29 @@ export function PlayScreen() {
   // Déterminer le mode
   const isItalianMode = playSettings?.readingMode === 'italian'
 
+  // Fonction pour obtenir le label du tag de méthode de lecture
+  const getReadingModeLabel = () => {
+    if (!playSettings) return ''
+
+    switch (playSettings.readingMode) {
+      case 'silent':
+        return 'LECTURE'
+      case 'audio':
+        return 'LECTURE AUDIO'
+      case 'italian':
+        return userCharacter ? `ITALIENNES (${userCharacter.name.toUpperCase()})` : 'ITALIENNES'
+      default:
+        return ''
+    }
+  }
+
+  // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
+  const handleReadingModeClick = () => {
+    if (playId) {
+      navigate(`/play/${playId}/reader`)
+    }
+  }
+
   // Rendu
   if (!currentPlay) {
     return (
@@ -555,7 +578,7 @@ export function PlayScreen() {
             </svg>
           </button>
 
-          {/* Centre : titre avec badge mode si italiennes */}
+          {/* Centre : titre avec badge mode de lecture */}
           <div className="flex-1 mx-4 flex items-center justify-center gap-2">
             <h1
               className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
@@ -563,13 +586,21 @@ export function PlayScreen() {
             >
               {getPlayTitle(currentPlay)}
             </h1>
-            {isItalianMode && (
-              <span
-                className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded font-semibold whitespace-nowrap"
+            {playSettings && (
+              <button
+                onClick={handleReadingModeClick}
+                className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 ${
+                  playSettings.readingMode === 'silent'
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                    : playSettings.readingMode === 'audio'
+                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                      : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                }`}
                 data-testid="reading-mode"
+                aria-label="Changer de méthode de lecture"
               >
-                ITALIENNES
-              </span>
+                {getReadingModeLabel()}
+              </button>
             )}
           </div>
 
