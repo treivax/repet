@@ -9,12 +9,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
-import { useCurrentScene } from '../state/selectors'
+
 import { playsRepository } from '../core/storage/plays'
 import { voiceManager } from '../core/tts/voice-manager'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
-import { TextDisplay } from '../components/reader/TextDisplay'
+import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { SceneNavigation } from '../components/reader/SceneNavigation'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle } from '../core/models/playHelpers'
@@ -47,8 +47,6 @@ export function PlayScreen() {
   const { getPlaySettings } = usePlaySettingsStore()
   const playSettings = playId ? getPlaySettings(playId) : null
 
-  const currentScene = useCurrentScene()
-
   const [playingLineIndex, setPlayingLineIndex] = useState<number | undefined>()
   const [isPaused, setIsPaused] = useState(false)
   const [readLinesSet, setReadLinesSet] = useState<Set<number>>(new Set())
@@ -62,18 +60,12 @@ export function PlayScreen() {
   // Refs pour gérer la lecture audio
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const isPlayingRef = useRef(false)
-  const currentSceneRef = useRef(currentScene)
   const startTimeRef = useRef<number>(0)
   const progressIntervalRef = useRef<number | null>(null)
   const estimatedDurationRef = useRef<number>(0)
   const totalWordsRef = useRef<number>(0)
   const wordsSpokenRef = useRef<number>(0)
   const useBoundaryTrackingRef = useRef<boolean>(true)
-
-  // Mettre à jour la ref de la scène courante
-  useEffect(() => {
-    currentSceneRef.current = currentScene
-  }, [currentScene])
 
   // Charger la pièce au montage
   useEffect(() => {
@@ -122,13 +114,23 @@ export function PlayScreen() {
     setUserCharacter,
   ])
 
-  // Nettoyer TTS au démontage
+  // Nettoyer TTS et arrêter la lecture au démontage
   useEffect(() => {
     return () => {
+      // Arrêter complètement la lecture audio
       if (utteranceRef.current) {
+        utteranceRef.current.onend = null
+        utteranceRef.current.onerror = null
+        utteranceRef.current.onboundary = null
+      }
+      if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel()
       }
+      // Nettoyer les états et intervals
+      stopProgressTracking()
       isPlayingRef.current = false
+      setPlayingLineIndex(undefined)
+      setIsPaused(false)
     }
   }, [])
 
@@ -244,9 +246,63 @@ export function PlayScreen() {
     }
   }, [])
 
-  // Fonction pour lire une ligne
-  const speakLine = (line: Line, lineIndex: number) => {
-    if (!playSettings || !currentSceneRef.current) return
+  /**
+   * Convertit un index global de ligne en coordonnées acte/scène/ligne locale
+   */
+  const getLineCoordinates = (
+    globalIndex: number
+  ): {
+    actIndex: number
+    sceneIndex: number
+    lineIndex: number
+    line: Line
+  } | null => {
+    if (!currentPlay) return null
+
+    let currentIndex = 0
+    for (let actIdx = 0; actIdx < currentPlay.ast.acts.length; actIdx++) {
+      const act = currentPlay.ast.acts[actIdx]
+      for (let sceneIdx = 0; sceneIdx < act.scenes.length; sceneIdx++) {
+        const scene = act.scenes[sceneIdx]
+        for (let lineIdx = 0; lineIdx < scene.lines.length; lineIdx++) {
+          if (currentIndex === globalIndex) {
+            return {
+              actIndex: actIdx,
+              sceneIndex: sceneIdx,
+              lineIndex: lineIdx,
+              line: scene.lines[lineIdx],
+            }
+          }
+          currentIndex++
+        }
+      }
+    }
+    return null
+  }
+
+  /**
+   * Compte le nombre total de lignes dans la pièce
+   */
+  const getTotalLines = (): number => {
+    if (!currentPlay) return 0
+
+    let total = 0
+    for (const act of currentPlay.ast.acts) {
+      for (const scene of act.scenes) {
+        total += scene.lines.length
+      }
+    }
+    return total
+  }
+
+  // Fonction pour lire une ligne (avec index global)
+  const speakLine = (globalLineIndex: number) => {
+    if (!playSettings || !currentPlay) return
+
+    const coords = getLineCoordinates(globalLineIndex)
+    if (!coords) return
+
+    const { line } = coords
 
     // Arrêter toute lecture en cours complètement
     if (utteranceRef.current) {
@@ -257,11 +313,12 @@ export function PlayScreen() {
       window.speechSynthesis.cancel()
       utteranceRef.current = null
       stopProgressTracking()
+      stopPlayback()
     }
 
-    setPlayingLineIndex(lineIndex)
+    setPlayingLineIndex(globalLineIndex)
     setIsPaused(false)
-    setReadLinesSet((prev) => new Set(prev).add(lineIndex))
+    setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
 
     // Sélection de la voix
@@ -307,15 +364,16 @@ export function PlayScreen() {
     utterance.onend = () => {
       stopProgressTracking()
 
-      if (!isPlayingRef.current || !currentSceneRef.current) return
+      if (!isPlayingRef.current || !currentPlay) return
 
       // Passer à la ligne suivante automatiquement
-      const nextIndex = lineIndex + 1
-      if (nextIndex < currentSceneRef.current.lines.length) {
-        const nextLine = currentSceneRef.current.lines[nextIndex]
-        speakLine(nextLine, nextIndex)
+      const nextGlobalIndex = globalLineIndex + 1
+      const totalLines = getTotalLines()
+
+      if (nextGlobalIndex < totalLines) {
+        speakLine(nextGlobalIndex)
       } else {
-        // Fin de la scène
+        // Fin de la pièce
         stopPlayback()
       }
     }
@@ -338,8 +396,8 @@ export function PlayScreen() {
     utteranceRef.current = utterance
     window.speechSynthesis.speak(utterance)
 
-    // Scroll vers la ligne
-    scrollToLine(lineIndex)
+    // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
+    scrollToLine(globalLineIndex)
   }
 
   // Fonction pour scroller vers une ligne
@@ -371,34 +429,17 @@ export function PlayScreen() {
     }
   }
 
-  // Handler pour le clic sur une ligne
-  const handleLineClick = (lineIndex: number) => {
-    if (!currentSceneRef.current) return
-
-    const line = currentSceneRef.current.lines[lineIndex]
+  // Handler pour le clic sur une ligne (reçoit l'index global)
+  const handleLineClick = (globalLineIndex: number) => {
+    if (!currentPlay) return
 
     // Si c'est la ligne en cours de lecture
-    if (playingLineIndex === lineIndex) {
+    if (playingLineIndex === globalLineIndex) {
       // Toggle pause/resume
       pausePlayback()
     } else {
-      // Arrêter complètement la lecture en cours
-      if (utteranceRef.current) {
-        // IMPORTANT: Désactiver les callbacks AVANT d'annuler
-        utteranceRef.current.onend = null
-        utteranceRef.current.onerror = null
-        utteranceRef.current = null
-      }
-
-      // Annuler la synthèse vocale
-      window.speechSynthesis.cancel()
-
-      // Réinitialiser l'état (important: après cancel et avant speakLine)
-      isPlayingRef.current = false
-      setIsPaused(false)
-
-      // Démarrer la nouvelle lecture
-      speakLine(line, lineIndex)
+      // Démarrer la nouvelle lecture (speakLine gère l'arrêt de l'ancienne)
+      speakLine(globalLineIndex)
     }
   }
 
@@ -590,9 +631,11 @@ export function PlayScreen() {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden" data-testid="text-display-container">
-        {currentScene && playSettings ? (
-          <TextDisplay
-            lines={currentScene.lines}
+        {currentPlay && playSettings ? (
+          <FullPlayDisplay
+            acts={currentPlay.ast.acts}
+            currentActIndex={currentActIndex}
+            currentSceneIndex={currentSceneIndex}
             currentLineIndex={0}
             readingMode={playSettings.readingMode}
             userCharacterId={userCharacter?.id}
@@ -603,10 +646,6 @@ export function PlayScreen() {
             readLinesSet={readLinesSet}
             charactersMap={charactersMap}
             playTitle={getPlayTitle(currentPlay)}
-            actNumber={currentPlay.ast.acts[currentActIndex].actNumber}
-            actTitle={currentPlay.ast.acts[currentActIndex].title}
-            sceneNumber={currentScene.sceneNumber}
-            sceneTitle={currentScene.title}
             onLineClick={handleLineClick}
             isPaused={isPaused}
             progressPercentage={progressPercentage}
@@ -615,7 +654,7 @@ export function PlayScreen() {
           />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500 dark:text-gray-400">Aucune scène sélectionnée</p>
+            <Spinner size="lg" />
           </div>
         )}
       </div>

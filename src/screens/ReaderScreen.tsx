@@ -15,7 +15,7 @@ import { ttsEngine } from '../core/tts'
 import { voiceManager } from '../core/tts/voice-manager'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
-import { TextDisplay } from '../components/reader/TextDisplay'
+import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { SceneNavigation } from '../components/reader/SceneNavigation'
 import { PlaybackControls } from '../components/reader/PlaybackControls'
 import { SceneSummary } from '../components/reader/SceneSummary'
@@ -107,10 +107,16 @@ export function ReaderScreen() {
     setUserCharacter,
   ])
 
-  // Nettoyer TTS au démontage
+  // Nettoyer TTS au démontage et arrêter la lecture audio
   useEffect(() => {
     return () => {
       ttsEngine.stop()
+      // Arrêter aussi la lecture Web Speech API si active
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel()
+      }
+      setIsPlaying(false)
+      setPlayingLineIndex(undefined)
     }
   }, [])
 
@@ -284,12 +290,13 @@ export function ReaderScreen() {
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Veuillez sélectionner votre personnage pour utiliser le mode lecteur.
           </p>
-          <Button onClick={() => navigate(`/play/${playId}/detail`)}>Sélectionner un personnage</Button>
+          <Button onClick={() => navigate(`/play/${playId}/detail`)}>
+            Sélectionner un personnage
+          </Button>
         </div>
       </div>
     )
   }
-
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="reader-screen">
@@ -309,7 +316,12 @@ export function ReaderScreen() {
               data-testid="close-button"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
 
@@ -329,7 +341,12 @@ export function ReaderScreen() {
               data-testid="help-button"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </button>
           </div>
@@ -357,7 +374,10 @@ export function ReaderScreen() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400" data-testid="user-character">
+                <p
+                  className="text-sm text-gray-600 dark:text-gray-400"
+                  data-testid="user-character"
+                >
                   Mode Lecteur - {userCharacter?.name}
                 </p>
               </div>
@@ -421,9 +441,11 @@ export function ReaderScreen() {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden" data-testid="text-display-container">
-        {currentScene && playSettings ? (
-          <TextDisplay
-            lines={currentScene.lines}
+        {currentPlay && playSettings ? (
+          <FullPlayDisplay
+            acts={currentPlay.ast.acts}
+            currentActIndex={currentActIndex}
+            currentSceneIndex={currentSceneIndex}
             currentLineIndex={currentLineIndex}
             readingMode={playSettings.readingMode}
             userCharacterId={userCharacter?.id}
@@ -433,10 +455,11 @@ export function ReaderScreen() {
             playingLineIndex={playingLineIndex}
             readLinesSet={readLinesSet}
             charactersMap={charactersMap}
+            playTitle={getPlayTitle(currentPlay)}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500 dark:text-gray-400">Aucune scène sélectionnée</p>
+            <p className="text-gray-500 dark:text-gray-400">Aucun contenu à afficher</p>
           </div>
         )}
       </div>
