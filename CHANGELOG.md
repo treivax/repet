@@ -20,10 +20,20 @@ Cette version majeure réécrit les composants clés pour respecter strictement 
   - Mode audio : tag `LECTURE AUDIO` (vert)
   - Mode italiennes : tag `ITALIENNES (PERSONNAGE)` (violet) avec le nom du personnage sélectionné
 - **Navigation rapide** - Clic sur le tag pour changer de méthode de lecture
-  - Redirection directe vers l'écran de sélection de méthode (`/play/:id/reader`)
+  - Redirection directe vers l'écran de sélection de méthode (`/reader/:id`)
   - Pas de retour à l'écran d'accueil
   - Conservation du contexte de la pièce en cours
 - **Design cohérent** - Couleurs distinctes par mode avec effet hover
+
+### 🐛 Bug Fixes
+
+#### Tag de Méthode de Lecture
+
+- **Correction route de navigation** - Utilisation de la route correcte `/reader/:playId` au lieu de `/play/:playId/reader`
+- **Correction clic en mode audio** - Le callback `onLineClick` est maintenant passé uniquement en mode audio
+  - Les cartes sont désormais cliquables en mode audio
+  - En mode silencieux, les cartes ont seulement un effet visuel sans déclencher la synthèse vocale
+  - Résolution du problème où les cartes n'étaient plus sélectionnables après le passage à l'affichage complet
 
 #### Parser Conforme à la Spec
 

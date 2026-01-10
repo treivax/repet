@@ -80,7 +80,7 @@ Cette page présente visuellement les différents tags de méthode de lecture af
             └───────────────────────────────────┘
 ```
 
-**Action** : Navigation vers `/play/:id/reader`  
+**Action** : Navigation vers `/reader/:id`  
 **Effet** : L'écran de sélection de méthode s'affiche  
 **Contexte** : Position dans la pièce préservée
 
@@ -279,6 +279,13 @@ Le tag est visuellement secondaire mais reste clairement visible et accessible.
 - [ ] **Icônes** à côté du texte pour renforcer la signification
 - [ ] **Notification toast** après changement de mode
 - [ ] **Historique** des modes utilisés (persistance locale)
+
+---
+
+## 🐛 Corrections
+
+- **2025-01-XX** : Correction route de navigation (`/reader/:playId`)
+- **2025-01-XX** : Correction clic mode audio (onLineClick conditionnel)
 
 ---
 

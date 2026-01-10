@@ -30,7 +30,7 @@ Le tag s'affiche dans le header, à côté du titre de la pièce, avec un style 
 ### Navigation
 
 Lorsque l'utilisateur clique sur le tag :
-1. Navigation vers `/play/:playId/reader`
+1. Navigation vers `/reader/:playId`
 2. L'écran de sélection de méthode s'affiche
 3. Le contexte de la pièce est conservé (position actuelle, acte, scène)
 4. L'utilisateur peut modifier la méthode et revenir directement à la lecture
@@ -64,7 +64,7 @@ const getReadingModeLabel = () => {
 // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
 const handleReadingModeClick = () => {
   if (playId) {
-    navigate(`/play/${playId}/reader`)
+    navigate(`/reader/${playId}`)
   }
 }
 ```
@@ -127,7 +127,7 @@ const handleReadingModeClick = () => {
 
 #### Test 4 : Navigation au Clic
 1. En mode lecture, cliquer sur le tag de méthode
-2. **Vérifier** : Navigation vers l'écran `/play/:id/reader`
+2. **Vérifier** : Navigation vers l'écran `/reader/:id`
 3. Choisir un autre mode
 4. **Vérifier** : Retour à la lecture avec le nouveau mode
 5. **Vérifier** : Position dans la pièce préservée
@@ -190,6 +190,9 @@ describe('PlayScreen - Reading Mode Tag', () => {
 
 ## Historique
 
+- **2025-01-XX** : Corrections de bugs
+  - Correction de la route de navigation (`/reader/:playId` au lieu de `/play/:playId/reader`)
+  - Correction du clic en mode audio : `onLineClick` passé uniquement en mode audio
 - **2025-01-XX** : Implémentation initiale
   - Affichage du tag pour tous les modes
   - Navigation directe vers l'écran de sélection

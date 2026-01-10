@@ -515,7 +515,7 @@ export function PlayScreen() {
   // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
   const handleReadingModeClick = () => {
     if (playId) {
-      navigate(`/play/${playId}/reader`)
+      navigate(`/reader/${playId}`)
     }
   }
 
@@ -677,7 +677,7 @@ export function PlayScreen() {
             readLinesSet={readLinesSet}
             charactersMap={charactersMap}
             playTitle={getPlayTitle(currentPlay)}
-            onLineClick={handleLineClick}
+            onLineClick={playSettings.readingMode === 'audio' ? handleLineClick : undefined}
             isPaused={isPaused}
             progressPercentage={progressPercentage}
             elapsedTime={elapsedTime}
