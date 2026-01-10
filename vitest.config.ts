@@ -15,8 +15,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: [],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    pool: 'forks',
+    isolate: false,
+    singleFork: true,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

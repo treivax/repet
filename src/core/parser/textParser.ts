@@ -10,6 +10,33 @@ import { createCharacter } from '../models/Character'
 import { generateUUID } from '../../utils/uuid'
 
 /**
+ * Convertit un chiffre romain en chiffre arabe
+ */
+function romanToArabic(roman: string): number {
+  const romanMap: { [key: string]: number } = {
+    I: 1,
+    V: 5,
+    X: 10,
+    L: 50,
+    C: 100,
+    D: 500,
+    M: 1000,
+  }
+
+  let result = 0
+  for (let i = 0; i < roman.length; i++) {
+    const current = romanMap[roman[i]]
+    const next = romanMap[roman[i + 1]]
+    if (next && current < next) {
+      result -= current
+    } else {
+      result += current
+    }
+  }
+  return result
+}
+
+/**
  * Parse un fichier texte et retourne un AST complet
  * Conforme à la spécification spec/appli.txt
  *
@@ -157,9 +184,11 @@ function parseStructure(lines: string[]): Act[] {
   while (i < lines.length) {
     const line = lines[i].trim()
 
-    // Détecter ACTE
-    const actMatch = line.match(/^ACTE\s+(\d+)(?:\s*[-–—:]\s*(.+))?/i)
-    if (actMatch) {
+    // Détecter ACTE (chiffres arabes ou romains)
+    const actMatchArabic = line.match(/^ACTE\s+(\d+)(?:\s*[-–—:]\s*(.+))?/i)
+    const actMatchRoman = line.match(/^ACTE\s+([IVXLCDM]+)(?:\s*[-–—:]\s*(.+))?/i)
+
+    if (actMatchArabic || actMatchRoman) {
       // Sauvegarder l'acte précédent
       if (currentAct && currentScene) {
         currentAct.scenes.push(currentScene)
@@ -170,9 +199,14 @@ function parseStructure(lines: string[]): Act[] {
       }
 
       // Créer nouvel acte
+      const actNum = actMatchArabic
+        ? parseInt(actMatchArabic[1], 10)
+        : romanToArabic(actMatchRoman![1])
+      const actTitle = actMatchArabic ? actMatchArabic[2]?.trim() : actMatchRoman![2]?.trim()
+
       currentAct = {
-        actNumber: parseInt(actMatch[1], 10),
-        title: actMatch[2]?.trim(),
+        actNumber: actNum,
+        title: actTitle,
         scenes: [],
       }
 
@@ -180,18 +214,27 @@ function parseStructure(lines: string[]): Act[] {
       continue
     }
 
-    // Détecter Scène
-    const sceneMatch = line.match(/^Sc[èe]ne\s+(\d+)(?:\s*[-–—:]\s*(.+))?/i)
-    if (sceneMatch) {
+    // Détecter Scène (chiffres arabes ou romains)
+    const sceneMatchArabic = line.match(/^Sc[èe]ne\s+(\d+)(?:\s*[-–—:]\s*(.+))?/i)
+    const sceneMatchRoman = line.match(/^Sc[èe]ne\s+([IVXLCDM]+)(?:\s*[-–—:]\s*(.+))?/i)
+
+    if (sceneMatchArabic || sceneMatchRoman) {
       // Sauvegarder la scène précédente
       if (currentScene && currentAct) {
         currentAct.scenes.push(currentScene)
       }
 
       // Créer nouvelle scène
+      const sceneNum = sceneMatchArabic
+        ? parseInt(sceneMatchArabic[1], 10)
+        : romanToArabic(sceneMatchRoman![1])
+      const sceneTitle = sceneMatchArabic
+        ? sceneMatchArabic[2]?.trim()
+        : sceneMatchRoman![2]?.trim()
+
       currentScene = {
-        sceneNumber: parseInt(sceneMatch[1], 10),
-        title: sceneMatch[2]?.trim(),
+        sceneNumber: sceneNum,
+        title: sceneTitle,
         lines: [],
       }
 
@@ -376,7 +419,7 @@ function extractCharacters(acts: Act[]) {
     }
   }
 
-  return Array.from(characterSet).map((id) => createCharacter(id, generateUUID()))
+  return Array.from(characterSet).map((name) => createCharacter(name, name))
 }
 
 /**
