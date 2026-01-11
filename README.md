@@ -61,6 +61,34 @@ npm run dev
 | `npm run lint` | Analyse le code avec ESLint |
 | `npm run format` | Formate le code avec Prettier |
 
+### 📱 Tester l'installation PWA
+
+L'icône d'installation PWA n'apparaît **pas en mode dev** (`npm run dev`). Pour tester l'installation :
+
+```bash
+# Option 1 : Script automatique
+./test-pwa.sh
+
+# Option 2 : Manuellement
+npm run build
+npm run preview
+# Puis ouvrez http://localhost:4173 dans Chrome
+```
+
+**Dans Chrome** :
+1. Attendez quelques secondes après le chargement
+2. Cherchez l'icône ⊕ dans la barre d'adresse (à droite de l'URL)
+3. Ou Menu (⋮) → "Installer Répét..."
+4. Cliquez pour installer l'application
+
+**Vérification** :
+- Ouvrez DevTools (F12) → Onglet **Application**
+- Section **Manifest** : doit afficher le manifest de Répét
+- Section **Service Workers** : doit montrer un service worker actif
+
+**Alternative pour tester en dev** :
+Décommentez `devOptions.enabled: true` dans `vite.config.ts` (⚠️ peut causer des problèmes de cache)
+
 ## 📦 Build Production
 
 ```bash
