@@ -57,6 +57,75 @@ export function HelpScreen() {
               </p>
             </section>
 
+            {/* Section: PWA et Installation */}
+            <section>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Installation de l'application (PWA)
+              </h3>
+              <p className="text-gray-700 dark:text-gray-300 mb-3">
+                Répét est une Progressive Web App (PWA) qui peut être installée sur votre appareil
+                pour une expérience optimale, même hors ligne.
+              </p>
+
+              <div className="space-y-4">
+                {/* Installation Desktop */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                    💻 Installation sur ordinateur (Chrome, Edge, Brave)
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <li>Ouvrez Répét dans votre navigateur</li>
+                    <li>
+                      Cliquez sur l'icône d'installation dans la barre d'adresse (⊕ ou{' '}
+                      <span className="inline-block">⬇️</span>)
+                    </li>
+                    <li>Ou allez dans le menu (⋮) → "Installer Répét"</li>
+                    <li>Confirmez l'installation</li>
+                    <li>L'application s'ouvrira dans sa propre fenêtre comme une app native</li>
+                  </ol>
+                </div>
+
+                {/* Installation Android */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                    📱 Installation sur Android (Chrome, Firefox)
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <li>Ouvrez Répét dans Chrome ou Firefox</li>
+                    <li>Appuyez sur le menu (⋮) en haut à droite</li>
+                    <li>Sélectionnez "Installer l'application" ou "Ajouter à l'écran d'accueil"</li>
+                    <li>Confirmez l'installation</li>
+                    <li>L'icône Répét apparaîtra sur votre écran d'accueil</li>
+                    <li>Lancez l'app comme n'importe quelle application Android</li>
+                  </ol>
+                </div>
+
+                {/* Installation iOS */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                    🍎 Installation sur iOS/iPadOS (Safari)
+                  </h4>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <li>Ouvrez Répét dans Safari</li>
+                    <li>Appuyez sur le bouton Partager (□↑) en bas de l'écran</li>
+                    <li>Faites défiler et sélectionnez "Sur l'écran d'accueil"</li>
+                    <li>Personnalisez le nom si vous le souhaitez</li>
+                    <li>Appuyez sur "Ajouter"</li>
+                    <li>L'icône Répét apparaîtra sur votre écran d'accueil</li>
+                    <li>Lancez l'app comme n'importe quelle application iOS</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  💡 <strong>Avantages de l'installation :</strong> Accès rapide depuis votre écran
+                  d'accueil, fonctionnement hors ligne, expérience plein écran sans barre d'adresse,
+                  notifications possibles.
+                </p>
+              </div>
+            </section>
+
             {/* Section: Démarrage rapide */}
             <section>
               <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">
@@ -323,9 +392,12 @@ Je compte mes dépenses.`}
               <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Besoin d'aide ?
               </h3>
-              <p className="text-gray-700 dark:text-gray-300">
+              <p className="text-gray-700 dark:text-gray-300 mb-2">
                 Pour toute question, suggestion ou signalement de bug, consultez la documentation
                 complète du projet ou contactez l'équipe de développement.
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Répét est un projet open-source développé avec ❤️ pour les passionnés de théâtre.
               </p>
             </section>
           </div>
