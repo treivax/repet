@@ -101,6 +101,60 @@ npm run preview
 
 Le build sera généré dans le dossier `dist/`.
 
+## 🌐 Déploiement en production
+
+### Déploiement rapide (5 minutes)
+
+Voir **[DEPLOY_QUICKSTART.md](DEPLOY_QUICKSTART.md)** pour un guide express.
+
+### Options de déploiement
+
+| Plateforme | Difficulté | HTTPS | Déploiement auto | Gratuit |
+|------------|------------|-------|------------------|---------|
+| **Netlify** | ⭐ Facile | ✅ | ✅ | ✅ |
+| **Vercel** | ⭐ Facile | ✅ | ✅ | ✅ |
+| **GitHub Pages** | ⭐⭐ Moyen | ✅ | ✅ | ✅ |
+| **Serveur personnel** | ⭐⭐⭐ Avancé | ⚙️ | ❌ | Dépend |
+
+### Netlify (Recommandé)
+
+```bash
+# 1. Connectez votre repo sur netlify.com
+# 2. Configuration :
+#    Build command: npm run build
+#    Publish directory: dist
+# 3. Deploy !
+```
+
+Configuration incluse dans `netlify.toml` ✅
+
+### Vercel
+
+```bash
+# Via CLI
+npm install -g vercel
+vercel login
+vercel --prod
+
+# Ou via l'interface web vercel.com
+```
+
+### GitHub Pages
+
+```bash
+# Le workflow GitHub Actions est déjà configuré
+# Il suffit d'activer Pages dans Settings → Pages
+# Source: GitHub Actions
+```
+
+**Documentation complète** : [DEPLOYMENT.md](DEPLOYMENT.md)
+
+**Vérification après déploiement** :
+- ✅ Site accessible en HTTPS
+- ✅ PWA installable (icône ⊕ dans Chrome)
+- ✅ Service Worker actif (DevTools → Application)
+- ✅ Fonctionne hors ligne
+
 ## 📁 Structure du Projet
 
 ```
