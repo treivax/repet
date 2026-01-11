@@ -270,6 +270,29 @@ export function ReaderScreen() {
   const isSilentMode = playSettings?.readingMode === 'silent'
   const isItalianMode = playSettings?.readingMode === 'italian'
 
+  // Fonction pour obtenir le label du tag de méthode de lecture
+  const getReadingModeLabel = () => {
+    if (!playSettings) return ''
+
+    switch (playSettings.readingMode) {
+      case 'silent':
+        return 'LECTURE'
+      case 'audio':
+        return 'LECTURE AUDIO'
+      case 'italian':
+        return userCharacter ? `ITALIENNES (${userCharacter.name.toUpperCase()})` : 'ITALIENNES'
+      default:
+        return ''
+    }
+  }
+
+  // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
+  const handleReadingModeClick = () => {
+    if (playId) {
+      navigate(`/play/${playId}/detail`)
+    }
+  }
+
   // Rendu
   if (!currentPlay) {
     return (
@@ -325,13 +348,25 @@ export function ReaderScreen() {
               </svg>
             </button>
 
-            {/* Centre : titre tronqué */}
-            <h1
-              className="flex-1 mx-4 text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
-              data-testid="play-title"
-            >
-              {getPlayTitle(currentPlay)}
-            </h1>
+            {/* Centre : titre avec badge mode de lecture */}
+            <div className="flex-1 mx-4 flex items-center justify-center gap-2">
+              <h1
+                className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
+                data-testid="play-title"
+              >
+                {getPlayTitle(currentPlay)}
+              </h1>
+              {playSettings && (
+                <button
+                  onClick={handleReadingModeClick}
+                  className="text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
+                  data-testid="reading-mode"
+                  aria-label="Changer de méthode de lecture"
+                >
+                  {getReadingModeLabel()}
+                </button>
+              )}
+            </div>
 
             {/* Droite : icône aide */}
             <button

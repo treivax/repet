@@ -43,9 +43,13 @@ export function PlayScreen() {
 
   const { startLoading, stopLoading, addError } = useUIStore()
 
-  // Settings par pièce
-  const { getPlaySettings } = usePlaySettingsStore()
-  const playSettings = playId ? getPlaySettings(playId) : null
+  // Settings par pièce - utiliser le même pattern que PlayDetailScreen
+  const playSettings = usePlaySettingsStore((state) =>
+    playId ? state.playSettings[playId] || state.getPlaySettings(playId) : null
+  )
+
+  // Récupérer getPlaySettings pour le useEffect de chargement
+  const getPlaySettings = usePlaySettingsStore((state) => state.getPlaySettings)
 
   const [playingLineIndex, setPlayingLineIndex] = useState<number | undefined>()
   const [isPaused, setIsPaused] = useState(false)
@@ -177,12 +181,24 @@ export function PlayScreen() {
    * Utilise le tracking mot par mot si disponible, sinon l'estimation temps
    */
   const updateProgress = () => {
-    if (!isPlayingRef.current || estimatedDurationRef.current === 0) return
+    if (!isPlayingRef.current || estimatedDurationRef.current === 0) {
+      return
+    }
 
     let percentage = 0
     let elapsed = 0
 
-    if (useBoundaryTrackingRef.current && totalWordsRef.current > 0) {
+    // Calculer le temps écoulé réel
+    const now = performance.now()
+    const actualElapsed = (now - startTimeRef.current) / 1000
+
+    // Vérifier si le boundary tracking fonctionne (au moins 1 mot après 500ms)
+    const boundaryWorking =
+      useBoundaryTrackingRef.current &&
+      totalWordsRef.current > 0 &&
+      (actualElapsed < 0.5 || wordsSpokenRef.current > 0)
+
+    if (boundaryWorking && wordsSpokenRef.current > 0) {
       // Méthode précise : basée sur les mots prononcés (via onboundary)
       percentage = (wordsSpokenRef.current / totalWordsRef.current) * 100
 
@@ -191,8 +207,12 @@ export function PlayScreen() {
       elapsed = wordsSpokenRef.current / wordsPerSecond
     } else {
       // Méthode fallback : basée sur le temps écoulé
-      const now = performance.now()
-      elapsed = (now - startTimeRef.current) / 1000
+      // Si boundary ne fonctionne pas après 500ms, désactiver pour cette session
+      if (actualElapsed >= 0.5 && wordsSpokenRef.current === 0 && useBoundaryTrackingRef.current) {
+        useBoundaryTrackingRef.current = false
+      }
+
+      elapsed = actualElapsed
       percentage = (elapsed / estimatedDurationRef.current) * 100
     }
 

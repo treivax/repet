@@ -140,7 +140,24 @@ export function LineRenderer({
     readingMode === 'italian' && userCharacterId && line.characterId === userCharacterId
 
   // Déterminer si la ligne doit être masquée
-  const shouldHide = isUserLine && hideUserLines && !showBefore && !hasBeenRead
+  // Logique pour le mode italiennes avec hideUserLines activé :
+  // - PENDANT la lecture (isPlaying) : TOUJOURS masquer (l'utilisateur doit jouer sans voir)
+  // - AVANT la lecture (!hasBeenRead) : masquer sauf si showBefore = true
+  // - APRÈS la lecture (hasBeenRead) : masquer sauf si showAfter = true
+  let shouldHide = false
+  if (isUserLine && hideUserLines) {
+    if (isPlaying) {
+      // Pendant la lecture : toujours masquer
+      shouldHide = true
+    } else if (!hasBeenRead) {
+      // Avant lecture : masquer sauf si showBefore
+      shouldHide = !showBefore
+    } else {
+      // Après lecture : masquer sauf si showAfter
+      shouldHide = !showAfter
+    }
+  }
+
   const shouldReveal = isUserLine && hideUserLines && showAfter && hasBeenRead
 
   // État local pour savoir si la carte est cliquée/active
@@ -159,15 +176,78 @@ export function LineRenderer({
 
     // Ligne masquée (mode italiennes, avant lecture)
     if (shouldHide) {
+      // Créer une carte cliquable même pour les lignes masquées
+      const hiddenCardClasses = `
+        my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
+        ${
+          isPlaying
+            ? isPaused
+              ? 'bg-yellow-50 dark:bg-yellow-900/10 shadow-md border-l-4 border-yellow-500'
+              : 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
+            : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
+        }
+      `.trim()
+
+      const handleHiddenClick = () => {
+        if (onClick) {
+          onClick()
+        }
+      }
+
       return (
-        <div className="my-4">
+        <button onClick={handleHiddenClick} className={hiddenCardClasses} data-testid="hidden-line">
           <div className="font-bold uppercase text-gray-900 dark:text-gray-100">
             {characterName}
           </div>
           <div className="mt-2 rounded-md border-2 border-dashed border-gray-300 bg-gray-100 p-4 text-center text-sm italic text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
             [Réplique masquée - À vous de jouer]
           </div>
-        </div>
+          {isPlaying && (
+            <div className="mt-2 flex items-center gap-2">
+              {/* Indicateur de progression circulaire */}
+              <svg className="h-6 w-6 -rotate-90 transform" viewBox="0 0 24 24">
+                {/* Cercle de fond */}
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  className="text-gray-300 dark:text-gray-600"
+                />
+                {/* Cercle de progression */}
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeDasharray={`${2 * Math.PI * 10}`}
+                  strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
+                  className={
+                    isPaused
+                      ? 'text-yellow-500 dark:text-yellow-400'
+                      : 'text-blue-500 dark:text-blue-400'
+                  }
+                  strokeLinecap="round"
+                />
+              </svg>
+              {/* Temps restant */}
+              <div
+                className={`text-xs font-medium ${
+                  isPaused
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-blue-600 dark:text-blue-400'
+                }`}
+              >
+                {isPaused ? '⏸ En pause · ' : ''}
+                {Math.max(0, Math.ceil(estimatedDuration - elapsedTime))}s
+              </div>
+            </div>
+          )}
+        </button>
       )
     }
 
