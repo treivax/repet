@@ -4,7 +4,6 @@
  * See LICENSE file in the project root for full license text
  */
 
-export * from './playStore';
-export * from './settingsStore';
-export * from './uiStore';
-export * from './selectors';
+export * from './playStore'
+export * from './uiStore'
+export * from './selectors'

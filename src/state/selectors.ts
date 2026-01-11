@@ -5,7 +5,6 @@
  */
 
 import { usePlayStore } from './playStore'
-import { useSettingsStore } from './settingsStore'
 import type { Line } from '../core/models/Line'
 import { getPlayLines } from '../core/models/playHelpers'
 
@@ -87,16 +86,6 @@ export function useCurrentSceneLines(): Line[] {
   return lines.filter(
     (line: Line) => line.actIndex === currentActIndex && line.sceneIndex === currentSceneIndex
   )
-}
-
-/**
- * Vérifie si le mode audio est activé
- *
- * @returns true si mode audio ou italien
- */
-export function useIsAudioEnabled(): boolean {
-  const readingMode = useSettingsStore((state) => state.readingMode)
-  return readingMode === 'audio' || readingMode === 'italian'
 }
 
 /**
