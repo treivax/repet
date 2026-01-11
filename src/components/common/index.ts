@@ -4,9 +4,10 @@
  * See LICENSE file in the project root for full license text
  */
 
-export * from './Button';
-export * from './Input';
-export * from './Modal';
-export * from './Spinner';
-export * from './Toast';
-export * from './Layout';
+export * from './Button'
+export * from './Input'
+export * from './Modal'
+export * from './Spinner'
+export * from './Toast'
+export * from './Layout'
+export * from './StandardHeader'

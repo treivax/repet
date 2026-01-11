@@ -6,6 +6,7 @@
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { Layout } from './components/common/Layout'
+import { StandardHeader } from './components/common/StandardHeader'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { PlayScreen } from './screens/PlayScreen'
 import { ReaderScreen } from './screens/ReaderScreen'
@@ -18,13 +19,7 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <Layout
-        header={
-          <nav className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-gray-900">Répét</h1>
-          </nav>
-        }
-      >
+      <Layout header={<StandardHeader title="Répét" />}>
         <LibraryScreen />
       </Layout>
     ),

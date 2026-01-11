@@ -4,11 +4,9 @@
  * See LICENSE file in the project root for full license text
  */
 
-export * from './LineCue'
-export * from './NavigationControls'
-export * from './SceneNavigator'
-export * from './SceneSummary'
 export * from './LineRenderer'
+export * from './SceneSummary'
 export * from './SceneNavigation'
 export * from './PlaybackControls'
-export * from './TextDisplay'
+export * from './FullPlayDisplay'
+export * from './ReadingHeader'

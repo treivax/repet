@@ -5,7 +5,7 @@
  */
 
 export * from './LibraryScreen'
-export * from './SettingsScreen'
+export * from './HelpScreen'
 export * from './PlayScreen'
 export * from './PlayDetailScreen'
 export * from './ReaderScreen'

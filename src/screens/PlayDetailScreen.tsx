@@ -16,6 +16,7 @@ import { ItalianSettings } from '../components/play/ItalianSettings'
 import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { CharacterSelector } from '../components/play/CharacterSelector'
+import { StandardHeader } from '../components/common/StandardHeader'
 
 /**
  * Écran de présentation détaillée d'une pièce (Écran "Texte" dans la spec)
@@ -134,26 +135,25 @@ export function PlayDetailScreen() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        <div className="mx-auto max-w-4xl px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Retour
-            </button>
-          </div>
-        </div>
-      </header>
+      <StandardHeader
+        leftContent={
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Retour
+          </button>
+        }
+        className="border-b"
+      />
 
       {/* Contenu */}
       <main className="mx-auto max-w-4xl px-4 py-6">

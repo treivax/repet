@@ -16,6 +16,7 @@ import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { SceneNavigation } from '../components/reader/SceneNavigation'
+import { ReadingHeader } from '../components/reader/ReadingHeader'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
@@ -564,74 +565,30 @@ export function PlayScreen() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="play-screen">
       {/* Header */}
-      <header
-        className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0"
-        data-testid="play-header"
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}
-      >
-        {/* Header épuré similaire au mode silencieux */}
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
-          {/* Gauche : icône retour */}
-          <button
-            onClick={handleClose}
-            className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
-            aria-label="Retour à l'accueil"
-            data-testid="close-button"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-
-          {/* Centre : titre avec badge mode de lecture */}
-          <div className="flex-1 mx-4 flex items-center justify-center gap-2">
-            <h1
-              className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
-              data-testid="play-title"
+      <ReadingHeader
+        title={getPlayTitle(currentPlay)}
+        modeBadge={
+          playSettings ? (
+            <button
+              onClick={handleReadingModeClick}
+              className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 ${
+                playSettings.readingMode === 'silent'
+                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                  : playSettings.readingMode === 'audio'
+                    ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                    : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+              }`}
+              data-testid="reading-mode"
+              aria-label="Changer de méthode de lecture"
             >
-              {getPlayTitle(currentPlay)}
-            </h1>
-            {playSettings && (
-              <button
-                onClick={handleReadingModeClick}
-                className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 ${
-                  playSettings.readingMode === 'silent'
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                    : playSettings.readingMode === 'audio'
-                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                      : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-                }`}
-                data-testid="reading-mode"
-                aria-label="Changer de méthode de lecture"
-              >
-                {getReadingModeLabel()}
-              </button>
-            )}
-          </div>
-
-          {/* Droite : icône aide */}
-          <button
-            onClick={() => setShowSummary(!showSummary)}
-            className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
-            aria-label="Aide"
-            data-testid="help-button"
-          >
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </button>
-        </div>
-      </header>
+              {getReadingModeLabel()}
+            </button>
+          ) : undefined
+        }
+        onBack={handleClose}
+        onSummary={() => setShowSummary(!showSummary)}
+        testId="play-header"
+      />
 
       {/* Sommaire (modal overlay) */}
       {showSummary && (

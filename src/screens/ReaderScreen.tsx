@@ -17,6 +17,7 @@ import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { SceneNavigation } from '../components/reader/SceneNavigation'
+import { ReadingHeader } from '../components/reader/ReadingHeader'
 import { PlaybackControls } from '../components/reader/PlaybackControls'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle } from '../core/models/playHelpers'
@@ -252,13 +253,6 @@ export function ReaderScreen() {
     navigate('/')
   }
 
-  const handleChangeCharacter = () => {
-    if (isPlaying) {
-      handleStop()
-    }
-    navigate(`/play/${playId}/detail`)
-  }
-
   // Navigation scènes
   const canGoPreviousScene = currentSceneIndex > 0 || currentActIndex > 0
   const canGoNextScene =
@@ -268,7 +262,6 @@ export function ReaderScreen() {
 
   // Déterminer le mode
   const isSilentMode = playSettings?.readingMode === 'silent'
-  const isItalianMode = playSettings?.readingMode === 'italian'
 
   // Fonction pour obtenir le label du tag de méthode de lecture
   const getReadingModeLabel = () => {
@@ -324,118 +317,30 @@ export function ReaderScreen() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="reader-screen">
       {/* Header */}
-      <header
-        className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0"
-        data-testid="reader-header"
-      >
-        {isSilentMode ? (
-          /* Header épuré pour mode silencieux */
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            {/* Gauche : icône retour */}
+      <ReadingHeader
+        title={getPlayTitle(currentPlay)}
+        modeBadge={
+          playSettings ? (
             <button
-              onClick={handleClose}
-              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
-              aria-label="Retour à l'accueil"
-              data-testid="close-button"
+              onClick={handleReadingModeClick}
+              className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 ${
+                playSettings.readingMode === 'silent'
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+                  : playSettings.readingMode === 'audio'
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                    : 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+              }`}
+              data-testid="reading-mode-badge"
+              aria-label="Retour aux détails"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+              {getReadingModeLabel()}
             </button>
-
-            {/* Centre : titre avec badge mode de lecture */}
-            <div className="flex-1 mx-4 flex items-center justify-center gap-2">
-              <h1
-                className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
-                data-testid="play-title"
-              >
-                {getPlayTitle(currentPlay)}
-              </h1>
-              {playSettings && (
-                <button
-                  onClick={handleReadingModeClick}
-                  className="text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
-                  data-testid="reading-mode"
-                  aria-label="Changer de méthode de lecture"
-                >
-                  {getReadingModeLabel()}
-                </button>
-              )}
-            </div>
-
-            {/* Droite : icône aide */}
-            <button
-              onClick={() => setShowSummary(!showSummary)}
-              className="flex items-center justify-center w-10 h-10 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition-colors"
-              aria-label="Aide"
-              data-testid="help-button"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </button>
-          </div>
-        ) : (
-          /* Header complet pour modes audio et italiennes */
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-4">
-              <Button variant="secondary" onClick={handleClose} data-testid="close-button">
-                ← Retour
-              </Button>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1
-                    className="text-xl font-bold text-gray-900 dark:text-gray-100"
-                    data-testid="play-title"
-                  >
-                    {getPlayTitle(currentPlay)}
-                  </h1>
-                  {isItalianMode && (
-                    <span
-                      className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded font-semibold"
-                      data-testid="reading-mode"
-                    >
-                      MODE ITALIENNES
-                    </span>
-                  )}
-                </div>
-                <p
-                  className="text-sm text-gray-600 dark:text-gray-400"
-                  data-testid="user-character"
-                >
-                  Mode Lecteur - {userCharacter?.name}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setShowSummary(!showSummary)}
-                data-testid="summary-button"
-              >
-                {showSummary ? 'Masquer sommaire' : 'Sommaire'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleChangeCharacter}
-                data-testid="change-character-button"
-              >
-                Changer de personnage
-              </Button>
-            </div>
-          </div>
-        )}
-      </header>
+          ) : undefined
+        }
+        onBack={handleClose}
+        onSummary={() => setShowSummary(!showSummary)}
+        testId="reader-header"
+      />
 
       {/* Sommaire (modal overlay) */}
       {showSummary && (
