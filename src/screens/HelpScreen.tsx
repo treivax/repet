@@ -132,8 +132,8 @@ export function HelpScreen() {
                     </span>
                   </h4>
                   <p className="text-gray-700 dark:text-gray-300 mb-2">
-                    Mode de répétition avancé : les répliques de votre personnage sont masquées
-                    pour tester votre mémoire.
+                    Mode de répétition avancé : les répliques de votre personnage sont masquées pour
+                    tester votre mémoire.
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
                     <li>Vos répliques sont cachées (••••••) pendant la lecture</li>
@@ -236,36 +236,56 @@ export function HelpScreen() {
                 Répét accepte les fichiers texte (.txt) avec le format suivant :
               </p>
               <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm">
-                <pre className="text-gray-800 dark:text-gray-200">
-                  {`# Titre de la Pièce
+                <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                  {`Le Malade Imaginaire
 
-## Acte I
+Auteur: Molière
+Annee: 1673
 
-### Scène 1
+ACTE I
 
-PERSONNAGE1
-Voici ma première réplique.
+Scene 1
 
-PERSONNAGE2
-Et voici ma réponse.
+ARGAN:
+Trois et deux font cinq, et cinq font dix, et dix font vingt.
+(Il regarde ses papiers)
 
-PERSONNAGE1
-Une autre réplique du premier personnage.`}
+TOINETTE:
+Monsieur, que faites-vous ?
+
+ARGAN:
+Je compte mes dépenses.`}
                 </pre>
               </div>
-              <ul className="list-disc list-inside mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-400">
+              <ul className="list-disc list-inside mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <li>
-                  <code className="bg-gray-100 dark:bg-gray-900 px-1 rounded">#</code> : Titre de
-                  la pièce
+                  <strong>Titre</strong> : Premier bloc de texte isolé (suivi d'une ligne vide)
                 </li>
                 <li>
-                  <code className="bg-gray-100 dark:bg-gray-900 px-1 rounded">##</code> : Acte
+                  <strong>Auteur</strong> : Ligne commençant par "Auteur:" juste après le titre
                 </li>
                 <li>
-                  <code className="bg-gray-100 dark:bg-gray-900 px-1 rounded">###</code> : Scène
+                  <strong>Année</strong> : Ligne commençant par "Annee:" après le titre ou l'auteur
                 </li>
-                <li>Les noms de personnages en MAJUSCULES sur une ligne seule</li>
-                <li>Les répliques en dessous du nom du personnage</li>
+                <li>
+                  <strong>Actes</strong> : Ligne commençant par "ACTE" ou "Acte" suivi du numéro (I,
+                  II, 1, 2...) et optionnellement d'un titre
+                </li>
+                <li>
+                  <strong>Scènes</strong> : Ligne commençant par "Scene" ou "Scène" suivi du numéro
+                  et optionnellement d'un titre
+                </li>
+                <li>
+                  <strong>Répliques</strong> : Nom du personnage EN MAJUSCULES suivi de ":" puis un
+                  retour à la ligne et le texte de la réplique
+                </li>
+                <li>
+                  <strong>Didascalies</strong> : Texte entre parenthèses dans les répliques (affiché
+                  en italique et gris)
+                </li>
+                <li>
+                  Les blocs de texte entre les sections sont aussi considérés comme des didascalies
+                </li>
               </ul>
             </section>
 
