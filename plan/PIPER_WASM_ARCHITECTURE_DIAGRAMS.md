@@ -186,6 +186,137 @@
 
 ---
 
+## 🎭 Flux d'Assignation de Voix par Genre
+
+### Principe : Maximiser la Diversité Vocale
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Pièce : 4 personnages                                       │
+│  - JULIETTE (Femme) ──┐                                     │
+│  - CLAIRE (Femme)   ──┤                                     │
+│  - ROMÉO (Homme)    ──┤                                     │
+│  - MARC (Homme)     ──┘                                     │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ PlayDetailScreen : "Voix des personnages"                   │
+│                                                             │
+│ Utilisateur définit le genre de chaque personnage :        │
+│  ♀ JULIETTE  → Femme  [settings.characterVoices]          │
+│  ♀ CLAIRE    → Femme                                       │
+│  ♂ ROMÉO     → Homme                                       │
+│  ♂ MARC      → Homme                                       │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Lecture : PlayScreen                                        │
+│  → Pour chaque réplique de personnage                       │
+│  → TTSProviderManager.speak(...)                            │
+└──────────────┬──────────────────────────────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ PiperWASMProvider.selectVoiceForCharacter(id, gender)       │
+│                                                              │
+│ JULIETTE (female) :                                         │
+│  ├─ Voix féminines disponibles : [Siwis, UPMC]             │
+│  ├─ Compteur utilisation : Siwis=0, UPMC=0                 │
+│  └─ Sélection : Siwis (la moins utilisée)                  │
+│     Compteur : Siwis=1                                      │
+│                                                              │
+│ CLAIRE (female) :                                           │
+│  ├─ Voix féminines disponibles : [Siwis, UPMC]             │
+│  ├─ Compteur utilisation : Siwis=1, UPMC=0                 │
+│  └─ Sélection : UPMC (la moins utilisée) ✅ DIFFÉRENTE      │
+│     Compteur : UPMC=1                                       │
+│                                                              │
+│ ROMÉO (male) :                                              │
+│  ├─ Voix masculines disponibles : [Tom, Gilles]            │
+│  ├─ Compteur utilisation : Tom=0, Gilles=0                 │
+│  └─ Sélection : Tom (la moins utilisée)                    │
+│     Compteur : Tom=1                                        │
+│                                                              │
+│ MARC (male) :                                               │
+│  ├─ Voix masculines disponibles : [Tom, Gilles]            │
+│  ├─ Compteur utilisation : Tom=1, Gilles=0                 │
+│  └─ Sélection : Gilles (la moins utilisée) ✅ DIFFÉRENTE    │
+│     Compteur : Gilles=1                                     │
+│                                                              │
+│ Cache : voiceAssignments Map                                │
+│  JULIETTE → fr_FR-siwis-medium                             │
+│  CLAIRE   → fr_FR-upmc-medium                              │
+│  ROMÉO    → fr_FR-tom-medium                               │
+│  MARC     → fr_FR-gilles-medium                            │
+└──────────────────────────────────────────────────────────────┘
+               │
+               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Résultat : 4 VOIX DIFFÉRENTES                               │
+│  ✅ Diversité maximale                                       │
+│  ✅ Respect des genres                                       │
+│  ✅ Cohérence (même voix pour même personnage)              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Cas Limite : Plus de Personnages que de Voix
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Pièce : 5 personnages féminins                              │
+│ Voix disponibles : 2 féminines (Siwis, UPMC)               │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│ Assignation avec Rotation Équitable                         │
+│                                                              │
+│ JULIETTE → Siwis  (usage: 0 → 1)                           │
+│ CLAIRE   → UPMC   (usage: 0 → 1)                           │
+│ OPHÉLIE  → Siwis  (usage: 1 → 2) ⟲ Rotation                │
+│ PORTIA   → UPMC   (usage: 1 → 2) ⟲ Rotation                │
+│ DESDÉMONE→ Siwis  (usage: 2 → 3) ⟲ Rotation                │
+│                                                              │
+│ Résultat : Usage équilibré (Siwis=3, UPMC=2)               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Algorithme de Sélection
+
+```typescript
+selectVoiceForCharacter(characterId: string, gender: Gender): string {
+  // 1. Vérifier le cache (cohérence)
+  if (this.voiceAssignments.has(characterId)) {
+    return this.voiceAssignments.get(characterId)!;
+  }
+  
+  // 2. Filtrer par genre
+  const modelsOfGender = PIPER_MODELS.filter(m => m.gender === gender);
+  
+  // 3. Trouver la voix la moins utilisée
+  let selectedModel = modelsOfGender[0];
+  let minUsage = this.voiceUsageCount.get(selectedModel.id) || 0;
+  
+  for (const model of modelsOfGender) {
+    const usage = this.voiceUsageCount.get(model.id) || 0;
+    if (usage < minUsage) {
+      minUsage = usage;
+      selectedModel = model;
+    }
+  }
+  
+  // 4. Enregistrer et incrémenter
+  this.voiceAssignments.set(characterId, selectedModel.id);
+  this.voiceUsageCount.set(selectedModel.id, minUsage + 1);
+  
+  return selectedModel.id;
+}
+```
+
+---
+
 ## 🗄️ Structure de Stockage
 
 ### IndexedDB : AudioCache
@@ -211,6 +342,24 @@ Database: RepetAudioCache (v1)
           Value: { ... }
 ```
 
+### Memory : Voice Assignments (In-Memory Cache)
+
+```
+PiperWASMProvider - Instance Memory
+
+voiceAssignments: Map<string, string>
+├── "char_juliette_123" → "fr_FR-siwis-medium"
+├── "char_claire_456"   → "fr_FR-upmc-medium"
+├── "char_romeo_789"    → "fr_FR-tom-medium"
+└── "char_marc_012"     → "fr_FR-gilles-medium"
+
+voiceUsageCount: Map<string, number>
+├── "fr_FR-siwis-medium" → 1
+├── "fr_FR-upmc-medium"  → 1
+├── "fr_FR-tom-medium"   → 1
+└── "fr_FR-gilles-medium"→ 1
+```
+
 ### LocalStorage : Configuration TTS
 
 ```
@@ -219,6 +368,20 @@ Value: {
   "state": {
     "selectedProvider": "piper-wasm",
     // Futures options...
+  },
+  "version": 1
+}
+
+Key: "repet-play-settings-[playId]"
+Value: {
+  "state": {
+    "characterVoices": {
+      "char_juliette_123": "female",
+      "char_claire_456": "female",
+      "char_romeo_789": "male",
+      "char_marc_012": "male"
+    },
+    // ... autres settings
   },
   "version": 1
 }
@@ -418,6 +581,31 @@ Résultat Attendu:
   ✅ Audio généré et joué
   ✅ Audio mis en cache
   ✅ localStorage: { selectedProvider: 'piper-wasm' }
+```
+
+### Test 4 : Assignation de Voix par Genre
+
+```
+État Initial:
+  Provider: Piper
+  Pièce: 4 personnages (2F, 2M)
+
+Action:
+  1. PlayDetailScreen → "Voix des personnages"
+  2. Définir les genres :
+     - JULIETTE → Femme
+     - CLAIRE → Femme
+     - ROMÉO → Homme
+     - MARC → Homme
+  3. Lire la pièce
+
+Résultat Attendu:
+  ✅ JULIETTE → Voix féminine 1 (ex: Siwis)
+  ✅ CLAIRE → Voix féminine 2 (ex: UPMC) - DIFFÉRENTE
+  ✅ ROMÉO → Voix masculine 1 (ex: Tom)
+  ✅ MARC → Voix masculine 2 (ex: Gilles) - DIFFÉRENTE
+  ✅ Relecture → Même assignation (cohérence)
+  ✅ Changer JULIETTE en "Homme" → Voix masculine
 ```
 
 ### Test 2 : Changement de Provider

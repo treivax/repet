@@ -37,7 +37,7 @@ npm run lint
 
 ## 🎯 Objectif en Une Phrase
 
-Permettre aux utilisateurs de choisir entre **"Natif Device"** (Web Speech API) et **"Piper"** (Piper-WASM) avec **Piper sélectionné par défaut**.
+Permettre aux utilisateurs de choisir entre **"Natif Device"** (Web Speech API) et **"Piper"** (Piper-WASM) avec **Piper sélectionné par défaut**, en assurant une **assignation intelligente des voix par genre** pour maximiser la diversité vocale entre personnages.
 
 ---
 
@@ -45,9 +45,10 @@ Permettre aux utilisateurs de choisir entre **"Natif Device"** (Web Speech API) 
 
 1. **TTSProvider Interface** - Abstraction commune pour tous les moteurs TTS
 2. **WebSpeechProvider** - Wrapper autour du code existant
-3. **PiperWASMProvider** - Nouveau moteur Piper-WASM
+3. **PiperWASMProvider** - Nouveau moteur Piper-WASM avec assignation intelligente par genre
 4. **TTSProviderManager** - Orchestrateur central
-5. **UI Selector** - Sélecteur de moteur dans les paramètres
+5. **Voice Assignment System** - Distribution intelligente des voix par genre
+6. **UI Selector** - Sélecteur de moteur dans les paramètres
 
 ---
 
@@ -77,6 +78,38 @@ plan/
 ├── PIPER_WASM_ACTION_PLAN.md   # Ce document
 └── PIPER_WASM_POC_RESULTS.md   # À créer (Phase 0)
 ```
+
+---
+
+## 🎙️ Assignation de Voix par Genre (Fonctionnalité Clé)
+
+### Principe
+L'application possède déjà un système "Voix des personnages" où l'utilisateur définit le genre (Homme/Femme) de chaque personnage. Le système doit :
+
+1. **Différencier** - Voix clairement identifiées comme masculines ou féminines
+2. **Maximiser la diversité** - Assigner des voix différentes à chaque personnage
+3. **Respecter le genre** - Personnage féminin → voix féminine, etc.
+4. **Assurer la cohérence** - Même personnage = même voix durant toute la session
+
+### Algorithme
+```
+Pour chaque personnage :
+  1. Lire le genre défini dans settings.characterVoices[characterId]
+  2. Filtrer les voix du même genre
+  3. Sélectionner la voix la moins utilisée (rotation équitable)
+  4. Mémoriser l'assignation pour cohérence
+```
+
+### Configuration Piper Requise
+- **Minimum 2 voix féminines** (ex: Siwis, UPMC)
+- **Minimum 2 voix masculines** (ex: Tom, Gilles)
+- Propriété `gender: 'male' | 'female'` obligatoire sur chaque modèle
+
+### Tests Critiques
+- [ ] 4 personnages (2F, 2M) → 4 voix différentes
+- [ ] Relecture → même assignation (cohérence)
+- [ ] Changement genre → changement voix
+- [ ] Plus de personnages que de voix → rotation équitable
 
 ---
 
@@ -185,6 +218,9 @@ function App() {
 - [ ] Cache audio fonctionne
 - [ ] Téléchargement de modèle fonctionne
 - [ ] Qualité audio acceptable
+- [ ] **Assignation voix par genre fonctionnelle**
+- [ ] **Au moins 2 voix par genre disponibles**
+- [ ] **Tests avec plusieurs personnages (diversité OK)**
 
 ### Phase 3 - UI
 - [ ] Sélecteur de moteur visible
@@ -290,6 +326,9 @@ npm run build && npm run preview
 ✅ Changement de moteur fluide  
 ✅ Lecture audio fonctionne avec les 2 moteurs  
 ✅ Cache audio accélère les lectures répétées  
+✅ **Voix différenciées par genre (M/F)**  
+✅ **Diversité maximale des voix entre personnages**  
+✅ **Cohérence d'assignation durant la session**  
 
 ### Technique
 ✅ Code respecte `common.md`  
@@ -363,3 +402,13 @@ Refs: Phase X du plan Piper-WASM"
 **Dernière mise à jour** : 2025-01-XX  
 **Statut** : 🟡 En attente de démarrage  
 **Prochaine action** : Phase 0 - POC
+
+---
+
+## 📌 Rappel Important : Assignation de Voix
+
+**À CHAQUE PHASE** - Garder en tête :
+- Les voix doivent être **différenciées par genre**
+- Objectif : **Maximum de voix différentes** par personnage
+- Utiliser `settings.characterVoices[characterId]` (déjà existant)
+- Algorithme de distribution équitable requis

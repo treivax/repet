@@ -607,6 +607,103 @@ export const ttsEngine = {
 - Intégrer Piper-WASM
 - Créer `PiperWASMProvider`
 - Permettre la génération audio avec Piper
+- **Implémenter l'assignation intelligente des voix par genre**
+
+#### Spécifications Fonctionnelles Importantes
+
+##### Assignation des Voix par Genre
+
+**Contexte** : L'application possède déjà un système d'assignation de voix dans "Voix des personnages" (écran `PlayDetailScreen`) où l'utilisateur peut définir le genre (homme/femme) de chaque personnage.
+
+**Exigences** :
+
+1. **Différenciation par Genre**
+   - Les voix Piper doivent être clairement identifiées comme "Homme" ou "Femme"
+   - Chaque modèle Piper doit avoir une propriété `gender: 'male' | 'female'`
+   - L'UI doit afficher le genre de chaque voix disponible
+
+2. **Assignation Automatique Intelligente**
+   - Lorsqu'un personnage a un genre défini dans `settings.characterVoices[characterId]`
+   - Le système doit automatiquement sélectionner une voix du même genre
+   - **Objectif : Maximiser la diversité des voix** - Assigner des voix différentes à chaque personnage
+
+3. **Algorithme de Distribution**
+   ```
+   Pour chaque personnage avec un genre défini :
+     1. Filtrer les voix disponibles du même genre
+     2. Sélectionner une voix pas encore assignée (si possible)
+     3. Si toutes les voix du genre sont déjà assignées :
+        → Réutiliser les voix en rotation (round-robin)
+     4. Mémoriser l'assignation pour cohérence
+   ```
+
+4. **Compatibilité avec l'Existant**
+   - Le système actuel utilise `voiceManager.selectVoiceForGender(gender)`
+   - Cette logique doit être étendue au `TTSProviderManager`
+   - Les deux providers (Web Speech et Piper) doivent supporter cette fonctionnalité
+
+5. **Persistance**
+   - L'assignation des voix doit être cohérente durant toute la session
+   - Les voix assignées doivent être mémorisées pour chaque personnage
+   - Lors du changement de provider, réassigner intelligemment les voix
+
+**Exemple de Configuration Modèles Piper** :
+
+```typescript
+const PIPER_MODELS = [
+  // Voix Féminines
+  {
+    id: 'fr_FR-siwis-medium',
+    name: 'Siwis',
+    displayName: 'Siwis (Femme, Qualité Moyenne)',
+    language: 'fr-FR',
+    gender: 'female' as const,
+    quality: 'medium' as const,
+    url: '...',
+    size: 5_000_000
+  },
+  {
+    id: 'fr_FR-upmc-medium',
+    name: 'UPMC',
+    displayName: 'UPMC (Femme, Qualité Moyenne)',
+    language: 'fr-FR',
+    gender: 'female' as const,
+    quality: 'medium' as const,
+    url: '...',
+    size: 6_000_000
+  },
+  
+  // Voix Masculines
+  {
+    id: 'fr_FR-tom-medium',
+    name: 'Tom',
+    displayName: 'Tom (Homme, Qualité Moyenne)',
+    language: 'fr-FR',
+    gender: 'male' as const,
+    quality: 'medium' as const,
+    url: '...',
+    size: 5_500_000
+  },
+  {
+    id: 'fr_FR-gilles-medium',
+    name: 'Gilles',
+    displayName: 'Gilles (Homme, Qualité Moyenne)',
+    language: 'fr-FR',
+    gender: 'male' as const,
+    quality: 'medium' as const,
+    url: '...',
+    size: 6_500_000
+  }
+] as const;
+```
+
+**Implémentation Requise** :
+
+- [ ] Modèles Piper avec propriété `gender`
+- [ ] Méthode `selectVoiceForGender(gender)` dans `PiperWASMProvider`
+- [ ] Algorithme de distribution intelligent des voix
+- [ ] Cache d'assignation voix ↔ personnage
+- [ ] Tests avec plusieurs personnages de genres différents
 
 #### Tâches
 
@@ -637,27 +734,57 @@ import type { TTSProvider, TTSProviderType, VoiceDescriptor, SynthesisOptions, S
 
 /**
  * Configuration des modèles Piper disponibles
+ * 
+ * IMPORTANT : Inclure plusieurs voix par genre pour maximiser
+ * la diversité des voix assignées aux personnages
  */
 const PIPER_MODELS = [
+  // Voix Féminines (plusieurs pour diversité)
   {
     id: 'fr_FR-siwis-medium',
-    name: 'Siwis (Femme, Qualité Moyenne)',
+    name: 'Siwis',
+    displayName: 'Siwis (Femme)',
     language: 'fr-FR',
     gender: 'female' as const,
     quality: 'medium' as const,
     url: 'https://cdn.example.com/piper/fr_FR-siwis-medium.onnx',
     configUrl: 'https://cdn.example.com/piper/fr_FR-siwis-medium.json',
-    size: 5_000_000 // 5 MB (exemple)
+    size: 5_000_000
   },
   {
-    id: 'fr_FR-tom-high',
-    name: 'Tom (Homme, Haute Qualité)',
+    id: 'fr_FR-upmc-medium',
+    name: 'UPMC',
+    displayName: 'UPMC (Femme)',
+    language: 'fr-FR',
+    gender: 'female' as const,
+    quality: 'medium' as const,
+    url: 'https://cdn.example.com/piper/fr_FR-upmc-medium.onnx',
+    configUrl: 'https://cdn.example.com/piper/fr_FR-upmc-medium.json',
+    size: 6_000_000
+  },
+  
+  // Voix Masculines (plusieurs pour diversité)
+  {
+    id: 'fr_FR-tom-medium',
+    name: 'Tom',
+    displayName: 'Tom (Homme)',
     language: 'fr-FR',
     gender: 'male' as const,
-    quality: 'high' as const,
-    url: 'https://cdn.example.com/piper/fr_FR-tom-high.onnx',
-    configUrl: 'https://cdn.example.com/piper/fr_FR-tom-high.json',
-    size: 15_000_000 // 15 MB (exemple)
+    quality: 'medium' as const,
+    url: 'https://cdn.example.com/piper/fr_FR-tom-medium.onnx',
+    configUrl: 'https://cdn.example.com/piper/fr_FR-tom-medium.json',
+    size: 5_500_000
+  },
+  {
+    id: 'fr_FR-gilles-medium',
+    name: 'Gilles',
+    displayName: 'Gilles (Homme)',
+    language: 'fr-FR',
+    gender: 'male' as const,
+    quality: 'medium' as const,
+    url: 'https://cdn.example.com/piper/fr_FR-gilles-medium.onnx',
+    configUrl: 'https://cdn.example.com/piper/fr_FR-gilles-medium.json',
+    size: 6_500_000
   }
 ] as const;
 
@@ -668,6 +795,12 @@ export class PiperWASMProvider implements TTSProvider {
   private piperModule: any = null;
   private loadedModels: Map<string, any> = new Map();
   private currentAudio: HTMLAudioElement | null = null;
+  
+  // Cache d'assignation des voix par personnage pour cohérence
+  private voiceAssignments: Map<string, string> = new Map(); // characterId -> voiceId
+  
+  // Compteur d'utilisation des voix pour rotation équitable
+  private voiceUsageCount: Map<string, number> = new Map();
   
   async initialize(): Promise<void> {
     // Charger le module WASM
@@ -697,15 +830,65 @@ export class PiperWASMProvider implements TTSProvider {
   async getVoices(): Promise<VoiceDescriptor[]> {
     return PIPER_MODELS.map(model => ({
       id: model.id,
-      name: model.name,
+      name: model.displayName, // Inclut le genre dans le nom
       language: model.language,
-      gender: model.gender,
+      gender: model.gender, // IMPORTANT : Genre pour assignation
       provider: 'piper-wasm',
       quality: model.quality,
       isLocal: true,
       requiresDownload: !this.loadedModels.has(model.id),
       downloadSize: model.size
     }));
+  }
+  
+  /**
+   * Sélectionne une voix pour un personnage en fonction de son genre
+   * Maximise la diversité en assignant des voix différentes
+   * 
+   * @param characterId - ID du personnage
+   * @param gender - Genre du personnage ('male' | 'female')
+   * @returns ID de la voix sélectionnée
+   */
+  selectVoiceForCharacter(characterId: string, gender: 'male' | 'female'): string {
+    // Si déjà assigné, retourner la même voix (cohérence)
+    if (this.voiceAssignments.has(characterId)) {
+      return this.voiceAssignments.get(characterId)!;
+    }
+    
+    // Filtrer les modèles du bon genre
+    const modelsOfGender = PIPER_MODELS.filter(m => m.gender === gender);
+    
+    if (modelsOfGender.length === 0) {
+      // Fallback : première voix disponible
+      return PIPER_MODELS[0].id;
+    }
+    
+    // Trouver la voix la moins utilisée du bon genre
+    let selectedModel = modelsOfGender[0];
+    let minUsage = this.voiceUsageCount.get(selectedModel.id) || 0;
+    
+    for (const model of modelsOfGender) {
+      const usage = this.voiceUsageCount.get(model.id) || 0;
+      if (usage < minUsage) {
+        minUsage = usage;
+        selectedModel = model;
+      }
+    }
+    
+    // Enregistrer l'assignation
+    this.voiceAssignments.set(characterId, selectedModel.id);
+    this.voiceUsageCount.set(selectedModel.id, minUsage + 1);
+    
+    return selectedModel.id;
+  }
+  
+  /**
+   * Réinitialise les assignations de voix
+   * (utile lors du changement de pièce)
+   */
+  resetVoiceAssignments(): void {
+    this.voiceAssignments.clear();
+    this.voiceUsageCount.clear();
   }
   
   async synthesize(
@@ -841,6 +1024,9 @@ export class PiperWASMProvider implements TTSProvider {
       model?.dispose?.();
     }
     this.loadedModels.clear();
+    
+    // Nettoyer les assignations
+    this.resetVoiceAssignments();
   }
 }
 ```
@@ -874,6 +1060,8 @@ private registerProviders(): void {
 - [ ] Piper enregistré
 - [ ] `getAvailableProviders()` retourne les 2 providers
 - [ ] `getVoices('piper-wasm')` retourne les voix Piper
+- [ ] Les voix Piper ont bien la propriété `gender`
+- [ ] Au moins 2 voix masculines et 2 voix féminines
 
 ---
 
@@ -1101,7 +1289,7 @@ async synthesize(
 
 **2.6 - Tests Manuels Phase 2**
 
-**Checklist** :
+**Checklist Technique** :
 - [ ] Piper-WASM se charge sans erreur
 - [ ] Téléchargement de modèle fonctionne
 - [ ] Génération audio Piper fonctionne
@@ -1110,6 +1298,20 @@ async synthesize(
 - [ ] Pas de ralentissement de l'application
 - [ ] Console sans erreurs
 - [ ] Thème clair/sombre OK
+
+**Checklist Assignation de Voix** :
+- [ ] Importer une pièce avec plusieurs personnages
+- [ ] Dans "Voix des personnages", définir le genre de chaque personnage
+  - [ ] Au moins 2 personnages féminins
+  - [ ] Au moins 2 personnages masculins
+- [ ] Lire la pièce en mode audio
+- [ ] Vérifier que :
+  - [ ] Les personnages féminins ont des voix féminines
+  - [ ] Les personnages masculins ont des voix masculines
+  - [ ] **Les personnages ont des voix DIFFÉRENTES** (diversité maximale)
+  - [ ] La même voix est utilisée pour le même personnage (cohérence)
+- [ ] Changer le genre d'un personnage → la voix change
+- [ ] Recharger la page → les assignations persistent
 
 ---
 
@@ -1168,7 +1370,26 @@ export const useTTSConfigStore = create<TTSConfigState>()(
 
 ---
 
-**3.2 - Créer le Composant Sélecteur de Moteur**
+**3.2 - Améliorer l'UI de Sélection des Voix**
+
+**Important** : L'interface existante `VoiceAssignment` permet déjà de définir le genre des personnages. Il faut s'assurer que cette fonctionnalité est bien utilisée avec Piper.
+
+**Vérifications** :
+- [ ] Le composant `VoiceAssignment` fonctionne avec Piper
+- [ ] L'utilisateur peut définir Homme/Femme pour chaque personnage
+- [ ] Les changements sont bien persistés dans `settings.characterVoices`
+- [ ] Le `TTSProviderManager` utilise ces informations pour sélectionner les voix
+
+**Améliorations suggérées** :
+```typescript
+// Dans VoiceAssignment.tsx - Ajouter un aperçu de la voix sélectionnée
+
+<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+  Voix : {getVoiceNameForCharacter(character.id)}
+</div>
+```
+
+**3.3 - Créer le Composant Sélecteur de Moteur**
 
 Fichier : `src/components/settings/TTSEngineSelector.tsx`
 
@@ -1294,10 +1515,27 @@ export function TTSEngineSelector() {
 
 function getProviderDescription(type: TTSProviderType): string {
   const descriptions: Record<TTSProviderType, string> = {
-    'web-speech': 'Utilise les voix système de votre appareil',
-    'piper-wasm': 'Voix de haute qualité, fonctionne hors-ligne (recommandé)'
+    'web-speech': 'Utilise les voix système de votre appareil (limité)',
+    'piper-wasm': 'Plusieurs voix homme/femme, haute qualité, hors-ligne (recommandé)'
   };
   return descriptions[type] || '';
+}
+
+function getProviderFeatures(type: TTSProviderType): string[] {
+  const features: Record<TTSProviderType, string[]> = {
+    'web-speech': [
+      'Voix système',
+      'Nombre limité',
+      'Qualité variable'
+    ],
+    'piper-wasm': [
+      'Multiple voix par genre',
+      'Haute qualité',
+      'Distribution intelligente',
+      'Fonctionne hors-ligne'
+    ]
+  };
+  return features[type] || [];
 }
 ```
 
@@ -1306,6 +1544,7 @@ function getProviderDescription(type: TTSProviderType): string {
 - [ ] Affiche les 2 moteurs
 - [ ] Sélection fonctionne
 - [ ] Piper a badge "Recommandé"
+- [ ] Description mentionne "plusieurs voix par genre"
 - [ ] UI responsive
 - [ ] Thème clair/sombre
 
@@ -1579,6 +1818,7 @@ Mettre à jour la section "Stack Technique" :
 **Checklist complète** :
 
 **Fonctionnel** :
+**Checklist Fonctionnel** :
 - [ ] Sélection moteur "Natif Device" fonctionne
 - [ ] Sélection moteur "Piper" fonctionne
 - [ ] Changement de moteur en cours de session fonctionne
@@ -1590,6 +1830,23 @@ Mettre à jour la section "Stack Technique" :
 - [ ] Mode Italiennes fonctionne avec les 2 moteurs
 - [ ] Pause/Resume fonctionnent avec les 2 moteurs
 - [ ] Stop fonctionne avec les 2 moteurs
+
+**Checklist Assignation de Voix** (CRITIQUE) :
+- [ ] Importer une pièce avec 4+ personnages
+- [ ] Définir le genre dans "Voix des personnages" :
+  - [ ] 2 personnages féminins (ex: JULIETTE, CLAIRE)
+  - [ ] 2 personnages masculins (ex: ROMÉO, MARC)
+- [ ] Lire la pièce avec Piper
+- [ ] **Vérifier que chaque personnage a une voix unique** :
+  - [ ] JULIETTE → Voix féminine 1 (ex: Siwis)
+  - [ ] CLAIRE → Voix féminine 2 (ex: UPMC) - DIFFÉRENTE de Juliette
+  - [ ] ROMÉO → Voix masculine 1 (ex: Tom)
+  - [ ] MARC → Voix masculine 2 (ex: Gilles) - DIFFÉRENTE de Roméo
+- [ ] Relire plusieurs fois → même assignation (cohérence)
+- [ ] Changer le genre de JULIETTE en "Homme" → voix masculine
+- [ ] Recharger la page → assignations conservées
+- [ ] Tester avec plus de personnages que de voix disponibles
+  - [ ] Les voix sont réutilisées équitablement (rotation)
 
 **UI/UX** :
 - [ ] Sélecteur de moteur bien intégré dans les paramètres
@@ -1677,6 +1934,10 @@ git push -u origin piper-wasm
 - [ ] "Piper" est sélectionné par défaut
 - [ ] La lecture audio fonctionne avec les 2 moteurs
 - [ ] Le changement de moteur est fluide et immédiat
+- [ ] **Les personnages de genres différents ont des voix différenciées**
+- [ ] **Maximum de voix différentes assignées aux personnages** (diversité)
+- [ ] Les assignations de voix sont cohérentes durant la session
+- [ ] L'interface "Voix des personnages" fonctionne avec Piper
 
 ✅ **Technique** :
 - [ ] Code respecte les standards du projet (`common.md`)
