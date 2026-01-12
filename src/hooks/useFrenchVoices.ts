@@ -10,6 +10,7 @@ import { voiceManager } from '../core/tts/voice-manager'
 /**
  * Hook pour récupérer les voix françaises disponibles sur le device
  * Utilise le VoiceManager existant pour une meilleure compatibilité
+ * N'appelle pas initialize() car c'est fait au démarrage de l'app
  *
  * @returns Array de voix françaises disponibles
  *
@@ -23,27 +24,36 @@ export function useFrenchVoices(): number {
   useEffect(() => {
     let mounted = true
 
-    const initializeVoices = async () => {
-      try {
-        // Utiliser le VoiceManager qui gère déjà le chargement asynchrone
-        await voiceManager.initialize()
-
-        if (mounted) {
-          const frenchVoices = voiceManager.getFrenchVoices()
-          setVoiceCount(frenchVoices.length)
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des voix:', error)
-        if (mounted) {
-          setVoiceCount(0)
-        }
+    const updateVoiceCount = () => {
+      if (mounted) {
+        const frenchVoices = voiceManager.getFrenchVoices()
+        setVoiceCount(frenchVoices.length)
       }
     }
 
-    initializeVoices()
+    // Essayer de récupérer les voix immédiatement
+    updateVoiceCount()
+
+    // Écouter les changements de voix (peut se charger de façon asynchrone)
+    const handleVoicesChanged = () => {
+      updateVoiceCount()
+    }
+
+    if (typeof speechSynthesis !== 'undefined') {
+      speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged)
+    }
+
+    // Retry après un délai au cas où les voix ne sont pas encore chargées
+    const timeoutId = setTimeout(() => {
+      updateVoiceCount()
+    }, 1000)
 
     return () => {
       mounted = false
+      if (typeof speechSynthesis !== 'undefined') {
+        speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged)
+      }
+      clearTimeout(timeoutId)
     }
   }, [])
 

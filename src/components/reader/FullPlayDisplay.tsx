@@ -164,6 +164,9 @@ export function FullPlayDisplay({
                   // Capturer l'index global dans une constante locale pour éviter le bug de closure
                   const currentGlobalIndex = globalLineIndex
 
+                  // Incrémenter l'index global pour la prochaine ligne AVANT le return
+                  globalLineIndex++
+
                   const isCurrentLine =
                     actIdx === currentActIndex &&
                     sceneIdx === currentSceneIndex &&
@@ -173,37 +176,41 @@ export function FullPlayDisplay({
                     playingLineIndex !== undefined && currentGlobalIndex === playingLineIndex
                   const hasBeenRead = readLinesSet.has(currentGlobalIndex)
 
-                  const currentLineElement = isCurrentLine ? (
-                    <div
-                      key={`line-${globalLineIndex}`}
-                      ref={currentLineRef}
-                      className={`transition-opacity ${
-                        isCurrentLine ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
-                      }`}
-                      data-testid="current-line"
-                      data-line-index={currentGlobalIndex}
-                      data-act-index={actIdx}
-                      data-scene-index={sceneIdx}
-                      data-local-line-index={lineIdx}
-                    >
-                      <LineRenderer
-                        line={line}
-                        readingMode={readingMode}
-                        userCharacterId={userCharacterId}
-                        hideUserLines={hideUserLines}
-                        showBefore={showBefore}
-                        showAfter={showAfter}
-                        isPlaying={isPlaying}
-                        hasBeenRead={hasBeenRead}
-                        charactersMap={charactersMap}
-                        onClick={onLineClick ? () => onLineClick(currentGlobalIndex) : undefined}
-                        isPaused={isPaused}
-                        progressPercentage={isPlaying ? progressPercentage : 0}
-                        elapsedTime={isPlaying ? elapsedTime : 0}
-                        estimatedDuration={isPlaying ? estimatedDuration : 0}
-                      />
-                    </div>
-                  ) : (
+                  if (isCurrentLine) {
+                    return (
+                      <div
+                        key={`line-${currentGlobalIndex}`}
+                        ref={currentLineRef}
+                        className={`transition-opacity ${
+                          isCurrentLine ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
+                        }`}
+                        data-testid="current-line"
+                        data-line-index={currentGlobalIndex}
+                        data-act-index={actIdx}
+                        data-scene-index={sceneIdx}
+                        data-local-line-index={lineIdx}
+                      >
+                        <LineRenderer
+                          line={line}
+                          readingMode={readingMode}
+                          userCharacterId={userCharacterId}
+                          hideUserLines={hideUserLines}
+                          showBefore={showBefore}
+                          showAfter={showAfter}
+                          isPlaying={isPlaying}
+                          hasBeenRead={hasBeenRead}
+                          charactersMap={charactersMap}
+                          onClick={onLineClick ? () => onLineClick(currentGlobalIndex) : undefined}
+                          isPaused={isPaused}
+                          progressPercentage={isPlaying ? progressPercentage : 0}
+                          elapsedTime={isPlaying ? elapsedTime : 0}
+                          estimatedDuration={isPlaying ? estimatedDuration : 0}
+                        />
+                      </div>
+                    )
+                  }
+
+                  return (
                     <div
                       key={`line-${currentGlobalIndex}`}
                       className={`transition-opacity ${
@@ -233,11 +240,6 @@ export function FullPlayDisplay({
                       />
                     </div>
                   )
-
-                  // Incrémenter l'index global pour la prochaine ligne
-                  globalLineIndex++
-
-                  return currentLineElement
                 })}
               </div>
             ))}

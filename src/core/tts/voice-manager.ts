@@ -39,7 +39,9 @@ export class VoiceManager {
       loadVoices()
 
       if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = loadVoices
+        // Utiliser addEventListener au lieu d'affecter directement
+        // pour éviter d'écraser d'autres handlers
+        speechSynthesis.addEventListener('voiceschanged', loadVoices, { once: true })
       }
 
       // Timeout de sécurité
