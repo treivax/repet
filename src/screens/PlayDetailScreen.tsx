@@ -17,6 +17,7 @@ import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { CharacterSelector } from '../components/play/CharacterSelector'
 import { StandardHeader } from '../components/common/StandardHeader'
+import { useFrenchVoices } from '../hooks/useFrenchVoices'
 
 /**
  * Écran de présentation détaillée d'une pièce (Écran "Texte" dans la spec)
@@ -30,6 +31,9 @@ export function PlayDetailScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showCharacterSelector, setShowCharacterSelector] = useState(false)
+
+  // Compter les voix françaises disponibles
+  const frenchVoices = useFrenchVoices()
 
   // Récupération réactive des settings pour ce playId
   const settings = usePlaySettingsStore((state) =>
@@ -181,12 +185,15 @@ export function PlayDetailScreen() {
                   </p>
                 )}
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-200 pt-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
+              <div className="mt-4 grid grid-cols-3 gap-4 border-t border-gray-200 pt-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
                 <div>
                   <span className="font-semibold">Personnages :</span> {characters.length}
                 </div>
                 <div>
                   <span className="font-semibold">Actes :</span> {play.ast.acts.length}
+                </div>
+                <div>
+                  <span className="font-semibold">Voix FR :</span> {frenchVoices.length}
                 </div>
               </div>
             </section>
