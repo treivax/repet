@@ -28,18 +28,34 @@ L'application Répét possède déjà un système d'assignation de voix dans l'�
 
 ## 🎯 Objectif
 
-Étendre le système d'assignation de voix pour **Piper-WASM** avec les exigences suivantes :
+Étendre le système d'assignation de voix pour **Piper-WASM** et **Google/Web Speech** avec les exigences suivantes :
 
 1. **Différenciation par genre** - Voix masculines vs féminines clairement identifiées
 2. **Maximisation de la diversité** - Assigner des voix différentes à chaque personnage
 3. **Cohérence** - Même personnage = même voix durant toute la session
 4. **Respect du genre** - Personnage féminin → voix féminine obligatoirement
+5. **Persistance en base de données** - Assignations sauvegardées entre les sessions
+6. **Choix du provider par pièce** - Sélection Piper/Google dans PlayDetailScreen
+7. **Réassignation manuelle** - Bouton pour régénérer les assignations
+8. **Édition manuelle** - Possibilité de choisir une voix spécifique pour chaque personnage
 
 ---
 
 ## 📐 Spécifications Fonctionnelles
 
-### 1. Modèles Vocaux Piper
+### 1. Choix du Provider TTS
+
+#### Emplacement
+- Le choix entre **Piper** et **Google/Web Speech** se fait dans **PlayDetailScreen**
+- Dans le bloc "Voix des personnages" (en haut, avant la liste des personnages)
+- **Pas dans les settings globaux** - chaque pièce peut utiliser un provider différent
+
+#### Persistance
+- Stocké dans `PlaySettings.ttsProvider: TTSProviderType`
+- Valeur par défaut : `'piper-wasm'`
+- Sauvegardé en base de données (IndexedDB via Dexie)
+
+### 2. Modèles Vocaux Piper
 
 #### Exigences Minimales
 
@@ -99,7 +115,132 @@ const PIPER_MODELS = [
 
 ---
 
-### 2. Algorithme d'Assignation
+### 3. Persistance en Base de Données
+
+#### Structure de Données
+
+Les assignations de voix sont stockées dans `PlaySettings` avec **deux configurations distinctes** :
+
+```typescript
+export interface PlaySettings {
+  playId: string;
+  readingMode: ReadingMode;
+  // ... autres propriétés existantes
+  
+  // Genre des personnages (conservé)
+  characterVoices: Record<string, Gender>; // characterId -> 'male' | 'female'
+  
+  // NOUVEAU : Provider TTS sélectionné pour cette pièce
+  ttsProvider: TTSProviderType; // 'piper-wasm' | 'web-speech'
+  
+  // NOUVEAU : Assignations spécifiques par provider
+  characterVoicesPiper: Record<string, string>;  // characterId -> voiceId (Piper)
+  characterVoicesGoogle: Record<string, string>; // characterId -> voiceId (Google/Web Speech)
+}
+```
+
+#### Raison de la Séparation
+
+Chaque provider a ses propres voix disponibles :
+- Piper : `fr_FR-siwis-medium`, `fr_FR-tom-medium`, etc.
+- Google : URIs système spécifiques (`com.apple.ttsbundle...`, etc.)
+
+En conservant deux configurations séparées, on permet :
+- De passer d'un provider à l'autre sans perdre les assignations
+- De personnaliser les voix pour chaque provider indépendamment
+- De restaurer les assignations précédentes lors du retour à un provider
+
+#### Flux de Persistance
+
+```
+1. Utilisateur change provider → Piper
+   ↓
+2. Système charge characterVoicesPiper (depuis DB)
+   ↓
+3. Si vide → génération automatique des assignations
+   ↓
+4. Assignations affichées dans l'UI
+   ↓
+5. Utilisateur modifie manuellement une voix
+   ↓
+6. Sauvegarde immédiate dans characterVoicesPiper
+   ↓
+7. Persistance en IndexedDB (Dexie)
+```
+
+---
+
+### 4. Bouton de Réassignation
+
+#### Fonctionnalité
+
+Un bouton **"🔄 Réassigner les voix"** situé à côté du sélecteur de provider.
+
+#### Comportement
+
+1. Click → Dialog de confirmation :
+   ```
+   "Réassigner toutes les voix ?
+   Les assignations actuelles seront perdues."
+   [Annuler] [Confirmer]
+   ```
+
+2. Si confirmé :
+   - Vider les assignations du provider actuel
+   - Régénérer avec l'algorithme de distribution équitable
+   - Sauvegarder en DB
+   - Actualiser l'affichage
+
+3. Cas d'usage :
+   - L'utilisateur n'est pas satisfait de la distribution automatique
+   - Après avoir changé plusieurs genres, il veut une nouvelle distribution
+   - Pour "rafraîchir" les voix et entendre d'autres combinaisons
+
+---
+
+### 5. Édition Manuelle des Voix
+
+#### Interface
+
+À côté des boutons **♂ Homme** / **♀ Femme**, un bouton **"✏️ Édition"**.
+
+#### Comportement
+
+1. Click → Dropdown s'ouvre avec :
+   - Liste des voix disponibles **du genre sélectionné uniquement**
+   - Voix actuelle pré-sélectionnée (highlight)
+   - Nom de chaque voix affiché clairement
+
+2. Sélection d'une voix :
+   - Dropdown se ferme
+   - Voix sauvegardée immédiatement en DB
+   - Affichage mis à jour ("Voix assignée : ...")
+   - Assignation manuelle prioritaire (pas écrasée par réassignation auto)
+
+3. Contraintes :
+   - Dropdown filtrée par genre (cohérence)
+   - Si changement de genre → réinitialisation assignation manuelle
+
+#### Exemple UI
+
+```
+┌────────────────────────────────────────┐
+│ JULIETTE                               │
+│ [♀ Active] [♂] [✏️ Édition ▼]         │
+│                                        │
+│ ┌────────────────────────────────┐    │
+│ │ ● Siwis (Femme)               │    │ ← Voix actuelle
+│ │   UPMC (Femme)                │    │
+│ │   ... autres voix féminines    │    │
+│ └────────────────────────────────┘    │
+│                                        │
+│ Voix assignée : Siwis (Femme)         │
+└────────────────────────────────────────┘
+```
+
+---
+
+### 6. Algorithme d'Assignation
 
 #### Principe
 
@@ -107,36 +248,46 @@ const PIPER_MODELS = [
 
 **Stratégie** : Rotation équitable (Round-Robin) des voix disponibles par genre.
 
+**Note** : L'algorithme est maintenant une fonction utilitaire (pas en cache mémoire) car les assignations sont persistées en DB.
+
 #### Pseudo-code
 
 ```
-FONCTION selectVoiceForCharacter(characterId, gender):
+FONCTION generateVoiceAssignments(characters, existingAssignments = {}):
   
-  // 1. Vérifier le cache (cohérence)
-  SI voiceAssignments.has(characterId):
-    RETOURNER voiceAssignments.get(characterId)
+  // Résultat : Record<characterId, voiceId>
+  assignments = {}
+  usageCount = Map()
   
-  // 2. Filtrer les voix du bon genre
-  voicesOfGender = FILTRER(PIPER_MODELS, model => model.gender == gender)
+  // 1. Initialiser compteur avec assignations existantes
+  POUR CHAQUE voiceId DANS existingAssignments.values():
+    usageCount.set(voiceId, usageCount.get(voiceId) + 1)
   
-  SI voicesOfGender est vide:
-    RETOURNER première voix disponible (fallback)
+  // 2. Pour chaque personnage
+  POUR CHAQUE character DANS characters:
+    
+    // Filtrer les voix du bon genre
+    voicesOfGender = FILTRER(availableVoices, v => v.gender == character.gender)
+    
+    SI voicesOfGender est vide:
+      assignments[character.id] = firstAvailableVoice
+      CONTINUER
+    
+    // Trouver la voix la moins utilisée
+    selectedVoice = voicesOfGender[0]
+    minUsage = usageCount.get(selectedVoice.id) OU 0
+    
+    POUR CHAQUE voice DANS voicesOfGender:
+      usage = usageCount.get(voice.id) OU 0
+      SI usage < minUsage:
+        minUsage = usage
+        selectedVoice = voice
+    
+    // Enregistrer
+    assignments[character.id] = selectedVoice.id
+    usageCount.set(selectedVoice.id, minUsage + 1)
   
-  // 3. Trouver la voix la moins utilisée
-  selectedVoice = voicesOfGender[0]
-  minUsage = voiceUsageCount.get(selectedVoice.id) OU 0
-  
-  POUR CHAQUE voice DANS voicesOfGender:
-    usage = voiceUsageCount.get(voice.id) OU 0
-    SI usage < minUsage:
-      minUsage = usage
-      selectedVoice = voice
-  
-  // 4. Enregistrer l'assignation
-  voiceAssignments.set(characterId, selectedVoice.id)
-  voiceUsageCount.set(selectedVoice.id, minUsage + 1)
-  
-  RETOURNER selectedVoice.id
+  RETOURNER assignments
 
 FIN FONCTION
 ```
@@ -144,20 +295,57 @@ FIN FONCTION
 #### Structures de Données
 
 ```typescript
-class PiperWASMProvider {
-  // Cache d'assignation (persistant durant la session)
-  private voiceAssignments: Map<string, string> = new Map();
-  // characterId -> voiceId
+// Les assignations sont maintenant en DB, pas en mémoire
+
+interface PlaySettings {
+  // ... autres propriétés
   
-  // Compteur d'utilisation (pour rotation équitable)
-  private voiceUsageCount: Map<string, number> = new Map();
-  // voiceId -> count
+  characterVoicesPiper: Record<string, string>;  // characterId -> voiceId
+  characterVoicesGoogle: Record<string, string>; // characterId -> voiceId
 }
+
+// Provider expose une méthode utilitaire
+class PiperWASMProvider {
+  generateVoiceAssignments(
+    characters: Array<{id: string, gender: Gender}>,
+    existingAssignments?: Record<string, string>
+  ): Record<string, string> {
+    // Implémentation de l'algorithme
+  }
+}
+```
+
+#### 5. VoiceAssignment (UI)
+
+**Fichier** : `src/components/play/VoiceAssignment.tsx`
+
+**Refactorisation complète** :
+- Ajouter `TTSProviderSelector` (nouveau sous-composant)
+- Ajouter `CharacterVoiceEditor` (nouveau sous-composant)
+- Gérer `playSettings.ttsProvider`
+- Gérer `characterVoicesPiper` et `characterVoicesGoogle`
+- Bouton réassignation
+- Dropdown édition manuelle
+
+#### 6. PlaySettingsStore
+
+**Fichier** : `src/state/playSettingsStore.ts`
+
+**Nouvelles actions** :
+```typescript
+setTTSProvider(playId: string, provider: TTSProviderType): void
+setCharacterVoiceAssignment(
+  playId: string,
+  provider: TTSProviderType,
+  characterId: string,
+  voiceId: string
+): void
+reassignAllVoices(playId: string, provider: TTSProviderType): void
 ```
 
 ---
 
-### 3. Scénarios d'Usage
+### 7. Scénarios d'Usage
 
 #### Scénario 1 : Diversité Maximale (Cas Nominal)
 
@@ -209,7 +397,26 @@ class PiperWASMProvider {
 
 ---
 
-#### Scénario 3 : Cohérence de Session
+#### Scénario 3 : Persistance entre Sessions
+
+**Contexte** :
+- Pièce configurée avec Piper
+- JULIETTE → Siwis, ROMÉO → Tom
+
+**Actions** :
+1. Lecture de la pièce (session 1)
+2. Fermeture de l'application
+3. Réouverture le lendemain (session 2)
+4. Lecture de la même pièce
+
+**Résultat Attendu** :
+- JULIETTE → Siwis (même voix) ✅ PERSISTANCE DB
+- ROMÉO → Tom (même voix) ✅ PERSISTANCE DB
+- Pas de réassignation aléatoire
+
+---
+
+#### Scénario 4 : Cohérence de Session
 
 **Contexte** :
 - Personnage JULIETTE assigné à voix Siwis
@@ -225,7 +432,26 @@ class PiperWASMProvider {
 
 ---
 
-#### Scénario 4 : Changement de Genre
+#### Scénario 5 : Changement de Provider
+
+**Contexte** :
+- Pièce avec JULIETTE (Siwis/Piper), ROMÉO (Tom/Piper)
+
+**Action** :
+1. Utilisateur change provider → Google/Web Speech
+2. Nouvelles assignations générées automatiquement
+   - JULIETTE → Google Voice 1
+   - ROMÉO → Google Voice 2
+3. Utilisateur revient à Piper
+
+**Résultat Attendu** :
+- JULIETTE → Siwis (restaurée) ✅
+- ROMÉO → Tom (restauré) ✅
+- Les deux configurations sont conservées indépendamment
+
+---
+
+#### Scénario 6 : Changement de Genre
 
 **Contexte** :
 - JULIETTE assignée à Siwis (voix féminine)
@@ -240,7 +466,41 @@ class PiperWASMProvider {
 
 ---
 
-### 4. Cas Limites
+#### Scénario 7 : Réassignation Manuelle
+
+**Contexte** :
+- Assignations automatiques : JULIETTE → Siwis, CLAIRE → UPMC
+
+**Action** :
+1. Click sur bouton "🔄 Réassigner les voix"
+2. Confirmation
+
+**Résultat Attendu** :
+- Nouvelles assignations générées (peut-être inversées)
+- JULIETTE → UPMC, CLAIRE → Siwis ✅
+- Toujours respecte diversité et genre
+
+---
+
+#### Scénario 8 : Édition Manuelle
+
+**Contexte** :
+- JULIETTE (Femme) assignée automatiquement à Siwis
+
+**Actions** :
+1. Click "✏️ Édition" sur JULIETTE
+2. Dropdown s'ouvre (Siwis, UPMC)
+3. Sélection de UPMC
+
+**Résultat Attendu** :
+- JULIETTE → UPMC ✅
+- Affichage mis à jour
+- Sauvegarde en DB immédiate
+- Lecture utilise UPMC
+
+---
+
+### 8. Cas Limites
 
 #### Cas 1 : Aucune Voix du Genre Demandé
 
@@ -260,13 +520,9 @@ if (voicesOfGender.length === 0) {
 **Situation** : Utilisateur charge une nouvelle pièce
 
 **Comportement** :
-```typescript
-// Réinitialiser les assignations
-resetVoiceAssignments(): void {
-  this.voiceAssignments.clear();
-  this.voiceUsageCount.clear();
-}
-```
+- Chaque pièce a son propre `PlaySettings` en DB
+- Les assignations sont isolées par `playId`
+- Pas de conflit entre pièces
 
 #### Cas 3 : Personnage sans Genre Défini
 
@@ -286,23 +542,40 @@ const gender = settings.characterVoices[characterId]
 
 ### Modifications Requises
 
-#### 1. PiperWASMProvider
+#### 1. PlaySettings (Modèle de Données)
+
+**Fichier** : `src/core/models/Settings.ts`
+
+**Modifications** :
+```typescript
+export interface PlaySettings {
+  playId: string;
+  // ... propriétés existantes
+  
+  characterVoices: Record<string, Gender>; // Conservé
+  
+  // NOUVEAU
+  ttsProvider: TTSProviderType;              // 'piper-wasm' | 'web-speech'
+  characterVoicesPiper: Record<string, string>;
+  characterVoicesGoogle: Record<string, string>;
+}
+```
+
+#### 2. PiperWASMProvider
 
 **Fichier** : `src/core/tts/provider/PiperWASMProvider.ts`
 
-**Nouvelles propriétés** :
+**Nouvelle méthode** :
 ```typescript
-private voiceAssignments: Map<string, string> = new Map();
-private voiceUsageCount: Map<string, number> = new Map();
+generateVoiceAssignments(
+  characters: Array<{id: string, gender: Gender}>,
+  existingAssignments?: Record<string, string>
+): Record<string, string>
 ```
 
-**Nouvelles méthodes** :
-```typescript
-selectVoiceForCharacter(characterId: string, gender: Gender): string
-resetVoiceAssignments(): void
-```
+**Note** : Plus de cache mémoire, tout en DB
 
-#### 2. TTSProviderManager
+#### 3. TTSProviderManager
 
 **Fichier** : `src/core/tts/provider/TTSProviderManager.ts`
 
@@ -329,7 +602,7 @@ if (options.characterId && options.gender) {
 }
 ```
 
-#### 3. PlayScreen / ReaderScreen
+#### 4. PlayScreen / ReaderScreen
 
 **Fichier** : `src/screens/PlayScreen.tsx`
 
@@ -354,29 +627,54 @@ await ttsProviderManager.speak(line.text, {
 
 #### Test 1 : Assignation de Base
 - [ ] Importer une pièce avec 4 personnages (2F, 2M)
-- [ ] Définir les genres dans "Voix des personnages"
+- [ ] Ouvrir "Voix des personnages"
+- [ ] **Vérifier** : Sélecteur provider en haut (Piper par défaut)
+- [ ] **Vérifier** : Bouton "🔄 Réassigner" présent
+- [ ] Définir les genres (2F, 2M)
+- [ ] **Vérifier** : Voix assignées automatiquement et affichées
 - [ ] Lire la pièce avec Piper
 - [ ] **Vérifier** : 4 voix différentes (si 2+ voix par genre)
 
-#### Test 2 : Cohérence
-- [ ] Lire plusieurs fois la même réplique
-- [ ] **Vérifier** : Même voix à chaque fois
+#### Test 2 : Persistance DB
+- [ ] Configurer pièce avec assignations
+- [ ] Fermer l'application
+- [ ] Réouvrir (nouvelle session)
+- [ ] **Vérifier** : Provider conservé
+- [ ] **Vérifier** : Assignations restaurées ✅
 
-#### Test 3 : Changement de Genre
-- [ ] Changer le genre d'un personnage
-- [ ] Relire une réplique de ce personnage
-- [ ] **Vérifier** : Nouvelle voix du bon genre
+#### Test 3 : Changement de Provider
+- [ ] Pièce configurée avec Piper (assignations A)
+- [ ] Changer provider → Google/Web Speech
+- [ ] **Vérifier** : Nouvelles assignations générées (B)
+- [ ] Revenir à Piper
+- [ ] **Vérifier** : Assignations A restaurées ✅
 
-#### Test 4 : Rotation Équitable
+#### Test 4 : Bouton Réassignation
+- [ ] Click "🔄 Réassigner les voix"
+- [ ] **Vérifier** : Dialog de confirmation
+- [ ] Confirmer
+- [ ] **Vérifier** : Nouvelles assignations générées
+- [ ] **Vérifier** : Toujours diverse et respecte genres
+
+#### Test 5 : Édition Manuelle
+- [ ] Click "✏️ Édition" sur un personnage féminin
+- [ ] **Vérifier** : Dropdown affiche voix féminines uniquement
+- [ ] Sélectionner une voix spécifique
+- [ ] **Vérifier** : Voix changée dans l'affichage
+- [ ] Lire réplique
+- [ ] **Vérifier** : Voix choisie est utilisée
+
+#### Test 6 : Édition + Changement Genre
+- [ ] Assigner manuellement voix féminine à JULIETTE
+- [ ] Changer genre JULIETTE → Homme
+- [ ] **Vérifier** : Nouvelle voix masculine assignée
+- [ ] Click "✏️ Édition"
+- [ ] **Vérifier** : Dropdown affiche voix masculines
+
+#### Test 7 : Rotation Équitable
 - [ ] Pièce avec 6 personnages du même genre
 - [ ] Seulement 2 voix de ce genre disponibles
 - [ ] **Vérifier** : Voix distribuées équitablement (3-3 ou 4-2)
-
-#### Test 5 : Persistance Session
-- [ ] Lire une pièce (assignations effectuées)
-- [ ] Naviguer vers autre écran
-- [ ] Revenir à la lecture
-- [ ] **Vérifier** : Assignations conservées
 
 ### Tests Techniques
 
@@ -436,20 +734,38 @@ Résultat :
 
 ## 🚀 Roadmap
 
-### Phase 2.2 - Implémentation (Dans PIPER_WASM_ACTION_PLAN.md)
+### Phase 1 - Modèle de Données
 
 - [x] Spécification validée (ce document)
-- [ ] Créer `selectVoiceForCharacter()` dans `PiperWASMProvider`
-- [ ] Ajouter structures `voiceAssignments` et `voiceUsageCount`
-- [ ] Modifier `TTSProviderManager.speak()` pour passer `characterId` et `gender`
-- [ ] Modifier `PlayScreen.speakLine()` pour utiliser le nouveau système
-- [ ] Ajouter `resetVoiceAssignments()` lors du changement de pièce
+- [ ] Modifier `PlaySettings` : ajouter `ttsProvider`, `characterVoicesPiper`, `characterVoicesGoogle`
+- [ ] Mettre à jour `createDefaultPlaySettings()` avec nouvelles propriétés
+- [ ] Mise à jour du schéma Dexie (migration si nécessaire)
 
-### Phase 2.6 - Tests (Dans PIPER_WASM_ACTION_PLAN.md)
+### Phase 2 - Logique Provider
 
+- [ ] Créer `generateVoiceAssignments()` dans `PiperWASMProvider`
+- [ ] Créer `generateVoiceAssignments()` dans `WebSpeechProvider`
+- [ ] Supprimer cache mémoire (tout en DB maintenant)
+
+### Phase 3 - UI Composants
+
+- [ ] Créer `TTSProviderSelector.tsx` (sélecteur + bouton réassignation)
+- [ ] Créer `CharacterVoiceEditor.tsx` (genre + dropdown édition)
+- [ ] Refactoriser `VoiceAssignment.tsx` (intégrer les 2 nouveaux composants)
+
+### Phase 4 - Store & Actions
+
+- [ ] Ajouter `setTTSProvider()` dans playSettingsStore
+- [ ] Ajouter `setCharacterVoiceAssignment()` dans playSettingsStore
+- [ ] Ajouter `reassignAllVoices()` dans playSettingsStore
+
+### Phase 5 - Tests
+
+- [ ] Test : Persistance DB entre sessions
+- [ ] Test : Changement provider (conservation assignations)
+- [ ] Test : Bouton réassignation
+- [ ] Test : Dropdown édition manuelle
 - [ ] Test : 4 personnages → 4 voix différentes
-- [ ] Test : Cohérence sur multiple lectures
-- [ ] Test : Changement de genre
 - [ ] Test : Rotation équitable (6 perso, 2 voix)
 
 ---
@@ -474,13 +790,17 @@ Résultat :
 
 ### Décisions de Conception
 
-**Pourquoi ne pas laisser l'utilisateur choisir manuellement la voix pour chaque personnage ?**
+**Pourquoi ne pas laisser l'utilisateur choisir manuellement la voix pour chaque personnage systématiquement ?**
 
-Réponse : Simplicité UX. L'assignation automatique avec diversité maximale offre une meilleure expérience sans surcharger l'interface. L'utilisateur contrôle le genre (M/F), le système optimise la distribution.
+Réponse : Compromis UX. L'assignation automatique avec diversité maximale offre une bonne expérience par défaut. Mais on ajoute le bouton "✏️ Édition" pour permettre la personnalisation si l'utilisateur le souhaite.
 
-**Pourquoi stocker les assignations en mémoire et non en base de données ?**
+**Pourquoi stocker les assignations en base de données ?**
 
-Réponse : Les assignations sont spécifiques à la session et dépendent des voix disponibles (qui peuvent changer selon le provider). Les stocker serait source de bugs si les voix changent. Le genre est persisté, c'est suffisant.
+Réponse : Pour la persistance entre les sessions. L'utilisateur configure sa pièce une fois (genres + éventuelles voix manuelles) et retrouve la même configuration à chaque session. C'est une exigence utilisateur validée.
+
+**Pourquoi deux configurations séparées (Piper vs Google) ?**
+
+Réponse : Les voix disponibles sont différentes entre providers. Si on ne séparait pas, changer de provider perdrait les assignations de l'autre. Avec deux configurations, l'utilisateur peut basculer sans perdre ses choix.
 
 **Que se passe-t-il si l'utilisateur change de provider en cours de session ?**
 

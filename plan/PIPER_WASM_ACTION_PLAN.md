@@ -622,12 +622,18 @@ export const ttsEngine = {
    - Chaque modèle Piper doit avoir une propriété `gender: 'male' | 'female'`
    - L'UI doit afficher le genre de chaque voix disponible
 
-2. **Assignation Automatique Intelligente**
+2. **Choix du Provider TTS par Pièce**
+   - Le choix du provider (Piper / Google/Web Speech) se fait **dans l'écran PlayDetailScreen**
+   - Bloc "Voix des personnages" commence par le sélecteur de provider
+   - Chaque pièce peut utiliser un provider différent
+   - Stocké dans `PlaySettings.ttsProvider: TTSProviderType`
+
+3. **Assignation Automatique Intelligente**
    - Lorsqu'un personnage a un genre défini dans `settings.characterVoices[characterId]`
    - Le système doit automatiquement sélectionner une voix du même genre
    - **Objectif : Maximiser la diversité des voix** - Assigner des voix différentes à chaque personnage
 
-3. **Algorithme de Distribution**
+4. **Algorithme de Distribution**
    ```
    Pour chaque personnage avec un genre défini :
      1. Filtrer les voix disponibles du même genre
@@ -637,15 +643,29 @@ export const ttsEngine = {
      4. Mémoriser l'assignation pour cohérence
    ```
 
-4. **Compatibilité avec l'Existant**
+5. **Bouton de Réassignation**
+   - À côté du sélecteur de provider, un bouton "🔄 Réassigner les voix"
+   - Permet de réinitialiser et régénérer les assignations si l'utilisateur n'est pas satisfait
+   - Action : vide les assignations stockées et recalcule avec l'algorithme
+
+6. **Édition Manuelle des Voix**
+   - À côté des boutons Homme ♂ / Femme ♀, un bouton "✏️ Édition"
+   - Ouvre une dropdown avec toutes les voix disponibles du genre sélectionné
+   - Permet de choisir manuellement une voix spécifique pour un personnage
+   - L'assignation manuelle est prioritaire et persistée
+
+7. **Compatibilité avec l'Existant**
    - Le système actuel utilise `voiceManager.selectVoiceForGender(gender)`
    - Cette logique doit être étendue au `TTSProviderManager`
-   - Les deux providers (Web Speech et Piper) doivent supporter cette fonctionnalité
+   - Les deux providers (Web Speech/Google et Piper) doivent supporter cette fonctionnalité
 
-5. **Persistance**
-   - L'assignation des voix doit être cohérente durant toute la session
-   - Les voix assignées doivent être mémorisées pour chaque personnage
-   - Lors du changement de provider, réassigner intelligemment les voix
+8. **Persistance en Base de Données**
+   - Les assignations de voix sont stockées dans `PlaySettings` (IndexedDB via Dexie)
+   - **Deux configurations distinctes par provider** :
+     - `characterVoicesPiper: Record<characterId, voiceId>` - Assignations pour Piper
+     - `characterVoicesGoogle: Record<characterId, voiceId>` - Assignations pour Google/Web Speech
+   - Lors du changement de provider, charger les assignations correspondantes
+   - Persistance garantie entre les sessions pour un même texte
 
 **Exemple de Configuration Modèles Piper** :
 
@@ -697,12 +717,44 @@ const PIPER_MODELS = [
 ] as const;
 ```
 
+**Modification du Modèle PlaySettings** :
+
+```typescript
+// src/core/models/Settings.ts
+
+export interface PlaySettings {
+  playId: string;
+  readingMode: ReadingMode;
+  userCharacterId?: string;
+  hideUserLines: boolean;
+  showBefore: boolean;
+  showAfter: boolean;
+  userSpeed: number;
+  voiceOffEnabled: boolean;
+  defaultSpeed: number;
+  
+  // MODIFIÉ : Genre des personnages (conservé)
+  characterVoices: Record<string, Gender>;
+  
+  // NOUVEAU : Provider TTS choisi pour cette pièce
+  ttsProvider: TTSProviderType; // 'piper-wasm' | 'web-speech'
+  
+  // NOUVEAU : Assignations de voix spécifiques par provider
+  characterVoicesPiper: Record<string, string>;    // characterId -> voiceId (Piper)
+  characterVoicesGoogle: Record<string, string>;   // characterId -> voiceId (Google/Web Speech)
+  
+  theme?: Theme;
+}
+```
+
 **Implémentation Requise** :
 
 - [ ] Modèles Piper avec propriété `gender`
 - [ ] Méthode `selectVoiceForGender(gender)` dans `PiperWASMProvider`
 - [ ] Algorithme de distribution intelligent des voix
-- [ ] Cache d'assignation voix ↔ personnage
+- [ ] **Persistance DB** : `characterVoicesPiper` et `characterVoicesGoogle` dans PlaySettings
+- [ ] **Bouton réassignation** : UI + logique de réinitialisation
+- [ ] **Bouton édition manuelle** : Dropdown de sélection de voix
 - [ ] Tests avec plusieurs personnages de genres différents
 
 #### Tâches
@@ -796,11 +848,8 @@ export class PiperWASMProvider implements TTSProvider {
   private loadedModels: Map<string, any> = new Map();
   private currentAudio: HTMLAudioElement | null = null;
   
-  // Cache d'assignation des voix par personnage pour cohérence
-  private voiceAssignments: Map<string, string> = new Map(); // characterId -> voiceId
-  
-  // Compteur d'utilisation des voix pour rotation équitable
-  private voiceUsageCount: Map<string, number> = new Map();
+  // Note : Les assignations sont maintenant stockées en DB (PlaySettings)
+  // et chargées au besoin, pas en cache mémoire volatile
   
   async initialize(): Promise<void> {
     // Charger le module WASM
@@ -842,53 +891,53 @@ export class PiperWASMProvider implements TTSProvider {
   }
   
   /**
-   * Sélectionne une voix pour un personnage en fonction de son genre
+   * Génère des assignations de voix intelligentes pour tous les personnages
    * Maximise la diversité en assignant des voix différentes
    * 
-   * @param characterId - ID du personnage
-   * @param gender - Genre du personnage ('male' | 'female')
-   * @returns ID de la voix sélectionnée
+   * @param characters - Liste des personnages avec leur genre
+   * @param existingAssignments - Assignations existantes (optionnel)
+   * @returns Nouvelles assignations { characterId -> voiceId }
    */
-  selectVoiceForCharacter(characterId: string, gender: 'male' | 'female'): string {
-    // Si déjà assigné, retourner la même voix (cohérence)
-    if (this.voiceAssignments.has(characterId)) {
-      return this.voiceAssignments.get(characterId)!;
-    }
+  generateVoiceAssignments(
+    characters: Array<{ id: string; gender: 'male' | 'female' }>,
+    existingAssignments: Record<string, string> = {}
+  ): Record<string, string> {
+    const assignments: Record<string, string> = {};
+    const usageCount: Map<string, number> = new Map();
     
-    // Filtrer les modèles du bon genre
-    const modelsOfGender = PIPER_MODELS.filter(m => m.gender === gender);
+    // Initialiser le compteur avec les assignations existantes
+    Object.values(existingAssignments).forEach(voiceId => {
+      usageCount.set(voiceId, (usageCount.get(voiceId) || 0) + 1);
+    });
     
-    if (modelsOfGender.length === 0) {
-      // Fallback : première voix disponible
-      return PIPER_MODELS[0].id;
-    }
-    
-    // Trouver la voix la moins utilisée du bon genre
-    let selectedModel = modelsOfGender[0];
-    let minUsage = this.voiceUsageCount.get(selectedModel.id) || 0;
-    
-    for (const model of modelsOfGender) {
-      const usage = this.voiceUsageCount.get(model.id) || 0;
-      if (usage < minUsage) {
-        minUsage = usage;
-        selectedModel = model;
+    for (const character of characters) {
+      // Filtrer les modèles du bon genre
+      const modelsOfGender = PIPER_MODELS.filter(m => m.gender === character.gender);
+      
+      if (modelsOfGender.length === 0) {
+        // Fallback : première voix disponible
+        assignments[character.id] = PIPER_MODELS[0].id;
+        continue;
       }
+      
+      // Trouver la voix la moins utilisée du bon genre
+      let selectedModel = modelsOfGender[0];
+      let minUsage = usageCount.get(selectedModel.id) || 0;
+      
+      for (const model of modelsOfGender) {
+        const usage = usageCount.get(model.id) || 0;
+        if (usage < minUsage) {
+          minUsage = usage;
+          selectedModel = model;
+        }
+      }
+      
+      // Enregistrer l'assignation
+      assignments[character.id] = selectedModel.id;
+      usageCount.set(selectedModel.id, minUsage + 1);
     }
     
-    // Enregistrer l'assignation
-    this.voiceAssignments.set(characterId, selectedModel.id);
-    this.voiceUsageCount.set(selectedModel.id, minUsage + 1);
-    
-    return selectedModel.id;
-  }
-  
-  /**
-   * Réinitialise les assignations de voix
-   * (utile lors du changement de pièce)
-   */
-  resetVoiceAssignments(): void {
-    this.voiceAssignments.clear();
-    this.voiceUsageCount.clear();
+    return assignments;
   }
   
   async synthesize(
@@ -1024,9 +1073,6 @@ export class PiperWASMProvider implements TTSProvider {
       model?.dispose?.();
     }
     this.loadedModels.clear();
-    
-    // Nettoyer les assignations
-    this.resetVoiceAssignments();
   }
 }
 ```
@@ -1301,17 +1347,33 @@ async synthesize(
 
 **Checklist Assignation de Voix** :
 - [ ] Importer une pièce avec plusieurs personnages
-- [ ] Dans "Voix des personnages", définir le genre de chaque personnage
-  - [ ] Au moins 2 personnages féminins
-  - [ ] Au moins 2 personnages masculins
+- [ ] Dans "Voix des personnages" :
+  - [ ] Vérifier que le sélecteur de provider est en haut
+  - [ ] Piper sélectionné par défaut
+  - [ ] Bouton "Réassigner les voix" visible
+  - [ ] Définir le genre de chaque personnage (2F, 2M minimum)
+  - [ ] Vérifier que les voix sont assignées automatiquement (affichage)
 - [ ] Lire la pièce en mode audio
 - [ ] Vérifier que :
   - [ ] Les personnages féminins ont des voix féminines
   - [ ] Les personnages masculins ont des voix masculines
   - [ ] **Les personnages ont des voix DIFFÉRENTES** (diversité maximale)
   - [ ] La même voix est utilisée pour le même personnage (cohérence)
-- [ ] Changer le genre d'un personnage → la voix change
-- [ ] Recharger la page → les assignations persistent
+- [ ] Tester le bouton "Réassigner les voix"
+  - [ ] Confirm dialog s'affiche
+  - [ ] Les voix sont réassignées différemment
+- [ ] Tester le bouton "✏️ Édition"
+  - [ ] Dropdown s'ouvre avec liste des voix du bon genre
+  - [ ] Sélection manuelle d'une voix fonctionne
+  - [ ] La voix choisie est bien utilisée et affichée
+- [ ] Changer le provider (Piper → Google/Système)
+  - [ ] Les assignations Piper sont conservées (non visibles)
+  - [ ] Nouvelles assignations Google sont générées/affichées
+- [ ] Revenir à Piper
+  - [ ] Les assignations Piper précédentes sont restaurées ✅
+- [ ] Recharger la page
+  - [ ] Provider sélectionné conservé
+  - [ ] Assignations conservées (persistance DB) ✅
 
 ---
 
@@ -1370,24 +1432,306 @@ export const useTTSConfigStore = create<TTSConfigState>()(
 
 ---
 
-**3.2 - Améliorer l'UI de Sélection des Voix**
+**3.2 - Refonte Complète du Bloc "Voix des Personnages"**
 
-**Important** : L'interface existante `VoiceAssignment` permet déjà de définir le genre des personnages. Il faut s'assurer que cette fonctionnalité est bien utilisée avec Piper.
+Fichier : `src/components/play/VoiceAssignment.tsx` (refactorisation majeure)
 
-**Vérifications** :
-- [ ] Le composant `VoiceAssignment` fonctionne avec Piper
-- [ ] L'utilisateur peut définir Homme/Femme pour chaque personnage
-- [ ] Les changements sont bien persistés dans `settings.characterVoices`
-- [ ] Le `TTSProviderManager` utilise ces informations pour sélectionner les voix
+**Nouvelle Structure UI** :
 
-**Améliorations suggérées** :
-```typescript
-// Dans VoiceAssignment.tsx - Ajouter un aperçu de la voix sélectionnée
-
-<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-  Voix : {getVoiceNameForCharacter(character.id)}
-</div>
 ```
+┌─────────────────────────────────────────────────────────┐
+│ Voix des personnages                                    │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ Moteur de synthèse vocale :                            │
+│ ● Piper (Voix hors-ligne, recommandé)                  │
+│ ○ Google/Système (Voix système)                        │
+│ [🔄 Réassigner les voix]                               │
+│                                                         │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ JULIETTE                                                │
+│ [♀] [♂] [✏️ Édition ▼]                                 │
+│ Voix assignée : Siwis (Femme)                          │
+│                                                         │
+│ ROMÉO                                                   │
+│ [♂] [♀] [✏️ Édition ▼]                                 │
+│ Voix assignée : Tom (Homme)                            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Composants à créer/modifier** :
+
+1. **TTSProviderSelector** (nouveau sous-composant)
+```typescript
+// src/components/play/TTSProviderSelector.tsx
+
+interface Props {
+  selectedProvider: TTSProviderType;
+  onProviderChange: (provider: TTSProviderType) => void;
+  onReassignVoices: () => void;
+}
+
+export function TTSProviderSelector({
+  selectedProvider,
+  onProviderChange,
+  onReassignVoices
+}: Props) {
+  return (
+    <div className="space-y-3 mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+      <label className="block text-sm font-medium">
+        Moteur de synthèse vocale
+      </label>
+      
+      {/* Radio buttons pour Piper / Google */}
+      <div className="space-y-2">
+        <label className="flex items-center">
+          <input
+            type="radio"
+            value="piper-wasm"
+            checked={selectedProvider === 'piper-wasm'}
+            onChange={() => onProviderChange('piper-wasm')}
+          />
+          <span className="ml-2">Piper (Voix hors-ligne, recommandé)</span>
+        </label>
+        
+        <label className="flex items-center">
+          <input
+            type="radio"
+            value="web-speech"
+            checked={selectedProvider === 'web-speech'}
+            onChange={() => onProviderChange('web-speech')}
+          />
+          <span className="ml-2">Google/Système (Voix système)</span>
+        </label>
+      </div>
+      
+      {/* Bouton de réassignation */}
+      <button
+        onClick={onReassignVoices}
+        className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-100 
+                   dark:bg-blue-900 text-blue-700 dark:text-blue-200 
+                   rounded hover:bg-blue-200 dark:hover:bg-blue-800"
+      >
+        🔄 Réassigner les voix
+      </button>
+    </div>
+  );
+}
+```
+
+2. **CharacterVoiceEditor** (nouveau sous-composant)
+```typescript
+// src/components/play/CharacterVoiceEditor.tsx
+
+interface Props {
+  character: Character;
+  gender: Gender;
+  assignedVoice?: string; // voiceId
+  availableVoices: VoiceDescriptor[];
+  onGenderChange: (gender: Gender) => void;
+  onVoiceChange: (voiceId: string) => void;
+}
+
+export function CharacterVoiceEditor({
+  character,
+  gender,
+  assignedVoice,
+  availableVoices,
+  onGenderChange,
+  onVoiceChange
+}: Props) {
+  const [isEditingVoice, setIsEditingVoice] = useState(false);
+  
+  // Filtrer les voix du bon genre
+  const voicesOfGender = availableVoices.filter(v => v.gender === gender);
+  const selectedVoiceInfo = voicesOfGender.find(v => v.id === assignedVoice);
+  
+  return (
+    <div className="p-3 border rounded">
+      {/* Nom du personnage */}
+      <div className="font-medium mb-2">{character.name}</div>
+      
+      {/* Boutons Genre + Édition */}
+      <div className="flex items-center gap-2 mb-2">
+        {/* Boutons Homme/Femme */}
+        <button
+          onClick={() => onGenderChange('male')}
+          className={gender === 'male' ? 'selected' : ''}
+        >
+          ♂
+        </button>
+        <button
+          onClick={() => onGenderChange('female')}
+          className={gender === 'female' ? 'selected' : ''}
+        >
+          ♀
+        </button>
+        
+        {/* Bouton Édition (dropdown) */}
+        <div className="relative">
+          <button
+            onClick={() => setIsEditingVoice(!isEditingVoice)}
+            className="flex items-center gap-1 px-2 py-1 text-sm border rounded"
+          >
+            ✏️ Édition
+          </button>
+          
+          {isEditingVoice && (
+            <div className="absolute z-10 mt-1 bg-white dark:bg-gray-800 
+                            border rounded shadow-lg max-h-48 overflow-y-auto">
+              {voicesOfGender.map(voice => (
+                <button
+                  key={voice.id}
+                  onClick={() => {
+                    onVoiceChange(voice.id);
+                    setIsEditingVoice(false);
+                  }}
+                  className={`block w-full text-left px-3 py-2 hover:bg-gray-100 
+                              ${voice.id === assignedVoice ? 'bg-blue-50' : ''}`}
+                >
+                  {voice.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Affichage voix assignée */}
+      {selectedVoiceInfo && (
+        <div className="text-xs text-gray-500">
+          Voix assignée : {selectedVoiceInfo.name}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+3. **VoiceAssignment** (refactorisation)
+```typescript
+// src/components/play/VoiceAssignment.tsx (REFACTORISÉ)
+
+interface Props {
+  playId: string;
+  characters: Character[];
+  playSettings: PlaySettings;
+  onUpdateSettings: (updates: Partial<PlaySettings>) => void;
+}
+
+export function VoiceAssignment({
+  playId,
+  characters,
+  playSettings,
+  onUpdateSettings
+}: Props) {
+  const [availableVoices, setAvailableVoices] = useState<VoiceDescriptor[]>([]);
+  
+  // Charger les voix disponibles selon le provider
+  useEffect(() => {
+    async function loadVoices() {
+      const voices = await ttsProviderManager.getVoices(playSettings.ttsProvider);
+      setAvailableVoices(voices);
+    }
+    loadVoices();
+  }, [playSettings.ttsProvider]);
+  
+  // Changement de provider
+  const handleProviderChange = async (provider: TTSProviderType) => {
+    onUpdateSettings({ ttsProvider: provider });
+    
+    // Charger les assignations correspondantes
+    // (automatique via le store)
+  };
+  
+  // Réassignation des voix
+  const handleReassignVoices = async () => {
+    if (!confirm('Réassigner toutes les voix ? Les assignations actuelles seront perdues.')) {
+      return;
+    }
+    
+    // Régénérer les assignations
+    const charactersWithGender = characters
+      .filter(c => playSettings.characterVoices[c.id])
+      .map(c => ({
+        id: c.id,
+        gender: playSettings.characterVoices[c.id]
+      }));
+    
+    const provider = await getActiveProvider(playSettings.ttsProvider);
+    const newAssignments = provider.generateVoiceAssignments(charactersWithGender);
+    
+    // Sauvegarder selon le provider
+    if (playSettings.ttsProvider === 'piper-wasm') {
+      onUpdateSettings({ characterVoicesPiper: newAssignments });
+    } else {
+      onUpdateSettings({ characterVoicesGoogle: newAssignments });
+    }
+  };
+  
+  return (
+    <div className="space-y-4">
+      {/* Sélecteur de provider */}
+      <TTSProviderSelector
+        selectedProvider={playSettings.ttsProvider}
+        onProviderChange={handleProviderChange}
+        onReassignVoices={handleReassignVoices}
+      />
+      
+      {/* Liste des personnages */}
+      <div className="space-y-2">
+        {characters.map(character => {
+          const gender = playSettings.characterVoices[character.id];
+          const assignedVoice = playSettings.ttsProvider === 'piper-wasm'
+            ? playSettings.characterVoicesPiper[character.id]
+            : playSettings.characterVoicesGoogle[character.id];
+          
+          return (
+            <CharacterVoiceEditor
+              key={character.id}
+              character={character}
+              gender={gender}
+              assignedVoice={assignedVoice}
+              availableVoices={availableVoices}
+              onGenderChange={(newGender) => {
+                onUpdateSettings({
+                  characterVoices: {
+                    ...playSettings.characterVoices,
+                    [character.id]: newGender
+                  }
+                });
+              }}
+              onVoiceChange={(voiceId) => {
+                const assignmentKey = playSettings.ttsProvider === 'piper-wasm'
+                  ? 'characterVoicesPiper'
+                  : 'characterVoicesGoogle';
+                
+                onUpdateSettings({
+                  [assignmentKey]: {
+                    ...playSettings[assignmentKey],
+                    [character.id]: voiceId
+                  }
+                });
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+```
+
+**Tâches d'implémentation** :
+- [ ] Créer `TTSProviderSelector.tsx`
+- [ ] Créer `CharacterVoiceEditor.tsx`
+- [ ] Refactoriser `VoiceAssignment.tsx`
+- [ ] Modifier `PlaySettings` pour ajouter `ttsProvider`, `characterVoicesPiper`, `characterVoicesGoogle`
+- [ ] Mettre à jour le store pour gérer ces nouvelles propriétés
+- [ ] Implémenter la logique de réassignation
+- [ ] Implémenter la dropdown de sélection manuelle
 
 **3.3 - Créer le Composant Sélecteur de Moteur**
 
@@ -1833,9 +2177,11 @@ Mettre à jour la section "Stack Technique" :
 
 **Checklist Assignation de Voix** (CRITIQUE) :
 - [ ] Importer une pièce avec 4+ personnages
-- [ ] Définir le genre dans "Voix des personnages" :
-  - [ ] 2 personnages féminins (ex: JULIETTE, CLAIRE)
-  - [ ] 2 personnages masculins (ex: ROMÉO, MARC)
+- [ ] Dans "Voix des personnages" :
+  - [ ] Vérifier sélecteur provider en haut (Piper par défaut)
+  - [ ] Vérifier bouton "🔄 Réassigner les voix" présent
+  - [ ] Définir le genre (2F: JULIETTE, CLAIRE; 2M: ROMÉO, MARC)
+  - [ ] Vérifier affichage automatique des voix assignées
 - [ ] Lire la pièce avec Piper
 - [ ] **Vérifier que chaque personnage a une voix unique** :
   - [ ] JULIETTE → Voix féminine 1 (ex: Siwis)
@@ -1843,10 +2189,27 @@ Mettre à jour la section "Stack Technique" :
   - [ ] ROMÉO → Voix masculine 1 (ex: Tom)
   - [ ] MARC → Voix masculine 2 (ex: Gilles) - DIFFÉRENTE de Roméo
 - [ ] Relire plusieurs fois → même assignation (cohérence)
-- [ ] Changer le genre de JULIETTE en "Homme" → voix masculine
-- [ ] Recharger la page → assignations conservées
-- [ ] Tester avec plus de personnages que de voix disponibles
-  - [ ] Les voix sont réutilisées équitablement (rotation)
+- [ ] Tester bouton "🔄 Réassigner"
+  - [ ] Nouvelles assignations générées
+  - [ ] Toujours diverse (si possible)
+- [ ] Tester bouton "✏️ Édition" sur JULIETTE
+  - [ ] Dropdown affiche voix féminines uniquement
+  - [ ] Sélection manuelle d'une voix (ex: UPMC)
+  - [ ] Voix changée et affichée
+  - [ ] Lecture utilise bien la voix choisie
+- [ ] Changer le genre de JULIETTE → "Homme"
+  - [ ] Nouvelle voix masculine assignée
+  - [ ] Dropdown édition montre voix masculines
+- [ ] Changer provider → Google/Système
+  - [ ] Assignations Piper cachées/conservées
+  - [ ] Nouvelles assignations Google générées
+- [ ] Revenir à Piper
+  - [ ] Assignations Piper restaurées ✅
+- [ ] Recharger la page
+  - [ ] Provider conservé
+  - [ ] Assignations conservées (DB) ✅
+- [ ] Tester avec 6 personnages, 2 voix par genre
+  - [ ] Rotation équitable (3-3 ou 4-2)
 
 **UI/UX** :
 - [ ] Sélecteur de moteur bien intégré dans les paramètres
@@ -1936,8 +2299,12 @@ git push -u origin piper-wasm
 - [ ] Le changement de moteur est fluide et immédiat
 - [ ] **Les personnages de genres différents ont des voix différenciées**
 - [ ] **Maximum de voix différentes assignées aux personnages** (diversité)
-- [ ] Les assignations de voix sont cohérentes durant la session
-- [ ] L'interface "Voix des personnages" fonctionne avec Piper
+- [ ] Les assignations de voix sont **persistées en DB entre les sessions**
+- [ ] Le **choix du provider se fait dans PlayDetailScreen** (pas Settings global)
+- [ ] Le **bouton "Réassigner les voix" fonctionne** et régénère les assignations
+- [ ] Le **bouton "Édition" permet la sélection manuelle** d'une voix spécifique
+- [ ] Les **assignations sont distinctes par provider** (Piper vs Google)
+- [ ] Le changement de provider **restaure les assignations correspondantes**
 
 ✅ **Technique** :
 - [ ] Code respecte les standards du projet (`common.md`)
