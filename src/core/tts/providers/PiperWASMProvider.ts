@@ -279,6 +279,12 @@ export class PiperWASMProvider implements TTSProvider {
         `[PiperWASM] Sessions actuellement en cache:`,
         Array.from(this.ttsSessions.keys())
       )
+      if (session) {
+        console.warn(
+          `[PiperWASM] 🔄 Réutilisation de la session existante pour ${options.voiceId}. Session object:`,
+          session
+        )
+      }
       if (!session) {
         console.warn(
           `[PiperWASM] Création d'une nouvelle session pour voiceId: ${options.voiceId}, piperVoiceId: ${modelConfig.piperVoiceId}`
@@ -287,6 +293,9 @@ export class PiperWASMProvider implements TTSProvider {
           voiceId: modelConfig.piperVoiceId,
           progress: (progress) => {
             const percent = Math.round((progress.loaded / progress.total) * 100)
+            console.warn(
+              `[PiperWASM] Téléchargement ${modelConfig.piperVoiceId}: ${percent}% (${progress.loaded}/${progress.total} bytes)`
+            )
             this.downloadProgress.set(options.voiceId, percent)
             options.onProgress?.(percent)
           },
@@ -299,11 +308,23 @@ export class PiperWASMProvider implements TTSProvider {
               'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.wasm',
           },
         })
+        console.warn(`[PiperWASM] ✅ Session créée avec succès pour ${modelConfig.piperVoiceId}`)
+        console.warn(
+          `[PiperWASM] Session object:`,
+          session,
+          `voiceId utilisé:`,
+          modelConfig.piperVoiceId
+        )
         this.ttsSessions.set(options.voiceId, session)
       }
 
       // Synthétiser le texte
+      console.warn(
+        `[PiperWASM] 🎤 Appel de session.predict() avec la session pour ${options.voiceId} (piperVoiceId: ${modelConfig.piperVoiceId})`
+      )
+      console.warn(`[PiperWASM] Texte à synthétiser: "${text.substring(0, 50)}..."`)
       const audioBlob = await session.predict(text)
+      console.warn(`[PiperWASM] ✅ Audio généré: ${audioBlob.size} bytes pour ${options.voiceId}`)
 
       // Mettre en cache
       await audioCacheService.cacheAudio(text, options.voiceId, audioBlob, {
