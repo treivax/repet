@@ -5,30 +5,67 @@
  */
 
 /**
- * Palette de couleurs lisibles et accessibles pour les personnages
- * Couleurs optimisées pour contraste sur fond blanc et sombre
+ * Génération de couleurs espacées pour les personnages
+ * Utilise le golden ratio pour maximiser la différence visuelle entre couleurs
+ *
+ * Algorithm based on:
+ * https://martin.ankerl.com/2009/12/09/how-to-create-random-colors-programmatically/
+ * Golden ratio conjugate for optimal color distribution in HSL space
  */
-const READABLE_COLORS = [
-  '#3B82F6', // blue-500
-  '#EF4444', // red-500
-  '#10B981', // green-500
-  '#F59E0B', // amber-500
-  '#8B5CF6', // violet-500
-  '#EC4899', // pink-500
-  '#14B8A6', // teal-500
-  '#F97316', // orange-500
-  '#6366F1', // indigo-500
-  '#84CC16', // lime-500
-  '#06B6D4', // cyan-500
-  '#F43F5E', // rose-500
-  '#8B5CF6', // purple-500
-  '#22C55E', // green-400
-  '#A855F7', // purple-400
-  '#FB923C', // orange-400
-];
+const GOLDEN_RATIO_CONJUGATE = 0.618033988749895
+
+/**
+ * Convertit une couleur HSL en hexadécimal
+ *
+ * @param h - Teinte (0-360)
+ * @param s - Saturation (0-100)
+ * @param l - Luminosité (0-100)
+ * @returns Couleur hexadécimale
+ */
+function hslToHex(h: number, s: number, l: number): string {
+  const sNorm = s / 100
+  const lNorm = l / 100
+  const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = lNorm - c / 2
+  let r = 0,
+    g = 0,
+    b = 0
+  if (h >= 0 && h < 60) {
+    r = c
+    g = x
+    b = 0
+  } else if (h >= 60 && h < 120) {
+    r = x
+    g = c
+    b = 0
+  } else if (h >= 120 && h < 180) {
+    r = 0
+    g = c
+    b = x
+  } else if (h >= 180 && h < 240) {
+    r = 0
+    g = x
+    b = c
+  } else if (h >= 240 && h < 300) {
+    r = x
+    g = 0
+    b = c
+  } else {
+    r = c
+    g = 0
+    b = x
+  }
+  const toHex = (val: number) => {
+    const hex = Math.round((val + m) * 255).toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }
+  return '#' + toHex(r) + toHex(g) + toHex(b)
+}
 
 /**
  * Génère une couleur unique et déterministe pour un personnage
+ * Utilise le golden ratio pour espacer les teintes de manière optimale
  *
  * @param name - Nom du personnage
  * @returns Couleur hexadécimale
@@ -37,32 +74,39 @@ const READABLE_COLORS = [
  * generateCharacterColor('HAMLET') // toujours la même couleur pour HAMLET
  */
 export function generateCharacterColor(name: string): string {
-  // Hash simple du nom pour index déterministe
-  let hash = 0;
+  let hash = 0
   for (let i = 0; i < name.length; i++) {
-    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0;
+    hash = ((hash << 5) - hash + name.charCodeAt(i)) | 0
   }
-
-  // Index positif dans la palette
-  const index = Math.abs(hash) % READABLE_COLORS.length;
-  return READABLE_COLORS[index];
+  const normalizedHash = Math.abs(hash) / 2147483647
+  let hue = (normalizedHash * 360) % 360
+  hue = (hue + hash * GOLDEN_RATIO_CONJUGATE * 360) % 360
+  return hslToHex(hue, 70, 55)
 }
 
 /**
- * Récupère la palette complète de couleurs
+ * Génère une palette de N couleurs maximalement espacées
  *
- * @returns Tableau des couleurs disponibles
+ * @param count - Nombre de couleurs à générer
+ * @returns Tableau de couleurs hexadécimales
  */
-export function getColorPalette(): string[] {
-  return [...READABLE_COLORS];
+export function generateColorPalette(count: number): string[] {
+  const colors: string[] = []
+  let hue = 0
+  for (let i = 0; i < count; i++) {
+    colors.push(hslToHex(hue, 70, 55))
+    hue = (hue + GOLDEN_RATIO_CONJUGATE * 360) % 360
+  }
+  return colors
 }
 
 /**
- * Vérifie si une couleur est dans la palette
+ * Génère une couleur pour un index donné (pour attribution séquentielle)
  *
- * @param color - Couleur hexadécimale
- * @returns true si la couleur est dans la palette
+ * @param index - Index du personnage
+ * @returns Couleur hexadécimale
  */
-export function isValidColor(color: string): boolean {
-  return READABLE_COLORS.includes(color.toUpperCase());
+export function getColorByIndex(index: number): string {
+  const hue = (index * GOLDEN_RATIO_CONJUGATE * 360) % 360
+  return hslToHex(hue, 70, 55)
 }
