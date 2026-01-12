@@ -5,10 +5,11 @@
  */
 
 import { useState, useEffect } from 'react'
+import { voiceManager } from '../core/tts/voice-manager'
 
 /**
  * Hook pour récupérer les voix françaises disponibles sur le device
- * Utilise l'API Web Speech Synthesis
+ * Utilise le VoiceManager existant pour une meilleure compatibilité
  *
  * @returns Array de voix françaises disponibles
  *
@@ -16,35 +17,35 @@ import { useState, useEffect } from 'react'
  * const frenchVoices = useFrenchVoices()
  * console.log(`${frenchVoices.length} voix françaises disponibles`)
  */
-export function useFrenchVoices(): SpeechSynthesisVoice[] {
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+export function useFrenchVoices(): number {
+  const [voiceCount, setVoiceCount] = useState<number>(0)
 
   useEffect(() => {
-    // Fonction pour charger et filtrer les voix
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices()
-      const frenchVoices = availableVoices.filter((voice) =>
-        voice.lang.toLowerCase().startsWith('fr')
-      )
-      setVoices(frenchVoices)
-    }
+    let mounted = true
 
-    // Charger les voix immédiatement
-    loadVoices()
+    const initializeVoices = async () => {
+      try {
+        // Utiliser le VoiceManager qui gère déjà le chargement asynchrone
+        await voiceManager.initialize()
 
-    // Certains navigateurs chargent les voix de manière asynchrone
-    // Il faut écouter l'événement 'voiceschanged'
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices
-    }
-
-    // Cleanup
-    return () => {
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = null
+        if (mounted) {
+          const frenchVoices = voiceManager.getFrenchVoices()
+          setVoiceCount(frenchVoices.length)
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des voix:', error)
+        if (mounted) {
+          setVoiceCount(0)
+        }
       }
+    }
+
+    initializeVoices()
+
+    return () => {
+      mounted = false
     }
   }, [])
 
-  return voices
+  return voiceCount
 }

@@ -193,7 +193,7 @@ export function PlayDetailScreen() {
                   <span className="font-semibold">Actes :</span> {play.ast.acts.length}
                 </div>
                 <div>
-                  <span className="font-semibold">Voix FR :</span> {frenchVoices.length}
+                  <span className="font-semibold">Voix FR :</span> {frenchVoices}
                 </div>
               </div>
             </section>
