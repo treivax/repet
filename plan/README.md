@@ -17,7 +17,10 @@ Ce répertoire contient tous les documents de planification pour l'intégration 
 | **PIPER_WASM_ACTION_PLAN.md** | Plan détaillé complet (4 phases) | Document de référence principal |
 | **PIPER_WASM_QUICK_REFERENCE.md** | Référence rapide et checklist | Guide quotidien de développement |
 | **PIPER_WASM_ARCHITECTURE_DIAGRAMS.md** | Diagrammes ASCII de l'architecture | Compréhension visuelle du système |
+| **VOICE_ASSIGNMENT_SPECIFICATION.md** | Spécification assignation voix par genre | Fonctionnalité critique (diversité vocale) |
 | **PIPER_WASM_POC_RESULTS.md** | Résultats du POC (Phase 0) | À créer lors de la Phase 0 |
+| **TODO_PHASE_0.md** | Checklist détaillée Phase 0 | Actions concrètes POC |
+| **SESSION_SUMMARY.md** | Résumé de la session de planification | Historique et décisions |
 
 ---
 
@@ -75,6 +78,8 @@ Permettre aux utilisateurs de Répét de choisir entre deux moteurs de générat
 - [ ] Changement de moteur fluide et immédiat
 - [ ] Lecture audio fonctionne avec les 2 moteurs
 - [ ] Cache audio accélère les lectures répétées
+- [ ] **Voix différenciées par genre (M/F)**
+- [ ] **Diversité maximale des voix entre personnages**
 
 ### Technique
 - [ ] Code respecte `.github/prompts/common.md`
@@ -117,6 +122,7 @@ git push -u origin piper-wasm   # Push branche
 ### Pour Comprendre le Projet
 1. Lire `PIPER_WASM_QUICK_REFERENCE.md` (vue d'ensemble)
 2. Consulter `PIPER_WASM_ARCHITECTURE_DIAGRAMS.md` (architecture visuelle)
+3. Lire `VOICE_ASSIGNMENT_SPECIFICATION.md` (fonctionnalité clé)
 
 ### Pour Implémenter
 1. Lire `PIPER_WASM_ACTION_PLAN.md` (phase en cours)
@@ -126,6 +132,7 @@ git push -u origin piper-wasm   # Push branche
 ### Pour Déboguer
 1. Consulter "Troubleshooting" dans `QUICK_REFERENCE.md`
 2. Vérifier les diagrammes de flux dans `ARCHITECTURE_DIAGRAMS.md`
+3. Vérifier l'algorithme d'assignation dans `VOICE_ASSIGNMENT_SPECIFICATION.md`
 
 ---
 
@@ -150,6 +157,7 @@ git push -u origin piper-wasm   # Push branche
 
 - **Questions architecture** → Consulter `ARCHITECTURE_DIAGRAMS.md`
 - **Détails implémentation** → Consulter `ACTION_PLAN.md`
+- **Assignation de voix** → Consulter `VOICE_ASSIGNMENT_SPECIFICATION.md`
 - **Standards de code** → Consulter `.github/prompts/common.md`
 - **Checklist rapide** → Consulter `QUICK_REFERENCE.md`
 
