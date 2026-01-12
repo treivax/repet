@@ -157,7 +157,7 @@ export function LibraryScreen() {
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-          <p className="mt-4 text-gray-600">Chargement...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement...</p>
         </div>
       </div>
     )
@@ -168,8 +168,8 @@ export function LibraryScreen() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Bibliothèque</h1>
-          <p className="mt-1 text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Bibliothèque</h1>
+          <p className="mt-1 text-gray-600 dark:text-gray-400">
             {plays.length} pièce{plays.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -215,9 +215,9 @@ export function LibraryScreen() {
 
       {/* Empty State */}
       {plays.length === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+        <div className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 p-12 text-center">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -229,8 +229,12 @@ export function LibraryScreen() {
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <h3 className="mt-2 text-lg font-medium text-gray-900">Aucune pièce</h3>
-          <p className="mt-1 text-gray-600">Commencez par importer votre première pièce</p>
+          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+            Aucune pièce
+          </h3>
+          <p className="mt-1 text-gray-600 dark:text-gray-400">
+            Commencez par importer votre première pièce
+          </p>
           <div className="mt-6">
             <Button
               variant="primary"
@@ -244,8 +248,10 @@ export function LibraryScreen() {
 
       {/* No Results */}
       {plays.length > 0 && filteredPlays.length === 0 && (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-8 text-center">
-          <p className="text-gray-600">Aucune pièce ne correspond à votre recherche</p>
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-8 text-center">
+          <p className="text-gray-600 dark:text-gray-400">
+            Aucune pièce ne correspond à votre recherche
+          </p>
           <Button variant="ghost" size="sm" onClick={() => setSearchQuery('')} className="mt-4">
             Effacer la recherche
           </Button>
@@ -294,11 +300,13 @@ export function LibraryScreen() {
           </>
         }
       >
-        <p className="text-gray-700">
+        <p className="text-gray-700 dark:text-gray-300">
           Êtes-vous sûr de vouloir supprimer{' '}
           <span className="font-semibold">{playToDelete && getPlayTitle(playToDelete)}</span> ?
         </p>
-        <p className="mt-2 text-sm text-gray-600">Cette action est irréversible.</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          Cette action est irréversible.
+        </p>
       </Modal>
     </div>
   )
