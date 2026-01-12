@@ -14,13 +14,15 @@ Ce répertoire contient tous les documents de planification pour l'intégration 
 
 | Document | Description | Utilisation |
 |----------|-------------|-------------|
-| **PIPER_WASM_ACTION_PLAN.md** | Plan détaillé complet (4 phases) | Document de référence principal |
+| **IMPLEMENTATION_GUIDE.md** | 🆕 Guide d'implémentation complet avec flux détaillés | Guide principal d'implémentation |
+| **IMPLEMENTATION_TRACKER.md** | 🆕 Tracker de progression (checklists, métriques) | Suivi quotidien de l'avancement |
+| **PIPER_WASM_ACTION_PLAN.md** | Plan détaillé complet (6 phases) | Document de référence technique |
 | **PIPER_WASM_QUICK_REFERENCE.md** | Référence rapide et checklist | Guide quotidien de développement |
 | **PIPER_WASM_ARCHITECTURE_DIAGRAMS.md** | Diagrammes ASCII de l'architecture | Compréhension visuelle du système |
 | **VOICE_ASSIGNMENT_SPECIFICATION.md** | Spécification assignation voix par genre | Fonctionnalité critique (diversité vocale) |
-| **PIPER_WASM_POC_RESULTS.md** | Résultats du POC (Phase 0) | À créer lors de la Phase 0 |
-| **TODO_PHASE_0.md** | Checklist détaillée Phase 0 | Actions concrètes POC |
+| **TODO_PHASE_0.md** | Checklist détaillée Phase 0 (POC optionnel) | Actions concrètes POC |
 | **SESSION_SUMMARY.md** | Résumé de la session de planification | Historique et décisions |
+| **CHANGES_VALIDATION_USER.md** | Validation des changements utilisateur | Traçabilité des décisions |
 
 ---
 
@@ -37,8 +39,9 @@ Ce répertoire contient tous les documents de planification pour l'intégration 
    ```
 
 2. **Lire les documents de plan** :
-   - `PIPER_WASM_ACTION_PLAN.md` (détails de la phase en cours)
-   - `PIPER_WASM_QUICK_REFERENCE.md` (checklist et snippets)
+   - `IMPLEMENTATION_GUIDE.md` (guide d'implémentation complet)
+   - `IMPLEMENTATION_TRACKER.md` (progression et checklists)
+   - `PIPER_WASM_QUICK_REFERENCE.md` (référence rapide)
 
 3. **Vérifier la branche** :
    ```bash
@@ -60,13 +63,16 @@ Permettre aux utilisateurs de Répét de choisir entre deux moteurs de générat
 
 | Phase | Durée | Statut | Document |
 |-------|-------|--------|----------|
-| **Phase 0** : POC Piper-WASM | 1 jour | 🔴 À faire | Action Plan (L18) |
-| **Phase 1** : Architecture de Base | 2-3 jours | 🔴 À faire | Action Plan (L140) |
-| **Phase 2** : Intégration Piper-WASM | 3-5 jours | 🔴 À faire | Action Plan (L471) |
-| **Phase 3** : UI Sélecteur | 2-3 jours | 🔴 À faire | Action Plan (L813) |
-| **Phase 4** : Documentation | 1 jour | 🔴 À faire | Action Plan (L1148) |
+| **Phase 1** : Fondations (Data Model & Types) | 1-2 jours | 🔴 À faire | Implementation Guide - Phase 1 |
+| **Phase 2** : Provider Architecture | 2-3 jours | 🔴 À faire | Implementation Guide - Phase 2 |
+| **Phase 3** : Store & State Management | 1-2 jours | 🔴 À faire | Implementation Guide - Phase 3 |
+| **Phase 4** : UI Components | 2-3 jours | 🔴 À faire | Implementation Guide - Phase 4 |
+| **Phase 5** : TTS Engine Integration | 1 jour | 🔴 À faire | Implementation Guide - Phase 5 |
+| **Phase 6** : Tests & Validation | 2 jours | 🔴 À faire | Implementation Guide - Phase 6 |
 
 **Total estimé** : 9-13 jours
+
+> **Note** : Phase 0 (POC) est optionnelle et peut être effectuée plus tard pour l'intégration WASM réelle de Piper.
 
 ---
 
@@ -120,14 +126,15 @@ git push -u origin piper-wasm   # Push branche
 ## 📖 Guide de Lecture des Documents
 
 ### Pour Comprendre le Projet
-1. Lire `PIPER_WASM_QUICK_REFERENCE.md` (vue d'ensemble)
+1. **Lire `IMPLEMENTATION_GUIDE.md`** (guide complet avec flux détaillés)
 2. Consulter `PIPER_WASM_ARCHITECTURE_DIAGRAMS.md` (architecture visuelle)
 3. Lire `VOICE_ASSIGNMENT_SPECIFICATION.md` (fonctionnalité clé)
 
 ### Pour Implémenter
-1. Lire `PIPER_WASM_ACTION_PLAN.md` (phase en cours)
-2. Suivre les checklists de validation
+1. **Suivre `IMPLEMENTATION_GUIDE.md`** (ordre bottom-up, phase par phase)
+2. **Tracker progression dans `IMPLEMENTATION_TRACKER.md`**
 3. Utiliser les code snippets de `QUICK_REFERENCE.md`
+4. Référencer `PIPER_WASM_ACTION_PLAN.md` pour détails techniques
 
 ### Pour Déboguer
 1. Consulter "Troubleshooting" dans `QUICK_REFERENCE.md`
@@ -165,15 +172,18 @@ git push -u origin piper-wasm   # Push branche
 
 ## ⏭️ Prochaine Étape
 
-**Phase 0 : POC Piper-WASM**
+**Phase 1 : Fondations (Data Model & Types)**
 
-1. Rechercher la librairie Piper-WASM officielle
-2. Créer `poc-piper.html` pour tester
-3. Tester génération audio basique
-4. Documenter résultats dans `PIPER_WASM_POC_RESULTS.md`
-5. Valider faisabilité technique
+Commencer l'implémentation directement selon le guide :
 
-**Go/No-Go** : Si POC réussit → Phase 1, sinon → réévaluer approche
+1. Créer `src/core/tts/types.ts` (types partagés)
+2. Modifier `src/core/models/Settings.ts` (ajouter champs TTS)
+3. Mettre à jour schéma Dexie (migration DB)
+
+📘 **Référence** : `IMPLEMENTATION_GUIDE.md` - Section Phase 1  
+📊 **Tracker** : `IMPLEMENTATION_TRACKER.md` - Cocher les tâches au fur et à mesure
+
+> **Note** : Le POC Piper-WASM (Phase 0) peut être effectué plus tard pour valider l'intégration WASM réelle. Pour l'instant, nous utiliserons des placeholders dans `PiperWASMProvider`.
 
 ---
 

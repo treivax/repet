@@ -6,6 +6,7 @@
 
 import { Theme, Gender } from './types'
 import type { ReadingMode } from '../tts/readingModes'
+import type { TTSProviderType } from '../tts/types'
 
 /**
  * Paramètres globaux de l'application
@@ -84,6 +85,15 @@ export interface PlaySettings {
   /** Assignation des voix par personnage (characterId -> gender) */
   characterVoices: Record<string, Gender>
 
+  /** Provider TTS sélectionné pour cette pièce */
+  ttsProvider: TTSProviderType
+
+  /** Assignations de voix pour Piper (characterId -> voiceId) */
+  characterVoicesPiper: Record<string, string>
+
+  /** Assignations de voix pour Google/Web Speech (characterId -> voiceId) */
+  characterVoicesGoogle: Record<string, string>
+
   /** Thème (override du thème global si défini) */
   theme?: Theme
 }
@@ -103,6 +113,9 @@ export function createDefaultPlaySettings(playId: string): PlaySettings {
     voiceOffEnabled: false,
     defaultSpeed: 1.0,
     characterVoices: {},
+    ttsProvider: 'piper-wasm',
+    characterVoicesPiper: {},
+    characterVoicesGoogle: {},
     theme: undefined,
   }
 }
