@@ -24,8 +24,10 @@
     "deploy:vercel": "vercel --prod"
   },
   "dependencies": {
+    "@mintplex-labs/piper-tts-web": "^1.0.4",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
+    "onnxruntime-web": "^1.23.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",

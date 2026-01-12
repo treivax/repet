@@ -12,18 +12,17 @@ import type {
   SynthesisOptions,
   SynthesisResult,
 } from '../types'
+import { TtsSession, type VoiceId } from '@mintplex-labs/piper-tts-web'
+import { audioCacheService } from '../services/AudioCacheService'
 
 /**
  * Configuration d'un modèle Piper
  */
 interface PiperModelConfig extends VoiceDescriptor {
-  /** URL du modèle .onnx */
-  url: string
+  /** ID du modèle pour piper-tts-web */
+  piperVoiceId: VoiceId
 
-  /** URL de la config .json */
-  configUrl: string
-
-  /** Taille du téléchargement en octets */
+  /** Taille estimée du téléchargement en octets */
   downloadSize: number
 }
 
@@ -41,10 +40,8 @@ const PIPER_MODELS: PiperModelConfig[] = [
     quality: 'medium',
     isLocal: true,
     requiresDownload: true,
+    piperVoiceId: 'fr_FR-siwis-medium',
     downloadSize: 15_000_000, // ~15MB
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx',
-    configUrl:
-      'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json',
   },
   {
     id: 'fr_FR-tom-medium',
@@ -56,10 +53,8 @@ const PIPER_MODELS: PiperModelConfig[] = [
     quality: 'medium',
     isLocal: true,
     requiresDownload: true,
+    piperVoiceId: 'fr_FR-tom-medium',
     downloadSize: 15_000_000, // ~15MB
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx',
-    configUrl:
-      'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/tom/medium/fr_FR-tom-medium.onnx.json',
   },
   {
     id: 'fr_FR-upmc-medium-1',
@@ -71,10 +66,8 @@ const PIPER_MODELS: PiperModelConfig[] = [
     quality: 'medium',
     isLocal: true,
     requiresDownload: true,
+    piperVoiceId: 'fr_FR-upmc-medium',
     downloadSize: 16_000_000, // ~16MB
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx',
-    configUrl:
-      'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/upmc/medium/fr_FR-upmc-medium.onnx.json',
   },
   {
     id: 'fr_FR-mls-medium-1',
@@ -86,37 +79,32 @@ const PIPER_MODELS: PiperModelConfig[] = [
     quality: 'medium',
     isLocal: true,
     requiresDownload: true,
+    piperVoiceId: 'fr_FR-mls-medium',
     downloadSize: 14_000_000, // ~14MB
-    url: 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/mls/medium/fr_FR-mls-medium.onnx',
-    configUrl:
-      'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/mls/medium/fr_FR-mls-medium.onnx.json',
   },
 ]
 
 /**
- * Provider TTS utilisant Piper-WASM
- * Note: La synthèse est un placeholder pour l'instant (en attente de l'intégration WASM réelle)
+ * Provider TTS utilisant Piper-WASM via @mintplex-labs/piper-tts-web
  */
 export class PiperWASMProvider implements TTSProvider {
   readonly type = 'piper-wasm' as const
   readonly name = 'Piper (Voix naturelles)'
 
-  private _piperModule: unknown = null
-  private loadedModels: Map<string, unknown> = new Map()
+  private ttsSessions: Map<string, TtsSession> = new Map()
+  private currentAudio: HTMLAudioElement | null = null
   private initialized = false
+  private downloadProgress: Map<string, number> = new Map()
 
   /**
-   * Initialise le provider
+   * Initialise le provider et le service de cache
    */
   async initialize(): Promise<void> {
     if (this.initialized) return
 
-    // TODO: Charger le module Piper-WASM
-    // this.piperModule = await import('piper-wasm')
-    // await this.piperModule.init()
+    // Initialiser le service de cache audio
+    await audioCacheService.initialize()
 
-    // Placeholder: initialisation WASM sera implémentée plus tard
-    this._piperModule = null
     this.initialized = true
   }
 
@@ -210,82 +198,157 @@ export class PiperWASMProvider implements TTSProvider {
   }
 
   /**
-   * Synthétise du texte en audio
-   * PLACEHOLDER: L'intégration WASM réelle sera faite plus tard
+   * Synthétise du texte en audio avec Piper-WASM
    */
   async synthesize(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
-    // TODO: Implémenter la vraie synthèse Piper-WASM
-    // Pour l'instant, on retourne un résultat placeholder
-    // qui permettra de tester l'architecture sans bloquer le développement
+    const startTime = Date.now()
 
-    // Placeholder: référencer les méthodes pour éviter erreurs TypeScript
-    if (this._piperModule === undefined && options.voiceId === '__never__') {
-      void this._downloadAndLoadModel(options.voiceId)
-    }
+    try {
+      // Vérifier le cache d'abord
+      const cachedBlob = await audioCacheService.getAudio(text, options.voiceId, {
+        rate: options.rate,
+        pitch: options.pitch,
+        volume: options.volume,
+      })
 
-    return new Promise((resolve, reject) => {
-      // Simuler un délai de synthèse
-      setTimeout(() => {
-        try {
-          // Créer un audio element vide (placeholder)
-          const audio = new Audio()
+      if (cachedBlob) {
+        // Utiliser l'audio en cache
+        const audio = new Audio(URL.createObjectURL(cachedBlob))
+        audio.playbackRate = options.rate || 1
+        audio.volume = options.volume || 1
 
-          // Appeler les callbacks
-          options.onStart?.()
+        // Connecter les événements
+        audio.addEventListener('play', () => options.onStart?.())
+        audio.addEventListener('ended', () => options.onEnd?.())
+        audio.addEventListener('error', (e) =>
+          options.onError?.(new Error(`Audio error: ${e.message}`))
+        )
 
-          // Simuler la fin de la lecture après un court délai
-          setTimeout(() => {
-            options.onEnd?.()
-          }, 100)
+        this.currentAudio = audio
 
-          resolve({
-            audio,
-            duration: 0,
-            fromCache: false,
-          })
-        } catch (error) {
-          const err = error instanceof Error ? error : new Error('Erreur de synthèse Piper')
-          options.onError?.(err)
-          reject(err)
+        return {
+          audio,
+          duration: Date.now() - startTime,
+          fromCache: true,
         }
-      }, 50)
-    })
+      }
+
+      // Pas en cache, synthétiser avec Piper
+      const modelConfig = PIPER_MODELS.find((m) => m.id === options.voiceId)
+      if (!modelConfig) {
+        throw new Error(`Modèle Piper ${options.voiceId} non trouvé`)
+      }
+
+      // Obtenir ou créer une session TTS pour cette voix
+      let session = this.ttsSessions.get(options.voiceId)
+      if (!session) {
+        session = await TtsSession.create({
+          voiceId: modelConfig.piperVoiceId,
+          progress: (progress) => {
+            const percent = Math.round((progress.loaded / progress.total) * 100)
+            this.downloadProgress.set(options.voiceId, percent)
+            options.onProgress?.(percent)
+          },
+          logger: (msg) => console.warn(`[Piper TTS] ${msg}`),
+        })
+        this.ttsSessions.set(options.voiceId, session)
+      }
+
+      // Synthétiser le texte
+      const audioBlob = await session.predict(text)
+
+      // Mettre en cache
+      await audioCacheService.cacheAudio(text, options.voiceId, audioBlob, {
+        rate: options.rate,
+        pitch: options.pitch,
+        volume: options.volume,
+      })
+
+      // Créer l'élément audio
+      const audio = new Audio(URL.createObjectURL(audioBlob))
+      audio.playbackRate = options.rate || 1
+      audio.volume = options.volume || 1
+
+      // Connecter les événements
+      audio.addEventListener('play', () => options.onStart?.())
+      audio.addEventListener('ended', () => options.onEnd?.())
+      audio.addEventListener('error', (e) =>
+        options.onError?.(new Error(`Audio error: ${e.message}`))
+      )
+
+      this.currentAudio = audio
+
+      return {
+        audio,
+        duration: Date.now() - startTime,
+        fromCache: false,
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('Erreur de synthèse Piper')
+      options.onError?.(err)
+      throw err
+    }
   }
 
   /**
-   * Télécharge et charge un modèle Piper
-   * PLACEHOLDER: Sera implémenté lors de l'intégration WASM réelle
+   * Obtenir la progression du téléchargement pour une voix
    */
-  private async _downloadAndLoadModel(voiceId: string): Promise<unknown> {
+  getDownloadProgress(voiceId: string): number {
+    return this.downloadProgress.get(voiceId) || 0
+  }
+
+  /**
+   * Pré-télécharger un modèle pour l'utiliser hors ligne
+   */
+  async preloadModel(voiceId: string, onProgress?: (percent: number) => void): Promise<void> {
     const modelConfig = PIPER_MODELS.find((m) => m.id === voiceId)
     if (!modelConfig) {
       throw new Error(`Modèle Piper ${voiceId} non trouvé`)
     }
 
-    // Placeholder: téléchargement sera implémenté plus tard
-
-    // TODO: Implémenter le téléchargement et chargement réel
-    // const response = await fetch(modelConfig.url)
-    // const modelData = await response.arrayBuffer()
-    // const model = await this.piperModule.loadModel(modelData)
-    // return model
-
-    return {} // Placeholder
+    // Créer une session pour pré-télécharger le modèle
+    await TtsSession.create({
+      voiceId: modelConfig.piperVoiceId,
+      progress: (progress) => {
+        const percent = Math.round((progress.loaded / progress.total) * 100)
+        this.downloadProgress.set(voiceId, percent)
+        onProgress?.(percent)
+      },
+    })
   }
 
   /**
    * Arrête la lecture en cours
    */
   stop(): void {
-    // TODO: Implémenter l'arrêt de la synthèse Piper
+    if (this.currentAudio) {
+      this.currentAudio.pause()
+      this.currentAudio.currentTime = 0
+      this.currentAudio = null
+    }
   }
 
   /**
    * Libère les ressources
    */
   async dispose(): Promise<void> {
-    this.loadedModels.clear()
-    this._piperModule = null
+    this.stop()
+    this.ttsSessions.clear()
+    this.downloadProgress.clear()
     this.initialized = false
+  }
+
+  /**
+   * Obtenir les statistiques du cache audio
+   */
+  async getCacheStats(): Promise<{ count: number; size: number; sizeFormatted: string }> {
+    return audioCacheService.getStats()
+  }
+
+  /**
+   * Vider le cache audio
+   */
+  async clearCache(): Promise<void> {
+    await audioCacheService.clearCache()
   }
 }

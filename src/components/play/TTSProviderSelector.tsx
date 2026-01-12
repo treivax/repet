@@ -16,6 +16,9 @@ interface Props {
   /** Callback appelé lors du clic sur "Réassigner les voix" */
   onReassignVoices: () => void
 
+  /** Callback appelé lors du clic sur "Gérer les modèles Piper" */
+  onManageModels?: () => void
+
   /** Désactiver le composant */
   disabled?: boolean
 }
@@ -28,6 +31,7 @@ export function TTSProviderSelector({
   currentProvider,
   onProviderChange,
   onReassignVoices,
+  onManageModels,
   disabled = false,
 }: Props) {
   const providers: Array<{
@@ -100,9 +104,7 @@ export function TTSProviderSelector({
 
               {/* Label et description */}
               <div className="flex-1">
-                <div className="font-medium text-gray-900 dark:text-gray-100">
-                  {provider.label}
-                </div>
+                <div className="font-medium text-gray-900 dark:text-gray-100">{provider.label}</div>
                 <div className="text-sm text-gray-600 dark:text-gray-400">
                   {provider.description}
                 </div>
@@ -112,8 +114,8 @@ export function TTSProviderSelector({
         })}
       </div>
 
-      {/* Bouton Réassigner */}
-      <div className="border-t border-gray-200 pt-3 dark:border-gray-700">
+      {/* Boutons d'action */}
+      <div className="border-t border-gray-200 pt-3 dark:border-gray-700 space-y-2">
         <button
           type="button"
           onClick={handleReassign}
@@ -130,6 +132,26 @@ export function TTSProviderSelector({
           <span aria-hidden="true">🔄</span>
           <span>Réassigner les voix</span>
         </button>
+
+        {/* Bouton Gérer les modèles Piper (visible uniquement si Piper est sélectionné) */}
+        {currentProvider === 'piper-wasm' && onManageModels && (
+          <button
+            type="button"
+            onClick={onManageModels}
+            disabled={disabled}
+            className="
+              flex w-full items-center justify-center gap-2 rounded-lg border border-blue-300
+              bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700
+              transition-colors hover:bg-blue-100 focus:outline-none focus:ring-2
+              focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed
+              disabled:opacity-50 dark:border-blue-600 dark:bg-blue-900/20
+              dark:text-blue-300 dark:hover:bg-blue-900/30
+            "
+          >
+            <span aria-hidden="true">⚙️</span>
+            <span>Gérer les modèles Piper</span>
+          </button>
+        )}
       </div>
     </div>
   )
