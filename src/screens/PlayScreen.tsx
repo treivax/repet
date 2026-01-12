@@ -11,7 +11,8 @@ import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
 
 import { playsRepository } from '../core/storage/plays'
-import { voiceManager } from '../core/tts/voice-manager'
+import { ttsEngine } from '../core/tts/engine'
+import { ttsProviderManager } from '../core/tts/providers'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
@@ -119,18 +120,30 @@ export function PlayScreen() {
     setUserCharacter,
   ])
 
+  // Initialiser le TTS provider avec le bon provider au montage
+  useEffect(() => {
+    const initializeTTS = async () => {
+      if (!playId) return
+
+      const settings = getPlaySettings(playId)
+      const provider = settings.ttsProvider || 'piper-wasm'
+
+      try {
+        await ttsProviderManager.initialize(provider)
+        console.warn(`TTS Provider initialisé: ${provider}`)
+      } catch (error) {
+        console.error('Erreur initialisation TTS provider:', error)
+      }
+    }
+
+    initializeTTS()
+  }, [playId, getPlaySettings])
+
   // Nettoyer TTS et arrêter la lecture au démontage
   useEffect(() => {
     return () => {
       // Arrêter complètement la lecture audio
-      if (utteranceRef.current) {
-        utteranceRef.current.onend = null
-        utteranceRef.current.onerror = null
-        utteranceRef.current.onboundary = null
-      }
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel()
-      }
+      ttsEngine.stop()
       // Nettoyer les états et intervals
       stopProgressTracking()
       isPlayingRef.current = false
@@ -325,15 +338,11 @@ export function PlayScreen() {
     const { line } = coords
 
     // Arrêter toute lecture en cours complètement
+    ttsEngine.stop()
+    stopProgressTracking()
+
     if (utteranceRef.current) {
-      // Désactiver les callbacks avant cancel pour éviter interférences
-      utteranceRef.current.onend = null
-      utteranceRef.current.onerror = null
-      utteranceRef.current.onboundary = null
-      window.speechSynthesis.cancel()
       utteranceRef.current = null
-      stopProgressTracking()
-      stopPlayback()
     }
 
     setPlayingLineIndex(globalLineIndex)
@@ -341,80 +350,106 @@ export function PlayScreen() {
     setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
 
-    // Sélection de la voix
-    let selectedVoice: SpeechSynthesisVoice | null = null
-    if (line.characterId && playSettings.characterVoices[line.characterId]) {
-      const gender = playSettings.characterVoices[line.characterId]
-      selectedVoice = voiceManager.selectVoiceForGender(gender)
-    } else if (line.characterId && charactersMap[line.characterId]?.gender) {
-      selectedVoice = voiceManager.selectVoiceForGender(charactersMap[line.characterId].gender!)
+    // Sélection de la voix via le système d'assignation
+    let voiceId = ''
+
+    if (line.characterId) {
+      // Obtenir l'assignation de voix pour ce personnage
+      const assignmentMap =
+        playSettings.ttsProvider === 'piper-wasm'
+          ? playSettings.characterVoicesPiper
+          : playSettings.characterVoicesGoogle
+
+      voiceId = assignmentMap[line.characterId] || ''
+
+      // Si pas d'assignation, utiliser la première voix du bon genre
+      if (!voiceId && playSettings.characterVoices[line.characterId]) {
+        const gender = playSettings.characterVoices[line.characterId]
+        const voices = ttsProviderManager.getVoices()
+        const matchingVoice = voices.find((v) => v.gender === gender)
+        if (matchingVoice) {
+          voiceId = matchingVoice.id
+        }
+      }
     }
 
     // Didascalies : voix off si activée
     if (line.type === 'stage-direction' && playSettings.voiceOffEnabled) {
-      selectedVoice = voiceManager.selectVoiceForGender('neutral')
+      const voices = ttsProviderManager.getVoices()
+      const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
+      if (neutralVoice) {
+        voiceId = neutralVoice.id
+      }
+    }
+
+    // Fallback : première voix disponible
+    if (!voiceId) {
+      const voices = ttsProviderManager.getVoices()
+      if (voices.length > 0) {
+        voiceId = voices[0].id
+      }
     }
 
     // Mode italiennes : répliques utilisateur à volume 0
     const isUserLine = userCharacter && line.characterId === userCharacter.id
     const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
-
-    const utterance = new SpeechSynthesisUtterance(line.text)
-    if (selectedVoice) utterance.voice = selectedVoice
-    utterance.rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
-    utterance.volume = volume
+    const rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
 
     // Estimer et démarrer le tracking de la durée
-    const rate = utterance.rate
     const totalWords = countWords(line.text)
     const duration = estimateLineDuration(line.text, rate)
     startProgressTracking(duration, totalWords)
 
-    // Événement onboundary pour tracking mot par mot (précision accrue)
-    utterance.onboundary = (event) => {
-      if (!isPlayingRef.current) return
+    // Créer une référence fictive pour compatibilité
+    utteranceRef.current = { text: line.text } as SpeechSynthesisUtterance
 
-      // L'événement se déclenche à chaque frontière de mot
-      if (event.name === 'word') {
-        wordsSpokenRef.current += 1
-        // updateProgress sera appelé par l'interval, pas besoin de l'appeler ici
-      }
-    }
+    // Utiliser le nouveau système TTS
+    ttsEngine.speak({
+      text: line.text,
+      voiceURI: voiceId,
+      rate,
+      pitch: 1.0,
+      volume,
+      lineId: globalLineIndex.toString(),
+    })
 
-    utterance.onend = () => {
-      stopProgressTracking()
+    // Configurer les événements via setEvents
+    ttsEngine.setEvents({
+      onStart: () => {
+        // Déjà géré dans le callback
+      },
+      onEnd: () => {
+        stopProgressTracking()
 
-      if (!isPlayingRef.current || !currentPlay) return
+        if (!isPlayingRef.current || !currentPlay) return
 
-      // Passer à la ligne suivante automatiquement
-      const nextGlobalIndex = globalLineIndex + 1
-      const totalLines = getTotalLines()
+        // Passer à la ligne suivante automatiquement
+        const nextGlobalIndex = globalLineIndex + 1
+        const totalLines = getTotalLines()
 
-      if (nextGlobalIndex < totalLines) {
-        speakLine(nextGlobalIndex)
-      } else {
-        // Fin de la pièce
+        if (nextGlobalIndex < totalLines) {
+          speakLine(nextGlobalIndex)
+        } else {
+          // Fin de la pièce
+          stopPlayback()
+        }
+      },
+      onError: (error) => {
+        stopProgressTracking()
+
+        // Ne rien faire si on a déjà arrêté manuellement
+        if (!isPlayingRef.current) return
+        console.error('Erreur de lecture TTS', error)
+
         stopPlayback()
-      }
-    }
-
-    utterance.onerror = (event) => {
-      stopProgressTracking()
-
-      // Ne rien faire si on a déjà arrêté manuellement
-      if (!isPlayingRef.current) return
-      console.error('Erreur de lecture TTS', event)
-
-      // Désactiver le tracking par boundary si erreur
-      if (event.error === 'synthesis-unavailable' || event.error === 'not-allowed') {
-        useBoundaryTrackingRef.current = false
-      }
-
-      stopPlayback()
-    }
-
-    utteranceRef.current = utterance
-    window.speechSynthesis.speak(utterance)
+      },
+      onProgress: (charIndex) => {
+        if (!isPlayingRef.current) return
+        // Estimer le nombre de mots prononcés basé sur charIndex
+        const textSoFar = line.text.substring(0, charIndex)
+        wordsSpokenRef.current = countWords(textSoFar)
+      },
+    })
 
     // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
     scrollToLine(globalLineIndex)
@@ -430,7 +465,7 @@ export function PlayScreen() {
 
   // Fonction pour arrêter la lecture
   const stopPlayback = () => {
-    window.speechSynthesis.cancel()
+    ttsEngine.stop()
     utteranceRef.current = null
     isPlayingRef.current = false
     setPlayingLineIndex(undefined)
@@ -440,11 +475,11 @@ export function PlayScreen() {
 
   // Fonction pour mettre en pause/reprendre
   const pausePlayback = () => {
-    if (window.speechSynthesis.speaking && !isPaused) {
-      window.speechSynthesis.pause()
+    if (ttsEngine.isSpeaking() && !isPaused) {
+      ttsEngine.pause()
       setIsPaused(true)
     } else if (isPaused) {
-      window.speechSynthesis.resume()
+      ttsEngine.resume()
       setIsPaused(false)
     }
   }

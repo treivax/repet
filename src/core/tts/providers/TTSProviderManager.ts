@@ -56,7 +56,16 @@ export class TTSProviderManager {
    * Initialise le provider manager avec un provider par défaut
    */
   async initialize(providerType: TTSProviderType = 'piper-wasm'): Promise<void> {
-    if (this.initialized) return
+    // Si déjà initialisé avec le même provider, ne rien faire
+    if (this.initialized && this.activeProvider?.type === providerType) {
+      return
+    }
+
+    // Si déjà initialisé avec un autre provider, switch
+    if (this.initialized && this.activeProvider?.type !== providerType) {
+      await this.switchProvider(providerType)
+      return
+    }
 
     const provider = this.providers.get(providerType)
     if (!provider) {
