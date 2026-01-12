@@ -16,24 +16,18 @@ export interface ReadingHeaderProps {
   modeBadge?: React.ReactNode
   /** Callback pour le bouton retour */
   onBack: () => void
-  /** Callback pour le bouton sommaire */
-  onSummary: () => void
-  /** Masquer le bouton sommaire */
-  hideSummary?: boolean
   /** Test ID pour les tests */
   testId?: string
 }
 
 /**
  * Composant ReadingHeader
- * Header standardisé pour les écrans de lecture avec icônes d'aide, thème et sommaire
+ * Header standardisé pour les écrans de lecture avec icônes d'aide et thème
  */
 export function ReadingHeader({
   title,
   modeBadge,
   onBack,
-  onSummary,
-  hideSummary = false,
   testId = 'reading-header',
 }: ReadingHeaderProps) {
   const { toggleHelp, toggleTheme, theme } = useUIStore()
@@ -73,28 +67,8 @@ export function ReadingHeader({
           {modeBadge}
         </div>
 
-        {/* Droite : icônes sommaire, aide et thème */}
+        {/* Droite : icônes aide et thème */}
         <div className="flex items-center gap-1">
-          {/* Icône sommaire */}
-          {!hideSummary && (
-            <button
-              onClick={onSummary}
-              className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700 transition-colors"
-              aria-label="Sommaire"
-              title="Sommaire"
-              data-testid="summary-button"
-            >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
-          )}
-
           {/* Icône d'aide */}
           <button
             onClick={toggleHelp}
