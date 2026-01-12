@@ -92,7 +92,8 @@ export class PiperWASMProvider implements TTSProvider {
   readonly type = 'piper-wasm' as const
   readonly name = 'Piper (Voix naturelles)'
 
-  private ttsSessions: Map<string, TtsSession> = new Map()
+  private currentSession: TtsSession | null = null
+  private currentVoiceId: string | null = null
   private currentAudio: HTMLAudioElement | null = null
   private initialized = false
   private downloadProgress: Map<string, number> = new Map()
@@ -270,24 +271,14 @@ export class PiperWASMProvider implements TTSProvider {
         throw new Error(`Modèle Piper ${options.voiceId} non trouvé`)
       }
 
-      // Obtenir ou créer une session TTS pour cette voix
-      let session = this.ttsSessions.get(options.voiceId)
-      console.warn(
-        `[PiperWASM] Session pour ${options.voiceId}: ${session ? 'EXISTE (réutilisation)' : 'INEXISTANTE (création)'}`
-      )
-      console.warn(
-        `[PiperWASM] Sessions actuellement en cache:`,
-        Array.from(this.ttsSessions.keys())
-      )
-      if (session) {
+      // Créer une nouvelle session si la voix a changé
+      let session: TtsSession
+      if (this.currentVoiceId === options.voiceId && this.currentSession) {
+        console.warn(`[PiperWASM] 🔄 Réutilisation de la session pour ${options.voiceId}`)
+        session = this.currentSession
+      } else {
         console.warn(
-          `[PiperWASM] 🔄 Réutilisation de la session existante pour ${options.voiceId}. Session object:`,
-          session
-        )
-      }
-      if (!session) {
-        console.warn(
-          `[PiperWASM] Création d'une nouvelle session pour voiceId: ${options.voiceId}, piperVoiceId: ${modelConfig.piperVoiceId}`
+          `[PiperWASM] 🆕 Création d'une NOUVELLE session pour ${options.voiceId} (ancienne voix: ${this.currentVoiceId})`
         )
         session = await TtsSession.create({
           voiceId: modelConfig.piperVoiceId,
@@ -303,19 +294,20 @@ export class PiperWASMProvider implements TTSProvider {
           wasmPaths: {
             onnxWasm: '/wasm/',
             piperData:
-              'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.data',
+              'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-tts-web@1.0.0/build/piper_phonemize.data',
             piperWasm:
-              'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.wasm',
+              'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-tts-web@1.0.0/build/piper_phonemize.wasm',
           },
         })
-        console.warn(`[PiperWASM] ✅ Session créée avec succès pour ${modelConfig.piperVoiceId}`)
+        console.warn(`[PiperWASM] ✅ Session créée pour ${modelConfig.piperVoiceId}`)
         console.warn(
           `[PiperWASM] Session object:`,
           session,
-          `voiceId utilisé:`,
-          modelConfig.piperVoiceId
+          `voiceId interne:`,
+          (session as any).voiceId
         )
-        this.ttsSessions.set(options.voiceId, session)
+        this.currentSession = session
+        this.currentVoiceId = options.voiceId
       }
 
       // Synthétiser le texte
