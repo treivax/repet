@@ -293,10 +293,8 @@ export class PiperWASMProvider implements TTSProvider {
           logger: (msg) => console.warn(`[Piper TTS] ${msg}`),
           wasmPaths: {
             onnxWasm: '/wasm/',
-            piperData:
-              'https://cdn.jsdelivr.net/npm/@mintplex-labs/piper-tts-web@1.0.0/build/piper_phonemize.data',
-            piperWasm:
-              'https://cdn.jsdelivr.net/npm/@mintplex-labs/piper-tts-web@1.0.0/build/piper_phonemize.wasm',
+            piperData: '/wasm/piper_phonemize.data',
+            piperWasm: '/wasm/piper_phonemize.wasm',
           },
         })
         console.warn(`[PiperWASM] ✅ Session créée pour ${modelConfig.piperVoiceId}`)
