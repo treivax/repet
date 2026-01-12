@@ -9,16 +9,13 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
-import { useCurrentScene, useCanGoNext, useCanGoPrevious } from '../state/selectors'
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts'
-import { voiceManager } from '../core/tts/voice-manager'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
-import { SceneNavigation } from '../components/reader/SceneNavigation'
 import { ReadingHeader } from '../components/reader/ReadingHeader'
-import { PlaybackControls } from '../components/reader/PlaybackControls'
+import { SceneBadge } from '../components/reader/SceneBadge'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
@@ -40,8 +37,6 @@ export function ReaderScreen() {
     currentSceneIndex,
     loadPlay,
     setUserCharacter,
-    nextLine,
-    previousLine,
     goToScene,
     closePlay,
   } = usePlayStore()
@@ -52,14 +47,10 @@ export function ReaderScreen() {
   const { getPlaySettings } = usePlaySettingsStore()
   const playSettings = playId ? getPlaySettings(playId) : null
 
-  const currentScene = useCurrentScene()
-  const canGoNext = useCanGoNext()
-  const canGoPrevious = useCanGoPrevious()
-
   const [isPlaying, setIsPlaying] = useState(false)
   const [playingLineIndex, setPlayingLineIndex] = useState<number | undefined>()
-  const [readLinesSet, setReadLinesSet] = useState<Set<number>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
+  const readLinesSet = new Set<number>() // Set vide pour FullPlayDisplay
 
   // Charger la pièce au montage
   useEffect(() => {
@@ -129,112 +120,10 @@ export function ReaderScreen() {
     })
   }
 
-  // Handlers TTS
-  const handlePlay = () => {
-    if (isPlaying || !currentScene || !playSettings) return
-
-    const lines = currentScene.lines
-    const startIndex = currentLineIndex
-
-    setIsPlaying(true)
-
-    const speakLine = (index: number) => {
-      if (index >= lines.length) {
-        setIsPlaying(false)
-        setPlayingLineIndex(undefined)
-        return
-      }
-
-      const line = lines[index]
-      setPlayingLineIndex(index)
-      setReadLinesSet((prev) => new Set(prev).add(index))
-
-      // Mode italiennes : répliques utilisateur à volume 0
-      const isUserLine = userCharacter && line.characterId === userCharacter.id
-      const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
-
-      // Sélection voix
-      let selectedVoice: SpeechSynthesisVoice | null = null
-      if (line.characterId && playSettings.characterVoices[line.characterId]) {
-        // Assignation de voix par sexe
-        const gender = playSettings.characterVoices[line.characterId]
-        selectedVoice = voiceManager.selectVoiceForGender(gender)
-      } else if (line.characterId && charactersMap[line.characterId]?.gender) {
-        selectedVoice = voiceManager.selectVoiceForGender(charactersMap[line.characterId].gender!)
-      }
-
-      // Didascalies : voix off si activée
-      if (line.type === 'stage-direction' && playSettings.voiceOffEnabled) {
-        selectedVoice = voiceManager.selectVoiceForGender('neutral')
-      }
-
-      const utterance = new SpeechSynthesisUtterance(line.text)
-      if (selectedVoice) utterance.voice = selectedVoice
-      utterance.rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
-      utterance.volume = volume
-
-      utterance.onend = () => {
-        speakLine(index + 1)
-      }
-
-      window.speechSynthesis.speak(utterance)
-    }
-
-    speakLine(startIndex)
-  }
-
-  const handlePause = () => {
-    ttsEngine.stop()
-    setIsPlaying(false)
-    setPlayingLineIndex(undefined)
-  }
-
   const handleStop = () => {
     ttsEngine.stop()
     setIsPlaying(false)
     setPlayingLineIndex(undefined)
-  }
-
-  const handleNext = () => {
-    if (isPlaying) {
-      handleStop()
-    }
-    nextLine()
-  }
-
-  const handlePrevious = () => {
-    if (isPlaying) {
-      handleStop()
-    }
-    previousLine()
-  }
-
-  const handlePreviousScene = () => {
-    if (isPlaying) {
-      handleStop()
-    }
-    if (!currentPlay) return
-
-    if (currentSceneIndex > 0) {
-      goToScene(currentActIndex, currentSceneIndex - 1)
-    } else if (currentActIndex > 0) {
-      const prevAct = currentPlay.ast.acts[currentActIndex - 1]
-      goToScene(currentActIndex - 1, prevAct.scenes.length - 1)
-    }
-  }
-
-  const handleNextScene = () => {
-    if (isPlaying) {
-      handleStop()
-    }
-    if (!currentPlay) return
-
-    const currentAct = currentPlay.ast.acts[currentActIndex]
-    if (currentSceneIndex < currentAct.scenes.length - 1) {
-      goToScene(currentActIndex, currentSceneIndex + 1)
-    } else if (currentActIndex < currentPlay.ast.acts.length - 1) {
-      goToScene(currentActIndex + 1, 0)
-    }
   }
 
   const handleGoToScene = (actIndex: number, sceneIndex: number) => {
@@ -252,13 +141,6 @@ export function ReaderScreen() {
     closePlay()
     navigate('/')
   }
-
-  // Navigation scènes
-  const canGoPreviousScene = currentSceneIndex > 0 || currentActIndex > 0
-  const canGoNextScene =
-    currentPlay &&
-    (currentSceneIndex < currentPlay.ast.acts[currentActIndex].scenes.length - 1 ||
-      currentActIndex < currentPlay.ast.acts.length - 1)
 
   // Déterminer le mode
   const isSilentMode = playSettings?.readingMode === 'silent'
@@ -338,7 +220,6 @@ export function ReaderScreen() {
           ) : undefined
         }
         onBack={handleClose}
-        onSummary={() => setShowSummary(!showSummary)}
         testId="reader-header"
       />
 
@@ -404,32 +285,12 @@ export function ReaderScreen() {
         )}
       </div>
 
-      {/* Navigation par scène */}
+      {/* Badge de scène */}
       {currentPlay && (
-        <SceneNavigation
+        <SceneBadge
           currentActIndex={currentActIndex}
           currentSceneIndex={currentSceneIndex}
-          onPreviousScene={handlePreviousScene}
-          onNextScene={handleNextScene}
           onOpenSummary={() => setShowSummary(true)}
-          canGoPrevious={canGoPreviousScene}
-          canGoNext={!!canGoNextScene}
-          disabled={isPlaying}
-        />
-      )}
-
-      {/* Contrôles de lecture */}
-      {playSettings && (
-        <PlaybackControls
-          isPlaying={isPlaying}
-          onPlay={handlePlay}
-          onPause={handlePause}
-          onStop={handleStop}
-          onNext={handleNext}
-          onPrevious={handlePrevious}
-          canGoNext={canGoNext}
-          canGoPrevious={canGoPrevious}
-          readingMode={playSettings.readingMode}
         />
       )}
     </div>

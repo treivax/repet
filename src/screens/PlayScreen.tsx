@@ -15,8 +15,8 @@ import { voiceManager } from '../core/tts/voice-manager'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
-import { SceneNavigation } from '../components/reader/SceneNavigation'
 import { ReadingHeader } from '../components/reader/ReadingHeader'
+import { SceneBadge } from '../components/reader/SceneBadge'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
@@ -465,30 +465,6 @@ export function PlayScreen() {
 
   // Handler pour le clic en dehors d'une ligne
 
-  const handlePreviousScene = () => {
-    stopPlayback()
-    if (!currentPlay) return
-
-    if (currentSceneIndex > 0) {
-      goToScene(currentActIndex, currentSceneIndex - 1)
-    } else if (currentActIndex > 0) {
-      const prevAct = currentPlay.ast.acts[currentActIndex - 1]
-      goToScene(currentActIndex - 1, prevAct.scenes.length - 1)
-    }
-  }
-
-  const handleNextScene = () => {
-    stopPlayback()
-    if (!currentPlay) return
-
-    const currentAct = currentPlay.ast.acts[currentActIndex]
-    if (currentSceneIndex < currentAct.scenes.length - 1) {
-      goToScene(currentActIndex, currentSceneIndex + 1)
-    } else if (currentActIndex < currentPlay.ast.acts.length - 1) {
-      goToScene(currentActIndex + 1, 0)
-    }
-  }
-
   const handleGoToScene = (actIndex: number, sceneIndex: number) => {
     stopPlayback()
     goToScene(actIndex, sceneIndex)
@@ -500,13 +476,6 @@ export function PlayScreen() {
     closePlay()
     navigate('/')
   }
-
-  // Navigation scènes
-  const canGoPreviousScene = currentSceneIndex > 0 || currentActIndex > 0
-  const canGoNextScene =
-    currentPlay &&
-    (currentSceneIndex < currentPlay.ast.acts[currentActIndex].scenes.length - 1 ||
-      currentActIndex < currentPlay.ast.acts.length - 1)
 
   // Déterminer le mode
   const isItalianMode = playSettings?.readingMode === 'italian'
@@ -586,7 +555,6 @@ export function PlayScreen() {
           ) : undefined
         }
         onBack={handleClose}
-        onSummary={() => setShowSummary(!showSummary)}
         testId="play-header"
       />
 
@@ -661,17 +629,12 @@ export function PlayScreen() {
         )}
       </div>
 
-      {/* Navigation par scène */}
+      {/* Badge de scène */}
       {currentPlay && (
-        <SceneNavigation
+        <SceneBadge
           currentActIndex={currentActIndex}
           currentSceneIndex={currentSceneIndex}
-          onPreviousScene={handlePreviousScene}
-          onNextScene={handleNextScene}
           onOpenSummary={() => setShowSummary(true)}
-          canGoPrevious={canGoPreviousScene}
-          canGoNext={!!canGoNextScene}
-          disabled={isPlayingRef.current}
         />
       )}
     </div>
