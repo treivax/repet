@@ -232,6 +232,8 @@ export class PiperWASMProvider implements TTSProvider {
   async synthesize(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
     const startTime = Date.now()
 
+    console.warn(`[PiperWASM] synthesize() appelé avec voiceId: ${options.voiceId}`)
+
     try {
       // Vérifier le cache d'abord
       const cachedBlob = await audioCacheService.getAudio(text, options.voiceId, {
@@ -270,7 +272,17 @@ export class PiperWASMProvider implements TTSProvider {
 
       // Obtenir ou créer une session TTS pour cette voix
       let session = this.ttsSessions.get(options.voiceId)
+      console.warn(
+        `[PiperWASM] Session pour ${options.voiceId}: ${session ? 'EXISTE (réutilisation)' : 'INEXISTANTE (création)'}`
+      )
+      console.warn(
+        `[PiperWASM] Sessions actuellement en cache:`,
+        Array.from(this.ttsSessions.keys())
+      )
       if (!session) {
+        console.warn(
+          `[PiperWASM] Création d'une nouvelle session pour voiceId: ${options.voiceId}, piperVoiceId: ${modelConfig.piperVoiceId}`
+        )
         session = await TtsSession.create({
           voiceId: modelConfig.piperVoiceId,
           progress: (progress) => {

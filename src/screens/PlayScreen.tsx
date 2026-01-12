@@ -464,6 +464,11 @@ export function PlayScreen() {
     // Créer une référence fictive pour compatibilité
     utteranceRef.current = { text: line.text } as SpeechSynthesisUtterance
 
+    // Log pour debug
+    console.warn(
+      `[PlayScreen] Lecture ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}"`
+    )
+
     // Utiliser le nouveau système TTS
     ttsEngine.speak({
       text: line.text,
