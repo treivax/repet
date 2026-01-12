@@ -57,6 +57,7 @@ export function PlayScreen() {
   const [isPaused, setIsPaused] = useState(false)
   const [readLinesSet, setReadLinesSet] = useState<Set<number>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // États pour le tracking du temps de lecture
   const [estimatedDuration, setEstimatedDuration] = useState<number>(0) // en secondes
@@ -123,7 +124,7 @@ export function PlayScreen() {
   // Initialiser le TTS provider avec le bon provider au montage
   useEffect(() => {
     const initializeTTS = async () => {
-      if (!playId) return
+      if (!playId || !currentPlay) return
 
       const settings = getPlaySettings(playId)
       const provider = settings.ttsProvider || 'piper-wasm'
@@ -131,13 +132,47 @@ export function PlayScreen() {
       try {
         await ttsProviderManager.initialize(provider)
         console.warn(`TTS Provider initialisé: ${provider}`)
+
+        // Générer automatiquement les assignations de voix si elles sont vides
+        const assignmentMap =
+          provider === 'piper-wasm' ? settings.characterVoicesPiper : settings.characterVoicesGoogle
+
+        const needsAssignments = Object.keys(assignmentMap).length === 0
+
+        if (needsAssignments && currentPlay.ast?.characters) {
+          console.warn('Génération automatique des assignations de voix...')
+
+          // Créer la liste des personnages avec leurs genres
+          const charactersWithGender = currentPlay.ast.characters
+            .filter((char) => settings.characterVoices[char.id])
+            .map((char) => ({
+              id: char.id,
+              gender: settings.characterVoices[char.id],
+            }))
+
+          // Générer les assignations via le provider actif
+          const activeProvider = ttsProviderManager.getActiveProvider()
+          if (activeProvider && charactersWithGender.length > 0) {
+            const newAssignments = activeProvider.generateVoiceAssignments(charactersWithGender, {})
+
+            // Sauvegarder les assignations
+            const { updatePlaySettings } = usePlaySettingsStore.getState()
+            if (provider === 'piper-wasm') {
+              updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
+            } else {
+              updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
+            }
+
+            console.warn('Assignations de voix générées:', newAssignments)
+          }
+        }
       } catch (error) {
         console.error('Erreur initialisation TTS provider:', error)
       }
     }
 
     initializeTTS()
-  }, [playId, getPlaySettings])
+  }, [playId, currentPlay, getPlaySettings])
 
   // Nettoyer TTS et arrêter la lecture au démontage
   useEffect(() => {
@@ -349,6 +384,7 @@ export function PlayScreen() {
     setIsPaused(false)
     setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
+    setIsGenerating(true) // Indiquer qu'on génère l'audio
 
     // Sélection de la voix via le système d'assignation
     let voiceId = ''
@@ -362,13 +398,20 @@ export function PlayScreen() {
 
       voiceId = assignmentMap[line.characterId] || ''
 
-      // Si pas d'assignation, utiliser la première voix du bon genre
-      if (!voiceId && playSettings.characterVoices[line.characterId]) {
-        const gender = playSettings.characterVoices[line.characterId]
-        const voices = ttsProviderManager.getVoices()
-        const matchingVoice = voices.find((v) => v.gender === gender)
-        if (matchingVoice) {
-          voiceId = matchingVoice.id
+      // Si pas d'assignation, utiliser la première voix du bon genre (fallback)
+      if (!voiceId) {
+        const character = charactersMap[line.characterId]
+        const gender = character?.gender || playSettings.characterVoices[line.characterId]
+
+        if (gender) {
+          const voices = ttsProviderManager.getVoices()
+          const matchingVoice = voices.find((v) => v.gender === gender)
+          if (matchingVoice) {
+            voiceId = matchingVoice.id
+            console.warn(
+              `Utilisation voix fallback pour ${line.characterId}: ${matchingVoice.displayName}`
+            )
+          }
         }
       }
     }
@@ -416,10 +459,12 @@ export function PlayScreen() {
     // Configurer les événements via setEvents
     ttsEngine.setEvents({
       onStart: () => {
-        // Déjà géré dans le callback
+        // Audio généré et lecture démarrée
+        setIsGenerating(false)
       },
       onEnd: () => {
         stopProgressTracking()
+        setIsGenerating(false)
 
         if (!isPlayingRef.current || !currentPlay) return
 
@@ -436,6 +481,7 @@ export function PlayScreen() {
       },
       onError: (error) => {
         stopProgressTracking()
+        setIsGenerating(false)
 
         // Ne rien faire si on a déjà arrêté manuellement
         if (!isPlayingRef.current) return
@@ -470,6 +516,7 @@ export function PlayScreen() {
     isPlayingRef.current = false
     setPlayingLineIndex(undefined)
     setIsPaused(false)
+    setIsGenerating(false)
     stopProgressTracking()
   }
 
@@ -653,6 +700,7 @@ export function PlayScreen() {
                 : undefined
             }
             isPaused={isPaused}
+            isGenerating={isGenerating}
             progressPercentage={progressPercentage}
             elapsedTime={elapsedTime}
             estimatedDuration={estimatedDuration}

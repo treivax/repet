@@ -86,6 +86,9 @@ interface Props {
 
   /** Durée estimée totale en secondes */
   estimatedDuration?: number
+
+  /** Audio en cours de génération (synthèse) */
+  isGenerating?: boolean
 }
 
 /**
@@ -107,6 +110,7 @@ export function LineRenderer({
   progressPercentage = 0,
   elapsedTime = 0,
   estimatedDuration = 0,
+  isGenerating = false,
 }: Props) {
   // Déterminer si c'est une réplique utilisateur
   const isUserLine =
@@ -215,8 +219,13 @@ export function LineRenderer({
                     : 'text-blue-600 dark:text-blue-400'
                 }`}
               >
-                {isPaused ? '⏸ En pause · ' : ''}
-                {Math.max(0, Math.ceil(estimatedDuration - elapsedTime))}s
+                {isGenerating
+                  ? '⏳ Génération en cours...'
+                  : isPaused
+                    ? '⏸ En pause · ' +
+                      Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) +
+                      's'
+                    : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
               </div>
             </div>
           )}
@@ -363,8 +372,11 @@ export function LineRenderer({
                   : 'text-blue-600 dark:text-blue-400'
               }`}
             >
-              {isPaused ? '⏸ En pause · ' : ''}
-              {Math.max(0, Math.ceil(estimatedDuration - elapsedTime))}s
+              {isGenerating
+                ? '⏳ Génération en cours...'
+                : isPaused
+                  ? '⏸ En pause · ' + Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'
+                  : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
             </div>
           </div>
         )}

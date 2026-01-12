@@ -96,6 +96,7 @@ export class PiperWASMProvider implements TTSProvider {
   private currentAudio: HTMLAudioElement | null = null
   private initialized = false
   private downloadProgress: Map<string, number> = new Map()
+  private isPaused = false
 
   /**
    * Initialise le provider et le service de cache
@@ -341,6 +342,29 @@ export class PiperWASMProvider implements TTSProvider {
       this.currentAudio.pause()
       this.currentAudio.currentTime = 0
       this.currentAudio = null
+    }
+    this.isPaused = false
+  }
+
+  /**
+   * Met en pause la lecture en cours
+   */
+  pause(): void {
+    if (this.currentAudio && !this.currentAudio.paused) {
+      this.currentAudio.pause()
+      this.isPaused = true
+    }
+  }
+
+  /**
+   * Reprend la lecture en pause
+   */
+  resume(): void {
+    if (this.currentAudio && this.isPaused) {
+      this.currentAudio.play().catch((error) => {
+        console.error('Erreur lors de la reprise de la lecture:', error)
+      })
+      this.isPaused = false
     }
   }
 

@@ -97,7 +97,7 @@ export class TTSEngine {
    */
   pause(): void {
     if (this.state === 'speaking') {
-      this.queue.pause()
+      ttsProviderManager.pause()
       this.state = 'paused'
     }
   }
@@ -107,7 +107,7 @@ export class TTSEngine {
    */
   resume(): void {
     if (this.state === 'paused') {
-      this.queue.resume()
+      ttsProviderManager.resume()
       this.state = 'speaking'
     }
   }

@@ -188,6 +188,24 @@ export class TTSProviderManager {
   }
 
   /**
+   * Met en pause la lecture en cours
+   */
+  pause(): void {
+    if (this.activeProvider && 'pause' in this.activeProvider) {
+      ;(this.activeProvider as any).pause()
+    }
+  }
+
+  /**
+   * Reprend la lecture en pause
+   */
+  resume(): void {
+    if (this.activeProvider && 'resume' in this.activeProvider) {
+      ;(this.activeProvider as any).resume()
+    }
+  }
+
+  /**
    * Libère toutes les ressources
    */
   async dispose(): Promise<void> {

@@ -234,6 +234,24 @@ export class WebSpeechProvider implements TTSProvider {
   }
 
   /**
+   * Met en pause la lecture en cours
+   */
+  pause(): void {
+    if (speechSynthesis.speaking) {
+      speechSynthesis.pause()
+    }
+  }
+
+  /**
+   * Reprend la lecture en pause
+   */
+  resume(): void {
+    if (speechSynthesis.paused) {
+      speechSynthesis.resume()
+    }
+  }
+
+  /**
    * Libère les ressources
    */
   async dispose(): Promise<void> {
