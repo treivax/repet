@@ -390,7 +390,9 @@ function parsePlayText(text: string): PlayAST {
 
 **Acte** : Ligne contenant `/ACTE\s+[IVX0-9]+/i`  
 **Scène** : Ligne contenant `/SC[EÈ]NE\s+[IVX0-9]+/i`  
-**Personnage** : Ligne format `^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜ\s\-']+:\s*$`  
+**Personnage** : Deux formats acceptés :
+  - Format avec deux-points : `^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜ\s\-']+:\s*$`
+  - Format sans deux-points : `^[A-ZÀÂÄÉÈÊËÏÎÔÙÛÜ\s\-']+$` (doit être précédé d'une ligne vierge et sans indentation)
 **Didascalie** : Ligne entre parenthèses `^(.*)`
 
 ---

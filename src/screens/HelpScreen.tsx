@@ -304,7 +304,10 @@ export function HelpScreen() {
               <p className="text-gray-700 dark:text-gray-300 mb-2">
                 Répét accepte les fichiers texte (.txt) avec le format suivant :
               </p>
-              <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm">
+              <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm mb-3">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  Format avec deux-points (classique) :
+                </div>
                 <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
                   {`Le Malade Imaginaire
 
@@ -323,6 +326,31 @@ TOINETTE:
 Monsieur, que faites-vous ?
 
 ARGAN:
+Je compte mes dépenses.`}
+                </pre>
+              </div>
+              <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm">
+                <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  Format sans deux-points (nouveau) :
+                </div>
+                <pre className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                  {`Le Malade Imaginaire
+
+Auteur: Molière
+Annee: 1673
+
+ACTE I
+
+Scene 1
+
+ARGAN
+Trois et deux font cinq, et cinq font dix, et dix font vingt.
+(Il regarde ses papiers)
+
+TOINETTE
+Monsieur, que faites-vous ?
+
+ARGAN
 Je compte mes dépenses.`}
                 </pre>
               </div>
@@ -345,8 +373,27 @@ Je compte mes dépenses.`}
                   et optionnellement d'un titre
                 </li>
                 <li>
-                  <strong>Répliques</strong> : Nom du personnage EN MAJUSCULES suivi de ":" puis un
-                  retour à la ligne et le texte de la réplique
+                  <strong>Répliques</strong> : Deux formats acceptés :
+                  <ul className="list-circle list-inside ml-6 mt-1 space-y-1">
+                    <li>
+                      <strong>Format avec deux-points :</strong> Nom EN MAJUSCULES suivi de ":" puis
+                      le texte (ex:{' '}
+                      <code className="text-xs bg-gray-200 dark:bg-gray-700 px-1 rounded">
+                        HAMLET:
+                      </code>
+                      )
+                    </li>
+                    <li>
+                      <strong>Format sans deux-points :</strong> Ligne vierge + nom EN MAJUSCULES
+                      sans indentation + texte (ex: ligne vide puis{' '}
+                      <code className="text-xs bg-gray-200 dark:bg-gray-700 px-1 rounded">
+                        HAMLET
+                      </code>
+                      )
+                    </li>
+                    <li>Les deux formats peuvent être mélangés dans le même fichier</li>
+                    <li>Support des noms composés : JEAN-PIERRE, MARIE LOUISE LEGRANCHU</li>
+                  </ul>
                 </li>
                 <li>
                   <strong>Didascalies</strong> : Texte entre parenthèses dans les répliques (affiché

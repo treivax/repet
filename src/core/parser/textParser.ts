@@ -182,7 +182,8 @@ function parseStructure(lines: string[]): Act[] {
   }
 
   while (i < lines.length) {
-    const line = lines[i].trim()
+    const rawLine = lines[i]
+    const line = rawLine.trim()
 
     // Détecter ACTE (chiffres arabes ou romains)
     const actMatchArabic = line.match(/^ACTE\s+(\d+)(?:\s*[-–—:]\s*(.+))?/i)
@@ -242,8 +243,9 @@ function parseStructure(lines: string[]): Act[] {
       continue
     }
 
-    // Détecter réplique : PERSONNAGE: (sur sa propre ligne)
-    if (isCharacterLine(line, lines[i + 1])) {
+    // Détecter réplique : PERSONNAGE: (sur sa propre ligne) ou PERSONNAGE (sans : si précédé d'une ligne vierge)
+    const previousLine = i > 0 ? lines[i - 1] : undefined
+    if (isCharacterLine(rawLine, lines[i + 1], previousLine)) {
       const characterName = extractCharacterName(line)
       i++ // Aller à la ligne suivante
 
@@ -256,7 +258,7 @@ function parseStructure(lines: string[]): Act[] {
         if (
           (nextLine.trim() === '' &&
             i + 1 < lines.length &&
-            isCharacterLine(lines[i + 1], lines[i + 2])) ||
+            isCharacterLine(lines[i + 1], lines[i + 2], lines[i])) ||
           /^ACTE/i.test(nextLine.trim()) ||
           /^Sc[èe]ne/i.test(nextLine.trim())
         ) {
@@ -303,7 +305,7 @@ function parseStructure(lines: string[]): Act[] {
             if (
               /^ACTE/i.test(afterEmpty) ||
               /^Sc[èe]ne/i.test(afterEmpty) ||
-              isCharacterLine(lines[i], lines[i + 1])
+              isCharacterLine(lines[i], lines[i + 1], lines[i - 1])
             ) {
               break
             }
@@ -317,7 +319,8 @@ function parseStructure(lines: string[]): Act[] {
         }
 
         // Arrêter si réplique
-        if (isCharacterLine(nextLine, lines[i + 1])) {
+        const prevLine = i > 0 ? lines[i - 1] : undefined
+        if (isCharacterLine(nextLine, lines[i + 1], prevLine)) {
           break
         }
 
@@ -357,22 +360,36 @@ function parseStructure(lines: string[]): Act[] {
 }
 
 /**
- * Vérifie si une ligne est un nom de personnage (PERSONNAGE:)
+ * Vérifie si une ligne est un nom de personnage (PERSONNAGE: ou PERSONNAGE sans :)
+ * Format 1: PERSONNAGE: (avec deux-points)
+ * Format 2: PERSONNAGE (sans deux-points, mais doit être précédé d'une ligne vierge)
  */
-function isCharacterLine(line: string, nextLine?: string): boolean {
+function isCharacterLine(line: string, nextLine?: string, previousLine?: string): boolean {
   if (!line || !nextLine) {
     return false
   }
 
   const trim = line.trim()
 
-  // Doit se terminer par ':'
-  if (!trim.endsWith(':')) {
+  // La ligne doit commencer au premier caractère (pas d'indentation)
+  if (line.length > 0 && line[0] === ' ') {
     return false
   }
 
-  // Extraire le nom (avant ':')
-  const name = trim.slice(0, -1).trim()
+  // Extraire le nom (avant ':' s'il existe)
+  let name: string
+  const hasColon = trim.endsWith(':')
+
+  if (hasColon) {
+    // Format avec deux-points : PERSONNAGE:
+    name = trim.slice(0, -1).trim()
+  } else {
+    // Format sans deux-points : doit être précédé d'une ligne vierge
+    if (previousLine === undefined || previousLine.trim() !== '') {
+      return false
+    }
+    name = trim
+  }
 
   // Le nom doit être en MAJUSCULES
   if (name !== name.toUpperCase()) {
@@ -396,11 +413,14 @@ function isCharacterLine(line: string, nextLine?: string): boolean {
 }
 
 /**
- * Extrait le nom du personnage d'une ligne "PERSONNAGE:"
+ * Extrait le nom du personnage d'une ligne "PERSONNAGE:" ou "PERSONNAGE"
  */
 function extractCharacterName(line: string): string {
   const trim = line.trim()
-  return trim.slice(0, -1).trim() // Enlever ':' et trim
+  if (trim.endsWith(':')) {
+    return trim.slice(0, -1).trim() // Enlever ':' et trim
+  }
+  return trim // Pas de ':', retourner tel quel
 }
 
 /**

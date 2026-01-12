@@ -296,6 +296,128 @@ Encore du texte.`
       expect(result.characters.map((c) => c.id)).toContain('HAMLET')
       expect(result.characters.map((c) => c.id)).toContain('OPHÉLIE')
     })
+
+    it("devrait reconnaître une réplique sans deux-points précédée d'une ligne vierge", () => {
+      const text = `Le Titre
+
+ACTE I
+
+Scene 1
+
+HAMLET
+Être ou ne pas être, telle est la question.`
+
+      const result = parsePlayText(text, 'test.txt')
+      const lines = result.acts[0].scenes[0].lines
+
+      expect(lines).toHaveLength(1)
+      expect(lines[0].type).toBe('dialogue')
+      expect(lines[0].characterId).toBe('HAMLET')
+      expect(lines[0].text).toBe('Être ou ne pas être, telle est la question.')
+    })
+
+    it('devrait reconnaître plusieurs répliques sans deux-points', () => {
+      const text = `Le Titre
+
+ACTE I
+
+Scene 1
+
+HAMLET
+Première réplique.
+
+OPHÉLIE
+Deuxième réplique.
+
+HAMLET
+Troisième réplique.`
+
+      const result = parsePlayText(text, 'test.txt')
+      const lines = result.acts[0].scenes[0].lines
+
+      expect(lines).toHaveLength(3)
+      expect(lines[0].characterId).toBe('HAMLET')
+      expect(lines[0].text).toBe('Première réplique.')
+      expect(lines[1].characterId).toBe('OPHÉLIE')
+      expect(lines[1].text).toBe('Deuxième réplique.')
+      expect(lines[2].characterId).toBe('HAMLET')
+      expect(lines[2].text).toBe('Troisième réplique.')
+    })
+
+    it('devrait accepter les noms composés sans deux-points', () => {
+      const text = `Le Titre
+
+ACTE I
+
+Scene 1
+
+JEAN-PIERRE
+Ma première réplique.
+
+MARIE LOUISE LEGRANCHU
+Ma réplique aussi.`
+
+      const result = parsePlayText(text, 'test.txt')
+      const lines = result.acts[0].scenes[0].lines
+
+      expect(lines).toHaveLength(2)
+      expect(lines[0].characterId).toBe('JEAN-PIERRE')
+      expect(lines[1].characterId).toBe('MARIE LOUISE LEGRANCHU')
+    })
+
+    it("ne devrait PAS reconnaître un nom sans deux-points si non précédé d'une ligne vierge", () => {
+      const text = `Le Titre
+
+ACTE I
+
+Scene 1
+
+Ceci est une didascalie
+HAMLET
+Ceci devrait être une didascalie aussi.`
+
+      const result = parsePlayText(text, 'test.txt')
+      const lines = result.acts[0].scenes[0].lines
+
+      // Tout devrait être une didascalie, pas de réplique
+      expect(lines).toHaveLength(1)
+      expect(lines[0].type).toBe('stage-direction')
+      expect(lines[0].text).toContain('Ceci est une didascalie')
+      expect(lines[0].text).toContain('HAMLET')
+    })
+
+    it('devrait mélanger les formats avec et sans deux-points', () => {
+      const text = `Le Titre
+
+ACTE I
+
+Scene 1
+
+HAMLET:
+Avec deux-points.
+
+OPHÉLIE
+Sans deux-points.
+
+HAMLET:
+Encore avec.
+
+OPHÉLIE
+Encore sans.`
+
+      const result = parsePlayText(text, 'test.txt')
+      const lines = result.acts[0].scenes[0].lines
+
+      expect(lines).toHaveLength(4)
+      expect(lines[0].characterId).toBe('HAMLET')
+      expect(lines[0].text).toBe('Avec deux-points.')
+      expect(lines[1].characterId).toBe('OPHÉLIE')
+      expect(lines[1].text).toBe('Sans deux-points.')
+      expect(lines[2].characterId).toBe('HAMLET')
+      expect(lines[2].text).toBe('Encore avec.')
+      expect(lines[3].characterId).toBe('OPHÉLIE')
+      expect(lines[3].text).toBe('Encore sans.')
+    })
   })
 
   describe('Didascalies', () => {

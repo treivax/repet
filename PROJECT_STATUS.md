@@ -45,7 +45,11 @@ Application web PWA open-source pour la répétition de théâtre en "italiennes
 - ✅ Extraction `Auteur:` et `Annee:` après titre
 - ✅ Détection actes : `ACTE N - Titre`
 - ✅ Détection scènes : `Scène N - Titre`
-- ✅ Répliques : `PERSONNAGE:` (MAJUSCULES, ligne séparée)
+- ✅ Répliques : `PERSONNAGE:` ou `PERSONNAGE` (deux formats supportés)
+  - Format avec `:` (classique) : `PERSONNAGE:` suivi du texte
+  - Format sans `:` (nouveau) : ligne vierge + `PERSONNAGE` + texte (pas d'indentation)
+  - Support des noms composés : `JEAN-PIERRE`, `MARIE LOUISE LEGRANCHU`
+  - Les deux formats peuvent être mélangés dans le même fichier
 - ✅ Support multi-lignes avec lignes vides
 - ✅ Didascalies : blocs + segments `(texte)` inline
 - ✅ Génération AST hiérarchique complet

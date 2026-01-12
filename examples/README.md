@@ -1,10 +1,12 @@
 # 📚 Exemples d'utilisation
 
-Ce dossier contient des exemples d'utilisation des modèles et types de Répét.
+Ce dossier contient des exemples d'utilisation des modèles et types de Répét, ainsi que des exemples de fichiers texte au format théâtral.
 
 ## Fichiers
 
-### `models-usage.ts`
+### Exemples de Code
+
+#### `models-usage.ts`
 
 Exemples complets d'utilisation des modèles de données créés dans le Prompt 02.
 
@@ -28,6 +30,59 @@ npx ts-node examples/models-usage.ts
 import { hamlet, play } from '../examples/models-usage';
 ```
 
+### Exemples de Fichiers Texte
+
+Ces fichiers illustrent les différents formats acceptés par le parser de Répét.
+
+#### `ALEGRIA.txt`
+
+Fichier de test principal utilisé pour valider le parser. Contient une pièce complète avec actes, scènes, répliques et didascalies au format classique (avec deux-points).
+
+#### `format-sans-deux-points.txt`
+
+**Exemple du nouveau format de répliques sans deux-points.**
+
+Illustre le format où les noms de personnages ne sont pas suivis de `:` mais doivent être :
+- Précédés d'une ligne vierge
+- En MAJUSCULES
+- Sans indentation (début de ligne)
+- Peuvent être des noms composés (ex: `LE PETIT CHAPERON ROUGE`, `MARIE-ANTOINETTE`)
+
+**Extrait** :
+```
+LE PETIT CHAPERON ROUGE
+Quelle belle journée pour aller voir mère-grand !
+Je vais lui apporter cette galette et ce petit pot de beurre.
+
+LE LOUP
+Bonjour, ma petite demoiselle.
+Où allez-vous donc si tôt ce matin ?
+```
+
+#### `format-mixte.txt`
+
+**Exemple mélant les deux formats dans le même fichier.**
+
+Démontre que les formats avec et sans deux-points peuvent coexister dans la même pièce :
+- `JEAN:` (format classique avec deux-points)
+- `MARIE` (format nouveau sans deux-points, après ligne vierge)
+
+**Extrait** :
+```
+JEAN:
+Bonjour ! Cette place est-elle libre ?
+
+MARIE
+Oui, je vous en prie, asseyez-vous.
+
+JEAN:
+Merci. Vous lisez quoi d'intéressant ?
+```
+
+#### `essai.txt` et `essaitest.txt`
+
+Fichiers de test divers pour le développement.
+
 ## Notes
 
 - Ces fichiers sont **uniquement à titre d'exemple** et de documentation
@@ -37,11 +92,11 @@ import { hamlet, play } from '../examples/models-usage';
 
 ## Prochaines étapes
 
-D'autres exemples seront ajoutés au fur et à mesure des prompts suivants :
-- Exemples de parsing (Prompt 03)
-- Exemples de stockage IndexedDB (Prompt 04)
-- Exemples de TTS (Prompt 05)
-- Exemples de state management (Prompt 07)
+D'autres exemples pourront être ajoutés :
+- Exemples de stockage IndexedDB
+- Exemples de TTS
+- Exemples de state management
+- Exemples de fichiers complexes avec didascalies avancées
 
 ---
 

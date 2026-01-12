@@ -63,7 +63,30 @@ Bienvenue dans **Répét**, votre assistant de répétition de pièces de théâ
 
 ### Format Accepté
 
-Les fichiers doivent être au format `.txt` avec la structure suivante :
+Les fichiers doivent être au format `.txt` avec la structure suivante.
+
+**Le parser accepte deux formats pour les répliques :**
+
+#### Format 1 : Avec deux-points (standard)
+
+```
+Titre: Le Misanthrope
+Auteur: Molière
+Genre: Comédie
+Année: 1666
+
+ACTE I
+
+Scène 1
+
+ALCESTE:
+Il faut que je te parle...
+
+PHILINTE:
+Fort bien, parlons...
+```
+
+#### Format 2 : Sans deux-points (nouveau)
 
 ```
 Titre: Le Misanthrope
@@ -81,6 +104,15 @@ Il faut que je te parle...
 PHILINTE
 Fort bien, parlons...
 ```
+
+**Règles importantes :**
+- **Format avec `:` (deux-points)** : Le nom du personnage est suivi de `:` immédiatement
+- **Format sans `:` (deux-points)** : 
+  - Le nom du personnage **DOIT être précédé d'une ligne vierge**
+  - Le nom **NE DOIT PAS** être indenté (commence au premier caractère)
+  - Supporte les noms composés : `JEAN-PIERRE`, `MARIE LOUISE LEGRANCHU`
+- Les deux formats **peuvent être mélangés** dans le même fichier
+- Les noms de personnages doivent **toujours être en MAJUSCULES**
 
 ### Procédure d'Import
 

@@ -85,7 +85,9 @@ SCÈNE 1
 
 #### 3. Répliques (Dialogues)
 
-**Format Standard**
+Le parser accepte **deux formats** pour les répliques :
+
+**Format 1 : Avec deux-points (standard)**
 - Nom du personnage en MAJUSCULES suivi de `:` sur une ligne dédiée
 - Le texte de la réplique suit sur les lignes suivantes
 - La réplique se termine à la prochaine ligne vide ou nouveau personnage
@@ -97,14 +99,47 @@ telle est la question.
 OPHÉLIE: Mon prince...
 ```
 
+**Format 2 : Sans deux-points (nouveau)**
+- Nom du personnage en MAJUSCULES sur une ligne dédiée **sans** `:`
+- **DOIT être précédé d'une ligne vierge**
+- Le nom doit commencer au premier caractère (pas d'indentation)
+- Le texte de la réplique suit sur les lignes suivantes
+- Supporte les noms composés : `JEAN-PIERRE`, `MARIE LOUISE LEGRANCHU`
+
+```
+HAMLET
+Être ou ne pas être,
+telle est la question.
+
+OPHÉLIE
+Mon prince...
+```
+
+**Les deux formats peuvent être mélangés dans le même fichier :**
+
+```
+HAMLET:
+Avec deux-points.
+
+OPHÉLIE
+Sans deux-points.
+
+HAMLET
+Encore sans.
+
+OPHÉLIE:
+Encore avec.
+```
+
 **Règles Importantes**
 - Le nom du personnage doit être en MAJUSCULES
-- Les deux-points `:` sont obligatoires après le nom
+- Format avec `:` : pas besoin de ligne vierge avant
+- Format sans `:` : **ligne vierge obligatoire avant** + **pas d'indentation**
 - Le texte peut s'étendre sur plusieurs lignes
 - Les lignes vides séparent les répliques
 
 **Détection de Personnages**
-Le parser extrait automatiquement tous les personnages uniques rencontrés dans le texte.
+Le parser extrait automatiquement tous les personnages uniques rencontrés dans le texte, quel que soit le format utilisé.
 
 #### 4. Didascalies
 
@@ -196,7 +231,7 @@ FRANCISCO: Vous venez très exactement à votre heure.
 
 ### Exemple Mode Italiennes
 
-Format optimisé pour le travail en "italiennes" :
+Format optimisé pour le travail en "italiennes" (avec format sans deux-points) :
 
 ```
 RÉPÉTITION DE GROUPE
@@ -205,18 +240,23 @@ ACTE I
 
 SCÈNE 1
 
-MARIE: Je ne comprends pas pourquoi tu es parti.
+MARIE
+Je ne comprends pas pourquoi tu es parti.
 
-JEAN: J'avais mes raisons (il détourne le regard).
+JEAN
+J'avais mes raisons (il détourne le regard).
 Tu le sais bien.
 
-MARIE: Non, je ne sais rien !
+MARIE
+Non, je ne sais rien !
 
 (Elle s'approche de lui)
 
-JEAN: Ne me touche pas.
+JEAN
+Ne me touche pas.
 
-MARIE: Pourquoi ? Qu'est-ce qui t'arrive ?
+MARIE
+Pourquoi ? Qu'est-ce qui t'arrive ?
 ```
 
 Lors de la lecture en mode italiennes :
@@ -326,15 +366,18 @@ Le parser est permissif et tente de parser le maximum de contenu possible :
 
 ✅ **À faire**
 - Titre en majuscules sur la première ligne
-- Noms de personnages en MAJUSCULES avec `:`
-- Lignes vides pour séparer les répliques
+- Noms de personnages en MAJUSCULES
+- Format avec `:` : `PERSONNAGE:` suivi du texte
+- Format sans `:` : ligne vierge + `PERSONNAGE` (sans indentation) + texte
+- Lignes vides pour séparer les répliques (obligatoire pour format sans `:`)
 - Déclarations ACTE/SCÈNE sur leur propre ligne
 - Didascalies entre parenthèses
 
 ❌ **À éviter**
 - Mélanger majuscules/minuscules pour les noms de personnages
-- Oublier les `:` après les noms
-- Mélanger répliques sans lignes vides
+- Format sans `:` : oublier la ligne vierge avant le nom
+- Format sans `:` : indenter le nom du personnage
+- Mélanger répliques sans lignes vides (surtout pour format sans `:`)
 - Numéros d'actes/scènes incohérents
 
 ## Tests et Validation

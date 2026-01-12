@@ -5,6 +5,24 @@ All notable changes to Répét will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ✨ Features
+
+#### Support Format de Répliques Sans Deux-Points (2025-01-XX)
+
+- **Nouveau format de répliques accepté** - Le parser accepte maintenant deux formats :
+  - Format classique : `PERSONNAGE:` (avec deux-points)
+  - Format nouveau : `PERSONNAGE` (sans deux-points, précédé d'une ligne vierge)
+- **Règles pour format sans deux-points** :
+  - Le nom doit être **précédé d'une ligne vierge**
+  - Le nom doit commencer au **premier caractère** (pas d'indentation)
+  - Le nom doit être en **MAJUSCULES**
+  - Support des noms composés : `JEAN-PIERRE`, `MARIE LOUISE LEGRANCHU`
+- **Compatibilité** - Les deux formats peuvent être mélangés dans le même fichier
+- **Tests** - Ajout de 5 nouveaux tests pour valider le format sans deux-points
+- **Documentation** - Mise à jour de PARSER.md et USER_GUIDE.md
+
 ## [0.2.0] - 2025-01-XX
 
 ### 🚀 Major Update - Conformité avec la spécification
@@ -61,7 +79,7 @@ Cette version majeure réécrit les composants clés pour respecter strictement 
   - Extraction `Auteur:` et `Annee:` juste après le titre
   - Détection des actes : `ACTE N` ou `ACTE N - Titre`
   - Détection des scènes : `Scene N` ou `Scène N - Titre`
-  - Reconnaissance répliques : `PERSONNAGE:` en MAJUSCULES sur ligne séparée
+  - Reconnaissance répliques : `PERSONNAGE:` ou `PERSONNAGE` (deux formats supportés)
   - Support répliques multi-lignes avec lignes vides
   - Détection didascalies : blocs hors répliques + segments `(texte)` inline
   - Génération AST hiérarchique : metadata → acts → scenes → lines
