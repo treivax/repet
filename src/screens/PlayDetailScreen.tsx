@@ -135,6 +135,7 @@ export function PlayDetailScreen() {
     }
 
     loadVoices()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.ttsProvider, playId])
 
   if (isLoading) {

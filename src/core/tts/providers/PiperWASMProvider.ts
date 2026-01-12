@@ -115,8 +115,8 @@ export class PiperWASMProvider implements TTSProvider {
     // this.piperModule = await import('piper-wasm')
     // await this.piperModule.init()
 
-    console.info('[PiperWASMProvider] Initialisation (placeholder)')
-    this._piperModule = null // Placeholder
+    // Placeholder: initialisation WASM sera implémentée plus tard
+    this._piperModule = null
     this.initialized = true
   }
 
@@ -215,8 +215,6 @@ export class PiperWASMProvider implements TTSProvider {
    */
   async synthesize(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
     // TODO: Implémenter la vraie synthèse Piper-WASM
-    console.info('[PiperWASMProvider] synthesize() placeholder - texte:', text.slice(0, 50))
-
     // Pour l'instant, on retourne un résultat placeholder
     // qui permettra de tester l'architecture sans bloquer le développement
 
@@ -264,7 +262,7 @@ export class PiperWASMProvider implements TTSProvider {
       throw new Error(`Modèle Piper ${voiceId} non trouvé`)
     }
 
-    console.info('[PiperWASMProvider] downloadAndLoadModel() placeholder - voiceId:', voiceId)
+    // Placeholder: téléchargement sera implémenté plus tard
 
     // TODO: Implémenter le téléchargement et chargement réel
     // const response = await fetch(modelConfig.url)
@@ -280,7 +278,6 @@ export class PiperWASMProvider implements TTSProvider {
    */
   stop(): void {
     // TODO: Implémenter l'arrêt de la synthèse Piper
-    console.info('[PiperWASMProvider] stop() placeholder')
   }
 
   /**
@@ -290,6 +287,5 @@ export class PiperWASMProvider implements TTSProvider {
     this.loadedModels.clear()
     this._piperModule = null
     this.initialized = false
-    console.info('[PiperWASMProvider] dispose() - ressources libérées')
   }
 }

@@ -84,8 +84,6 @@ export class TTSProviderManager {
     await provider.initialize()
     this.activeProvider = provider
     this.initialized = true
-
-    console.info(`[TTSProviderManager] Initialisé avec provider: ${provider.name}`)
   }
 
   /**
@@ -111,8 +109,6 @@ export class TTSProviderManager {
     // Initialiser le nouveau provider
     await provider.initialize()
     this.activeProvider = provider
-
-    console.info(`[TTSProviderManager] Provider changé vers: ${provider.name}`)
   }
 
   /**
@@ -195,8 +191,6 @@ export class TTSProviderManager {
 
     this.activeProvider = null
     this.initialized = false
-
-    console.info('[TTSProviderManager] Ressources libérées')
   }
 }
 
