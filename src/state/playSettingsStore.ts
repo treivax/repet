@@ -10,6 +10,8 @@ import type { PlaySettings } from '../core/models/Settings'
 import { createDefaultPlaySettings } from '../core/models/Settings'
 import type { ReadingMode } from '../core/tts/readingModes'
 import type { Gender } from '../core/models/types'
+import type { TTSProviderType, VoiceGender } from '../core/tts/types'
+import { ttsProviderManager } from '../core/tts/providers'
 
 /**
  * État du PlaySettings Store
@@ -57,6 +59,20 @@ interface PlaySettingsState {
 
   /** Réinitialise les paramètres d'une pièce */
   resetPlaySettings: (playId: string) => void
+
+  /** Change le provider TTS pour une pièce */
+  setTTSProvider: (playId: string, provider: TTSProviderType) => void
+
+  /** Assigne une voix spécifique à un personnage pour un provider donné */
+  setCharacterVoiceAssignment: (
+    playId: string,
+    provider: TTSProviderType,
+    characterId: string,
+    voiceId: string
+  ) => void
+
+  /** Réassigne toutes les voix pour un provider donné */
+  reassignAllVoices: (playId: string, provider: TTSProviderType) => void
 }
 
 /**
@@ -165,6 +181,62 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
             [playId]: defaultSettings,
           },
         }))
+      },
+
+      setTTSProvider: (playId: string, provider: TTSProviderType) => {
+        get().updatePlaySettings(playId, { ttsProvider: provider })
+      },
+
+      setCharacterVoiceAssignment: (
+        playId: string,
+        provider: TTSProviderType,
+        characterId: string,
+        voiceId: string
+      ) => {
+        const settings = get().getPlaySettings(playId)
+
+        // Choisir la bonne map selon le provider
+        if (provider === 'piper-wasm') {
+          const updatedAssignments = {
+            ...settings.characterVoicesPiper,
+            [characterId]: voiceId,
+          }
+          get().updatePlaySettings(playId, { characterVoicesPiper: updatedAssignments })
+        } else {
+          const updatedAssignments = {
+            ...settings.characterVoicesGoogle,
+            [characterId]: voiceId,
+          }
+          get().updatePlaySettings(playId, { characterVoicesGoogle: updatedAssignments })
+        }
+      },
+
+      reassignAllVoices: (playId: string, provider: TTSProviderType) => {
+        const settings = get().getPlaySettings(playId)
+
+        // Récupérer les personnages avec leurs genres
+        const characters: Array<{ id: string; gender: VoiceGender }> = Object.entries(
+          settings.characterVoices
+        ).map(([id, gender]) => ({
+          id,
+          gender: gender as VoiceGender,
+        }))
+
+        // Générer nouvelles assignations via le provider
+        const providerInstance = ttsProviderManager.getActiveProvider()
+        if (!providerInstance) {
+          console.warn('[PlaySettingsStore] Aucun provider actif pour réassigner les voix')
+          return
+        }
+
+        const newAssignments = providerInstance.generateVoiceAssignments(characters, {})
+
+        // Sauvegarder selon le provider
+        if (provider === 'piper-wasm') {
+          get().updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
+        } else {
+          get().updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
+        }
       },
     }),
     {

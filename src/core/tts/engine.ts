@@ -4,9 +4,10 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { SpeechConfig, TTSEvents, TTSState } from './types'
+import { SpeechConfig, TTSEvents, TTSState, SynthesisOptions } from './types'
 import { voiceManager, VoiceManager } from './voice-manager'
 import { SpeechQueue } from './queue'
+import { ttsProviderManager } from './providers'
 
 /**
  * Moteur de synthèse vocale
@@ -20,11 +21,13 @@ export class TTSEngine {
    * Initialise le moteur TTS
    */
   async initialize(): Promise<void> {
-    if (!VoiceManager.isAvailable()) {
-      throw new Error("La synthèse vocale n'est pas disponible dans ce navigateur")
-    }
+    // Initialiser le provider manager (par défaut : piper-wasm)
+    await ttsProviderManager.initialize()
 
-    await voiceManager.initialize()
+    // Garder l'ancien voice manager pour compatibilité
+    if (VoiceManager.isAvailable()) {
+      await voiceManager.initialize()
+    }
   }
 
   /**
@@ -43,51 +46,48 @@ export class TTSEngine {
    */
   speak(config: SpeechConfig): void {
     try {
-      const utterance = new SpeechSynthesisUtterance(config.text)
-
-      // Configuration de la voix
-      if (config.voiceURI) {
-        const voice = voiceManager.getVoiceByURI(config.voiceURI)
-        if (voice) {
-          utterance.voice = voice
-        }
-      }
-
-      // Configuration des paramètres
-      utterance.rate = config.rate ?? 1.0
-      utterance.volume = config.volume ?? 1.0
-      utterance.pitch = config.pitch ?? 1.0
-      utterance.lang = 'fr-FR'
-
-      // Événements
-      utterance.onstart = () => {
-        this.state = 'speaking'
-        this.events.onStart?.(config.lineId)
-      }
-
-      utterance.onend = () => {
-        if (this.queue.isEmpty()) {
+      // Utiliser le provider manager pour la synthèse
+      const options: SynthesisOptions = {
+        voiceId: config.voiceURI || '',
+        rate: config.rate ?? 1.0,
+        pitch: config.pitch ?? 1.0,
+        volume: config.volume ?? 1.0,
+        onStart: () => {
+          this.state = 'speaking'
+          this.events.onStart?.(config.lineId)
+        },
+        onEnd: () => {
+          if (this.queue.isEmpty()) {
+            this.state = 'idle'
+          }
+          this.events.onEnd?.(config.lineId)
+        },
+        onError: (error) => {
+          console.error('Erreur TTS:', error)
+          this.events.onError?.(error)
           this.state = 'idle'
-        }
-        this.events.onEnd?.(config.lineId)
+        },
+        onProgress: (charIndex) => {
+          this.events.onProgress?.(charIndex, config.lineId)
+        },
       }
 
-      utterance.onerror = (event) => {
-        console.error('Erreur TTS:', event.error)
-        this.events.onError?.(new Error(`Erreur TTS: ${event.error}`))
-        this.state = 'idle'
-      }
-
-      utterance.onboundary = (event) => {
-        if (event.name === 'word') {
-          this.events.onProgress?.(event.charIndex, config.lineId)
-        }
-      }
-
-      // Ajouter à la file d'attente
-      this.queue.enqueue(config, utterance)
+      // Synthétiser avec le provider actif
+      ttsProviderManager
+        .speak(config.text, options)
+        .then((result) => {
+          // Jouer l'audio résultant
+          result.audio.play().catch((error) => {
+            console.error('Erreur lors de la lecture audio:', error)
+            this.events.onError?.(error)
+          })
+        })
+        .catch((error) => {
+          console.error('Erreur lors de la synthèse:', error)
+          this.events.onError?.(error instanceof Error ? error : new Error('Erreur inconnue'))
+        })
     } catch (error) {
-      console.error("Erreur lors de la création de l'utterance:", error)
+      console.error('Erreur lors de la synthèse:', error)
       this.events.onError?.(error instanceof Error ? error : new Error('Erreur inconnue'))
     }
   }
@@ -117,6 +117,7 @@ export class TTSEngine {
    */
   stop(): void {
     this.queue.clear()
+    ttsProviderManager.stop()
     this.state = 'idle'
   }
 
