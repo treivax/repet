@@ -54,6 +54,7 @@ export function CharacterSelector({
           <CharacterBadge
             key={character.id}
             character={character}
+            allCharacters={characters}
             size="md"
             selected={selectedCharacter?.id === character.id}
             onClick={handleSelect}

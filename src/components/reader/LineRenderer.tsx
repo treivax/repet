@@ -8,34 +8,7 @@ import { useState } from 'react'
 import type { Line } from '../../core/models/Line'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
-
-/**
- * Génère une couleur unique pour un personnage basée sur son ID
- */
-function getCharacterColor(characterId: string): string {
-  // Utiliser un hash simple du characterId pour générer une couleur cohérente
-  let hash = 0
-  for (let i = 0; i < characterId.length; i++) {
-    hash = characterId.charCodeAt(i) + ((hash << 5) - hash)
-  }
-
-  // Palette de couleurs prédéfinies pour une bonne lisibilité
-  const colors = [
-    'text-blue-700 dark:text-blue-400',
-    'text-green-700 dark:text-green-400',
-    'text-purple-700 dark:text-purple-400',
-    'text-pink-700 dark:text-pink-400',
-    'text-indigo-700 dark:text-indigo-400',
-    'text-red-700 dark:text-red-400',
-    'text-orange-700 dark:text-orange-400',
-    'text-teal-700 dark:text-teal-400',
-    'text-cyan-700 dark:text-cyan-400',
-    'text-rose-700 dark:text-rose-400',
-  ]
-
-  const index = Math.abs(hash) % colors.length
-  return colors[index]
-}
+import { generateCharacterColor } from '../../utils/colors'
 
 /**
  * Parse le texte pour extraire les didascalies (texte entre parenthèses)
@@ -266,9 +239,13 @@ export function LineRenderer({
     }
 
     // Couleur du nom du personnage
+    const allCharacterNames = Object.values(charactersMap).map((char) => char.name)
     const characterColor = line.characterId
-      ? getCharacterColor(line.characterId)
-      : 'text-gray-900 dark:text-gray-100'
+      ? generateCharacterColor(
+          charactersMap[line.characterId]?.name || line.characterId,
+          allCharacterNames
+        )
+      : undefined
 
     // Parser le texte pour extraire les didascalies
     const textSegments = parseTextWithStageDirections(line.text)
@@ -325,7 +302,12 @@ export function LineRenderer({
           }
         }}
       >
-        <div className={`font-bold uppercase ${characterColor}`}>{characterName}</div>
+        <div
+          className="font-bold uppercase"
+          style={characterColor ? { color: characterColor } : undefined}
+        >
+          {characterName}
+        </div>
         <div className={textClasses}>
           {textSegments.map((segment, idx) => {
             if (segment.type === 'stage-direction') {

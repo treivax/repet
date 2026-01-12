@@ -13,6 +13,8 @@ import { generateCharacterColor } from '../../utils/colors'
 export interface CharacterBadgeProps {
   /** Personnage à afficher */
   character: Character
+  /** Liste de tous les personnages (pour ordre alphabétique des couleurs) */
+  allCharacters?: Character[]
   /** Taille du badge */
   size?: 'sm' | 'md' | 'lg'
   /** Badge sélectionné */
@@ -38,12 +40,14 @@ const sizeClasses = {
  */
 export function CharacterBadge({
   character,
+  allCharacters,
   size = 'md',
   selected = false,
   onClick,
   'data-testid': dataTestId,
 }: CharacterBadgeProps) {
-  const color = generateCharacterColor(character.name)
+  const allCharacterNames = allCharacters?.map((char) => char.name)
+  const color = generateCharacterColor(character.name, allCharacterNames)
   const isClickable = !!onClick
 
   const handleClick = () => {
