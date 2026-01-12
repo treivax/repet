@@ -6,7 +6,7 @@
 
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { Layout } from './components/common/Layout'
-import { StandardHeader } from './components/common/StandardHeader'
+import { LibraryHeader } from './components/common/LibraryHeader'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { PlayScreen } from './screens/PlayScreen'
 import { ReaderScreen } from './screens/ReaderScreen'
@@ -19,7 +19,7 @@ const router = createBrowserRouter([
   {
     path: '/',
     element: (
-      <Layout header={<StandardHeader title="Répét" />}>
+      <Layout header={<LibraryHeader />}>
         <LibraryScreen />
       </Layout>
     ),
