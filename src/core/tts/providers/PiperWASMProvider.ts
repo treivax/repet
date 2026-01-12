@@ -164,6 +164,13 @@ export class PiperWASMProvider implements TTSProvider {
     const voices = this.getVoices()
     const usageCount: Record<string, number> = {}
 
+    console.warn('[PiperWASM] generateVoiceAssignments called with:', {
+      charactersCount: characters.length,
+      characters: characters,
+      voicesCount: voices.length,
+      voices: voices.map((v) => ({ id: v.id, name: v.displayName, gender: v.gender })),
+    })
+
     // Compter l'utilisation actuelle
     Object.values(assignments).forEach((voiceId) => {
       usageCount[voiceId] = (usageCount[voiceId] || 0) + 1
@@ -171,13 +178,21 @@ export class PiperWASMProvider implements TTSProvider {
 
     // Pour chaque personnage sans assignation
     characters.forEach((char) => {
-      if (assignments[char.id]) return // Déjà assigné
+      if (assignments[char.id]) {
+        console.warn(`[PiperWASM] ${char.id} déjà assigné: ${assignments[char.id]}`)
+        return // Déjà assigné
+      }
 
       // Filtrer voix du bon genre
       let candidateVoices = voices.filter((v) => v.gender === char.gender)
+      console.warn(
+        `[PiperWASM] Pour ${char.id} (${char.gender}): ${candidateVoices.length} voix candidates`,
+        candidateVoices.map((v) => v.displayName)
+      )
 
       // Fallback : toutes les voix si aucune du bon genre
       if (candidateVoices.length === 0) {
+        console.warn(`[PiperWASM] Aucune voix ${char.gender}, fallback vers toutes les voix`)
         candidateVoices = voices
       }
 
@@ -202,8 +217,12 @@ export class PiperWASMProvider implements TTSProvider {
       // Assigner
       assignments[char.id] = selectedVoice.id
       usageCount[selectedVoice.id] = minUsage + 1
+      console.warn(
+        `[PiperWASM] ${char.id} assigné à ${selectedVoice.displayName} (usage: ${minUsage})`
+      )
     })
 
+    console.warn('[PiperWASM] Assignations finales:', assignments)
     return assignments
   }
 

@@ -142,28 +142,46 @@ export function PlayScreen() {
         if (needsAssignments && currentPlay.ast?.characters) {
           console.warn('Génération automatique des assignations de voix...')
 
-          // Créer la liste des personnages avec leurs genres
+          // Créer la liste des personnages avec leurs genres depuis l'AST
           const charactersWithGender = currentPlay.ast.characters
-            .filter((char) => settings.characterVoices[char.id])
+            .filter((char) => char.gender) // Filtrer ceux qui ont un genre défini
             .map((char) => ({
               id: char.id,
-              gender: settings.characterVoices[char.id],
+              gender: char.gender, // Utiliser directement le genre de l'AST
             }))
+
+          console.warn(
+            `${charactersWithGender.length} personnages trouvés avec genres:`,
+            charactersWithGender
+          )
 
           // Générer les assignations via le provider actif
           const activeProvider = ttsProviderManager.getActiveProvider()
           if (activeProvider && charactersWithGender.length > 0) {
             const newAssignments = activeProvider.generateVoiceAssignments(charactersWithGender, {})
 
-            // Sauvegarder les assignations
+            // Sauvegarder les genres dans characterVoices (pour compatibilité UI)
+            const updatedCharacterVoices = { ...settings.characterVoices }
+            charactersWithGender.forEach((char) => {
+              updatedCharacterVoices[char.id] = char.gender
+            })
+
+            // Sauvegarder les assignations ET les genres
             const { updatePlaySettings } = usePlaySettingsStore.getState()
             if (provider === 'piper-wasm') {
-              updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
+              updatePlaySettings(playId, {
+                characterVoicesPiper: newAssignments,
+                characterVoices: updatedCharacterVoices,
+              })
             } else {
-              updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
+              updatePlaySettings(playId, {
+                characterVoicesGoogle: newAssignments,
+                characterVoices: updatedCharacterVoices,
+              })
             }
 
             console.warn('Assignations de voix générées:', newAssignments)
+            console.warn('Genres sauvegardés:', updatedCharacterVoices)
           }
         }
       } catch (error) {
