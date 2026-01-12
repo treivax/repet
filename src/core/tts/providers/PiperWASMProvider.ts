@@ -58,7 +58,7 @@ const PIPER_MODELS: PiperModelConfig[] = [
     downloadSize: 15_000_000, // ~15MB
   },
   {
-    id: 'fr_FR-upmc-medium-1',
+    id: 'fr_FR-upmc-medium',
     name: 'fr_FR-upmc-medium',
     displayName: 'UPMC Jessica (Femme, France)',
     language: 'fr-FR',
@@ -71,7 +71,7 @@ const PIPER_MODELS: PiperModelConfig[] = [
     downloadSize: 16_000_000, // ~16MB
   },
   {
-    id: 'fr_FR-mls-medium-1',
+    id: 'fr_FR-mls-medium',
     name: 'fr_FR-mls-medium',
     displayName: 'MLS Pierre (Homme, France)',
     language: 'fr-FR',
