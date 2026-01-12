@@ -14,6 +14,7 @@ import type {
 } from '../types'
 import { TtsSession, type VoiceId } from '@mintplex-labs/piper-tts-web'
 import { audioCacheService } from '../services/AudioCacheService'
+import * as ort from 'onnxruntime-web'
 
 /**
  * Configuration d'un modèle Piper
@@ -101,6 +102,14 @@ export class PiperWASMProvider implements TTSProvider {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return
+
+    // Configurer ONNX Runtime pour utiliser les fichiers WASM locaux
+    // Désactiver le multi-threading pour éviter les problèmes CORS
+    ort.env.wasm.numThreads = 1
+    ort.env.wasm.simd = true
+
+    // Utiliser le backend WASM simple au lieu du threaded
+    ort.env.wasm.wasmPaths = '/wasm/'
 
     // Initialiser le service de cache audio
     await audioCacheService.initialize()
@@ -250,6 +259,13 @@ export class PiperWASMProvider implements TTSProvider {
             options.onProgress?.(percent)
           },
           logger: (msg) => console.warn(`[Piper TTS] ${msg}`),
+          wasmPaths: {
+            onnxWasm: '/wasm/',
+            piperData:
+              'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.data',
+            piperWasm:
+              'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.wasm',
+          },
         })
         this.ttsSessions.set(options.voiceId, session)
       }
