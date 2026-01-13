@@ -276,6 +276,59 @@ export class AudioCacheService {
   }
 
   /**
+   * Get detailed cache statistics grouped by voice
+   */
+  async getCacheStats(): Promise<{
+    totalEntries: number
+    totalSize: number
+    byVoice: Record<string, { count: number; totalSize: number }>
+  }> {
+    await this.initialize()
+
+    if (!this.db) {
+      return {
+        totalEntries: 0,
+        totalSize: 0,
+        byVoice: {},
+      }
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.storeName], 'readonly')
+      const store = transaction.objectStore(this.storeName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        const items = request.result as CachedAudio[]
+        let totalSize = 0
+        const byVoice: Record<string, { count: number; totalSize: number }> = {}
+
+        for (const item of items) {
+          totalSize += item.blob.size
+
+          if (!byVoice[item.voiceId]) {
+            byVoice[item.voiceId] = { count: 0, totalSize: 0 }
+          }
+
+          byVoice[item.voiceId].count++
+          byVoice[item.voiceId].totalSize += item.blob.size
+        }
+
+        resolve({
+          totalEntries: items.length,
+          totalSize,
+          byVoice,
+        })
+      }
+
+      request.onerror = () => {
+        console.error('Failed to get cache stats:', request.error)
+        reject(request.error)
+      }
+    })
+  }
+
+  /**
    * Clean up old cache entries if size exceeds limit
    */
   private async cleanupIfNeeded(): Promise<void> {

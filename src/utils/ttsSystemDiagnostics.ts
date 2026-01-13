@@ -12,10 +12,11 @@
  * cache, et migrations.
  */
 
+import type { PlaySettings } from '../core/models/Settings'
 import { ttsProviderManager } from '../core/tts/providers'
 import { audioCacheService } from '../core/tts/services/AudioCacheService'
 import { ALL_VOICE_PROFILES, getVoiceProfile } from '../core/tts/voiceProfiles'
-import { logDiagnosticReport, diagnoseAllPlaySettings } from './voiceDiagnostics'
+import { diagnoseAllPlaySettings } from './voiceDiagnostics'
 import { isObsoleteVoice } from './voiceMigration'
 
 /**
@@ -86,7 +87,7 @@ export interface SystemDiagnosticResult {
  * Exécute un diagnostic complet du système TTS
  */
 export async function runSystemDiagnostics(
-  allPlaySettings?: Record<string, any>
+  allPlaySettings?: Record<string, PlaySettings>
 ): Promise<SystemDiagnosticResult> {
   const issues: SystemDiagnosticResult['issues'] = []
 
@@ -170,8 +171,7 @@ export async function runSystemDiagnostics(
 
   const profilesByBaseVoice: Record<string, number> = {}
   ALL_VOICE_PROFILES.forEach((profile) => {
-    profilesByBaseVoice[profile.baseVoiceId] =
-      (profilesByBaseVoice[profile.baseVoiceId] || 0) + 1
+    profilesByBaseVoice[profile.baseVoiceId] = (profilesByBaseVoice[profile.baseVoiceId] || 0) + 1
   })
 
   const invalidProfiles: string[] = []
@@ -455,7 +455,9 @@ export function formatSystemDiagnosticReport(result: SystemDiagnosticResult): st
 /**
  * Exécute un diagnostic complet et affiche le rapport dans la console
  */
-export async function logSystemDiagnostics(allPlaySettings?: Record<string, any>): Promise<void> {
+export async function logSystemDiagnostics(
+  allPlaySettings?: Record<string, PlaySettings>
+): Promise<void> {
   const result = await runSystemDiagnostics(allPlaySettings)
   const report = formatSystemDiagnosticReport(result)
   console.warn(report)

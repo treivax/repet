@@ -4,4 +4,4 @@
  * See LICENSE file in the project root for full license text
  */
 
-export { VoicePreloader } from './VoicePreloader'
+export { InitializationModal } from './InitializationModal'

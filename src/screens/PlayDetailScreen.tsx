@@ -14,14 +14,12 @@ import { TTSProviderSelector } from '../components/play/TTSProviderSelector'
 import { CharacterVoiceEditor } from '../components/play/CharacterVoiceEditor'
 import { AudioSettings } from '../components/play/AudioSettings'
 import { ItalianSettings } from '../components/play/ItalianSettings'
-import { PiperModelManager } from '../components/play/PiperModelManager'
 import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { CharacterSelector } from '../components/play/CharacterSelector'
 import { StandardHeader } from '../components/common/StandardHeader'
 import { useFrenchVoices } from '../hooks/useFrenchVoices'
 import { ttsProviderManager } from '../core/tts/providers'
-import { PiperWASMProvider } from '../core/tts/providers/PiperWASMProvider'
 import type { VoiceDescriptor, VoiceGender } from '../core/tts/types'
 
 /**
@@ -36,7 +34,6 @@ export function PlayDetailScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showCharacterSelector, setShowCharacterSelector] = useState(false)
-  const [showModelManager, setShowModelManager] = useState(false)
   const [availableVoices, setAvailableVoices] = useState<VoiceDescriptor[]>([])
 
   // Compter les voix françaises disponibles
@@ -244,10 +241,6 @@ export function PlayDetailScreen() {
     }
   }
 
-  const handleManageModels = () => {
-    setShowModelManager(true)
-  }
-
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -430,7 +423,6 @@ export function PlayDetailScreen() {
                   currentProvider={settings.ttsProvider}
                   onProviderChange={handleProviderChange}
                   onReassignVoices={handleReassignVoices}
-                  onManageModels={handleManageModels}
                 />
               </div>
 
@@ -569,14 +561,6 @@ export function PlayDetailScreen() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Modal de gestion des modèles Piper */}
-      {showModelManager && settings.ttsProvider === 'piper-wasm' && (
-        <PiperModelManager
-          provider={ttsProviderManager.getActiveProvider() as PiperWASMProvider}
-          onClose={() => setShowModelManager(false)}
-        />
       )}
     </div>
   )

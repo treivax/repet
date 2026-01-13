@@ -167,11 +167,11 @@ export class PiperWASMProvider implements TTSProvider {
   }
 
   /**
-   * Récupère la liste des voix disponibles
+   * Récupère uniquement les modèles de base Piper à précharger
+   * (Ne retourne pas les profils vocaux qui sont des variantes)
    */
-  getVoices(): VoiceDescriptor[] {
-    // Voix de base depuis les modèles Piper
-    const baseVoices = PIPER_MODELS.map((model) => ({
+  getBaseModels(): VoiceDescriptor[] {
+    return PIPER_MODELS.map((model) => ({
       id: model.id,
       name: model.name,
       displayName: model.displayName,
@@ -183,6 +183,14 @@ export class PiperWASMProvider implements TTSProvider {
       requiresDownload: model.requiresDownload,
       downloadSize: model.downloadSize,
     }))
+  }
+
+  /**
+   * Récupère la liste des voix disponibles (modèles de base + profils vocaux)
+   */
+  getVoices(): VoiceDescriptor[] {
+    // Voix de base depuis les modèles Piper
+    const baseVoices = this.getBaseModels()
 
     // Profils vocaux (variantes des voix de base)
     const profileVoices = ALL_VOICE_PROFILES.map((profile) => ({
@@ -192,7 +200,7 @@ export class PiperWASMProvider implements TTSProvider {
       language: 'fr-FR',
       gender: (profile.perceivedGender || 'male') as VoiceGender,
       provider: 'piper-wasm' as const,
-      quality: 'medium',
+      quality: 'medium' as const,
       isLocal: true,
       requiresDownload: false,
     }))
@@ -490,7 +498,14 @@ export class PiperWASMProvider implements TTSProvider {
     // Vérifier si déjà en cache
     if (this.sessionCache.has(voiceId)) {
       console.warn(`[PiperWASM] ✅ Modèle ${voiceId} déjà en cache, préchargement ignoré`)
-      onProgress?.(100)
+      // Simuler une progression rapide pour le feedback visuel
+      if (onProgress) {
+        onProgress(0)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        onProgress(50)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        onProgress(100)
+      }
       return
     }
 

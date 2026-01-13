@@ -40,12 +40,6 @@ async function initializeApp() {
 
     console.warn('[Main] ✅ Application prête à démarrer')
 
-    // Masquer l'écran de chargement initial
-    const initialLoader = document.getElementById('initial-loader')
-    if (initialLoader) {
-      initialLoader.style.display = 'none'
-    }
-
     // Rendre l'application React APRÈS l'initialisation complète
     ReactDOM.createRoot(document.getElementById('root')!).render(
       <React.StrictMode>

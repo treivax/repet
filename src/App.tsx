@@ -10,7 +10,7 @@ import { Router } from './router'
 import { Toast } from './components/common/Toast'
 import { HelpScreen } from './screens/HelpScreen'
 import { useUIStore } from './state/uiStore'
-import { VoicePreloader } from './components/voice-preloader'
+import { InitializationModal } from './components/voice-preloader'
 
 function App() {
   const { setTheme } = useUIStore()
@@ -26,16 +26,12 @@ function App() {
     }
   }, [setTheme])
 
-  // Afficher le préchargement des voix avant l'application
-  if (!voicesLoaded) {
-    return <VoicePreloader onComplete={() => setVoicesLoaded(true)} />
-  }
-
   return (
     <>
       <Router />
       <Toast />
       <HelpScreen />
+      {!voicesLoaded && <InitializationModal onComplete={() => setVoicesLoaded(true)} />}
     </>
   )
 }
