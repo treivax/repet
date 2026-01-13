@@ -11,7 +11,8 @@ import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
 
 import { playsRepository } from '../core/storage/plays'
-import { voiceManager } from '../core/tts/voice-manager'
+import { ttsEngine } from '../core/tts/engine'
+import { ttsProviderManager } from '../core/tts/providers'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
@@ -56,6 +57,7 @@ export function PlayScreen() {
   const [isPaused, setIsPaused] = useState(false)
   const [readLinesSet, setReadLinesSet] = useState<Set<number>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   // États pour le tracking du temps de lecture
   const [estimatedDuration, setEstimatedDuration] = useState<number>(0) // en secondes
@@ -119,18 +121,82 @@ export function PlayScreen() {
     setUserCharacter,
   ])
 
+  // Initialiser le TTS provider avec le bon provider au montage
+  useEffect(() => {
+    const initializeTTS = async () => {
+      if (!playId || !currentPlay) return
+
+      const settings = getPlaySettings(playId)
+      const provider = settings.ttsProvider || 'piper-wasm'
+
+      try {
+        await ttsProviderManager.initialize(provider)
+        console.warn(`TTS Provider initialisé: ${provider}`)
+
+        // Générer automatiquement les assignations de voix si elles sont vides
+        const assignmentMap =
+          provider === 'piper-wasm' ? settings.characterVoicesPiper : settings.characterVoicesGoogle
+
+        const needsAssignments = Object.keys(assignmentMap).length === 0
+
+        if (needsAssignments && currentPlay.ast?.characters) {
+          console.warn('Génération automatique des assignations de voix...')
+
+          // Créer la liste des personnages avec leurs genres depuis l'AST
+          const charactersWithGender = currentPlay.ast.characters
+            .filter((char) => char.gender) // Filtrer ceux qui ont un genre défini
+            .map((char) => ({
+              id: char.id,
+              gender: char.gender, // Utiliser directement le genre de l'AST
+            }))
+
+          console.warn(
+            `${charactersWithGender.length} personnages trouvés avec genres:`,
+            charactersWithGender
+          )
+
+          // Générer les assignations via le provider actif
+          const activeProvider = ttsProviderManager.getActiveProvider()
+          if (activeProvider && charactersWithGender.length > 0) {
+            const newAssignments = activeProvider.generateVoiceAssignments(charactersWithGender, {})
+
+            // Sauvegarder les genres dans characterVoices (pour compatibilité UI)
+            const updatedCharacterVoices = { ...settings.characterVoices }
+            charactersWithGender.forEach((char) => {
+              updatedCharacterVoices[char.id] = char.gender
+            })
+
+            // Sauvegarder les assignations ET les genres
+            const { updatePlaySettings } = usePlaySettingsStore.getState()
+            if (provider === 'piper-wasm') {
+              updatePlaySettings(playId, {
+                characterVoicesPiper: newAssignments,
+                characterVoices: updatedCharacterVoices,
+              })
+            } else {
+              updatePlaySettings(playId, {
+                characterVoicesGoogle: newAssignments,
+                characterVoices: updatedCharacterVoices,
+              })
+            }
+
+            console.warn('Assignations de voix générées:', newAssignments)
+            console.warn('Genres sauvegardés:', updatedCharacterVoices)
+          }
+        }
+      } catch (error) {
+        console.error('Erreur initialisation TTS provider:', error)
+      }
+    }
+
+    initializeTTS()
+  }, [playId, currentPlay, getPlaySettings])
+
   // Nettoyer TTS et arrêter la lecture au démontage
   useEffect(() => {
     return () => {
       // Arrêter complètement la lecture audio
-      if (utteranceRef.current) {
-        utteranceRef.current.onend = null
-        utteranceRef.current.onerror = null
-        utteranceRef.current.onboundary = null
-      }
-      if (window.speechSynthesis.speaking) {
-        window.speechSynthesis.cancel()
-      }
+      ttsEngine.stop()
       // Nettoyer les états et intervals
       stopProgressTracking()
       isPlayingRef.current = false
@@ -138,6 +204,40 @@ export function PlayScreen() {
       setIsPaused(false)
     }
   }, [])
+
+  // Gestionnaire global pour la touche espace en mode lecture audio
+  useEffect(() => {
+    if (!playSettings || playSettings.readingMode !== 'audio') {
+      return
+    }
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Intercepter espace uniquement si on est en train de lire
+      if (e.key === ' ' || e.code === 'Space') {
+        // Vérifier qu'on n'est pas dans un input/textarea
+        const target = e.target as HTMLElement
+        if (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable
+        ) {
+          return
+        }
+
+        // Si on est en train de lire, pause/resume
+        if (playingLineIndex !== undefined) {
+          e.preventDefault()
+          e.stopPropagation()
+          pausePlayback()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleGlobalKeyDown, { capture: true })
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
+    }
+  }, [playSettings, playingLineIndex, isPaused])
 
   // Créer la map des personnages
   const charactersMap: Record<string, Character> = {}
@@ -325,96 +425,162 @@ export function PlayScreen() {
     const { line } = coords
 
     // Arrêter toute lecture en cours complètement
+    ttsEngine.stop()
+    stopProgressTracking()
+
     if (utteranceRef.current) {
-      // Désactiver les callbacks avant cancel pour éviter interférences
-      utteranceRef.current.onend = null
-      utteranceRef.current.onerror = null
-      utteranceRef.current.onboundary = null
-      window.speechSynthesis.cancel()
       utteranceRef.current = null
-      stopProgressTracking()
-      stopPlayback()
     }
 
     setPlayingLineIndex(globalLineIndex)
     setIsPaused(false)
     setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
+    setIsGenerating(true) // Indiquer qu'on génère l'audio
 
-    // Sélection de la voix
-    let selectedVoice: SpeechSynthesisVoice | null = null
-    if (line.characterId && playSettings.characterVoices[line.characterId]) {
-      const gender = playSettings.characterVoices[line.characterId]
-      selectedVoice = voiceManager.selectVoiceForGender(gender)
-    } else if (line.characterId && charactersMap[line.characterId]?.gender) {
-      selectedVoice = voiceManager.selectVoiceForGender(charactersMap[line.characterId].gender!)
+    // Sélection de la voix via le système d'assignation
+    let voiceId = ''
+
+    if (line.characterId) {
+      // Obtenir l'assignation de voix pour ce personnage
+      const assignmentMap =
+        playSettings.ttsProvider === 'piper-wasm'
+          ? playSettings.characterVoicesPiper
+          : playSettings.characterVoicesGoogle
+
+      voiceId = assignmentMap[line.characterId] || ''
+
+      console.warn(
+        `[PlayScreen] 🎭 Personnage: ${line.characterId}, Provider: ${playSettings.ttsProvider}, voiceId assignée: "${voiceId}"`
+      )
+      console.warn(`[PlayScreen] 📋 Assignment map:`, assignmentMap)
+
+      // Si pas d'assignation, utiliser la première voix du bon genre (fallback)
+      if (!voiceId) {
+        const character = charactersMap[line.characterId]
+        const gender = character?.gender || playSettings.characterVoices[line.characterId]
+
+        if (gender) {
+          const voices = ttsProviderManager.getVoices()
+          const matchingVoice = voices.find((v) => v.gender === gender)
+          if (matchingVoice) {
+            voiceId = matchingVoice.id
+            console.warn(
+              `Utilisation voix fallback pour ${line.characterId}: ${matchingVoice.displayName}`
+            )
+          }
+        }
+      }
     }
 
     // Didascalies : voix off si activée
     if (line.type === 'stage-direction' && playSettings.voiceOffEnabled) {
-      selectedVoice = voiceManager.selectVoiceForGender('neutral')
+      const voices = ttsProviderManager.getVoices()
+      const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
+      if (neutralVoice) {
+        voiceId = neutralVoice.id
+      }
+    }
+
+    // Fallback : première voix disponible
+    if (!voiceId) {
+      const voices = ttsProviderManager.getVoices()
+      if (voices.length > 0) {
+        voiceId = voices[0].id
+      }
     }
 
     // Mode italiennes : répliques utilisateur à volume 0
-    const isUserLine = userCharacter && line.characterId === userCharacter.id
-    const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
+    console.warn('[PlayScreen] 🔍 DEBUG - Vérification ligne:')
+    console.warn(`  - line.characterId: "${line.characterId}"`)
+    console.warn(
+      `  - userCharacter: ${userCharacter ? JSON.stringify({ id: userCharacter.id, name: userCharacter.name }) : 'null'}`
+    )
+    console.warn(`  - playSettings.readingMode: "${playSettings.readingMode}"`)
 
-    const utterance = new SpeechSynthesisUtterance(line.text)
-    if (selectedVoice) utterance.voice = selectedVoice
-    utterance.rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
-    utterance.volume = volume
+    const isUserLine = userCharacter && line.characterId === userCharacter.id
+    console.warn(`  - isUserLine: ${isUserLine}`)
+
+    const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
+    const rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
+
+    console.warn(`  - volume calculé: ${volume}`)
+    console.warn(`  - rate calculé: ${rate}`)
+
+    // Log pour le mode italiennes
+    if (playSettings.readingMode === 'italian' && isUserLine) {
+      console.warn(
+        `[PlayScreen] 🎭 Mode italiennes - Ligne utilisateur détectée: volume=${volume}, rate=${rate}`
+      )
+    } else if (playSettings.readingMode === 'italian' && !isUserLine) {
+      console.warn(
+        `[PlayScreen] 🎭 Mode italiennes - Ligne autre personnage: volume=${volume}, rate=${rate}`
+      )
+    }
 
     // Estimer et démarrer le tracking de la durée
-    const rate = utterance.rate
     const totalWords = countWords(line.text)
     const duration = estimateLineDuration(line.text, rate)
     startProgressTracking(duration, totalWords)
 
-    // Événement onboundary pour tracking mot par mot (précision accrue)
-    utterance.onboundary = (event) => {
-      if (!isPlayingRef.current) return
+    // Créer une référence fictive pour compatibilité
+    utteranceRef.current = { text: line.text } as SpeechSynthesisUtterance
 
-      // L'événement se déclenche à chaque frontière de mot
-      if (event.name === 'word') {
-        wordsSpokenRef.current += 1
-        // updateProgress sera appelé par l'interval, pas besoin de l'appeler ici
-      }
-    }
+    // Log pour debug
+    console.warn(
+      `[PlayScreen] ▶️ LECTURE ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}", volume=${volume}, rate=${rate}`
+    )
 
-    utterance.onend = () => {
-      stopProgressTracking()
+    // Utiliser le nouveau système TTS
+    ttsEngine.speak({
+      text: line.text,
+      voiceURI: voiceId,
+      rate,
+      pitch: 1.0,
+      volume,
+      lineId: globalLineIndex.toString(),
+    })
 
-      if (!isPlayingRef.current || !currentPlay) return
+    // Configurer les événements via setEvents
+    ttsEngine.setEvents({
+      onStart: () => {
+        // Audio généré et lecture démarrée
+        setIsGenerating(false)
+      },
+      onEnd: () => {
+        stopProgressTracking()
+        setIsGenerating(false)
 
-      // Passer à la ligne suivante automatiquement
-      const nextGlobalIndex = globalLineIndex + 1
-      const totalLines = getTotalLines()
+        if (!isPlayingRef.current || !currentPlay) return
 
-      if (nextGlobalIndex < totalLines) {
-        speakLine(nextGlobalIndex)
-      } else {
-        // Fin de la pièce
+        // Passer à la ligne suivante automatiquement
+        const nextGlobalIndex = globalLineIndex + 1
+        const totalLines = getTotalLines()
+
+        if (nextGlobalIndex < totalLines) {
+          speakLine(nextGlobalIndex)
+        } else {
+          // Fin de la pièce
+          stopPlayback()
+        }
+      },
+      onError: (error) => {
+        stopProgressTracking()
+        setIsGenerating(false)
+
+        // Ne rien faire si on a déjà arrêté manuellement
+        if (!isPlayingRef.current) return
+        console.error('Erreur de lecture TTS', error)
+
         stopPlayback()
-      }
-    }
-
-    utterance.onerror = (event) => {
-      stopProgressTracking()
-
-      // Ne rien faire si on a déjà arrêté manuellement
-      if (!isPlayingRef.current) return
-      console.error('Erreur de lecture TTS', event)
-
-      // Désactiver le tracking par boundary si erreur
-      if (event.error === 'synthesis-unavailable' || event.error === 'not-allowed') {
-        useBoundaryTrackingRef.current = false
-      }
-
-      stopPlayback()
-    }
-
-    utteranceRef.current = utterance
-    window.speechSynthesis.speak(utterance)
+      },
+      onProgress: (charIndex) => {
+        if (!isPlayingRef.current) return
+        // Estimer le nombre de mots prononcés basé sur charIndex
+        const textSoFar = line.text.substring(0, charIndex)
+        wordsSpokenRef.current = countWords(textSoFar)
+      },
+    })
 
     // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
     scrollToLine(globalLineIndex)
@@ -430,21 +596,22 @@ export function PlayScreen() {
 
   // Fonction pour arrêter la lecture
   const stopPlayback = () => {
-    window.speechSynthesis.cancel()
+    ttsEngine.stop()
     utteranceRef.current = null
     isPlayingRef.current = false
     setPlayingLineIndex(undefined)
     setIsPaused(false)
+    setIsGenerating(false)
     stopProgressTracking()
   }
 
   // Fonction pour mettre en pause/reprendre
   const pausePlayback = () => {
-    if (window.speechSynthesis.speaking && !isPaused) {
-      window.speechSynthesis.pause()
+    if (ttsEngine.isSpeaking() && !isPaused) {
+      ttsEngine.pause()
       setIsPaused(true)
     } else if (isPaused) {
-      window.speechSynthesis.resume()
+      ttsEngine.resume()
       setIsPaused(false)
     }
   }
@@ -618,6 +785,7 @@ export function PlayScreen() {
                 : undefined
             }
             isPaused={isPaused}
+            isGenerating={isGenerating}
             progressPercentage={progressPercentage}
             elapsedTime={elapsedTime}
             estimatedDuration={estimatedDuration}

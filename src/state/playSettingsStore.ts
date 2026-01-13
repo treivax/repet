@@ -10,6 +10,9 @@ import type { PlaySettings } from '../core/models/Settings'
 import { createDefaultPlaySettings } from '../core/models/Settings'
 import type { ReadingMode } from '../core/tts/readingModes'
 import type { Gender } from '../core/models/types'
+import type { TTSProviderType, VoiceGender } from '../core/tts/types'
+import { ttsProviderManager } from '../core/tts/providers'
+import { migrateAllPlaySettings, migratePlaySettingsVoices } from '../utils/voiceMigration'
 
 /**
  * État du PlaySettings Store
@@ -57,6 +60,20 @@ interface PlaySettingsState {
 
   /** Réinitialise les paramètres d'une pièce */
   resetPlaySettings: (playId: string) => void
+
+  /** Change le provider TTS pour une pièce */
+  setTTSProvider: (playId: string, provider: TTSProviderType) => void
+
+  /** Assigne une voix spécifique à un personnage pour un provider donné */
+  setCharacterVoiceAssignment: (
+    playId: string,
+    provider: TTSProviderType,
+    characterId: string,
+    voiceId: string
+  ) => void
+
+  /** Réassigne toutes les voix pour un provider donné */
+  reassignAllVoices: (playId: string, provider: TTSProviderType) => void
 }
 
 /**
@@ -72,7 +89,20 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
       getPlaySettings: (playId: string) => {
         const existing = get().playSettings[playId]
         if (existing) {
-          return existing
+          // Appliquer les migrations de voix si nécessaire
+          const migrated = migratePlaySettingsVoices(existing)
+
+          // Si des migrations ont eu lieu, sauvegarder les changements
+          if (migrated !== existing) {
+            set((state) => ({
+              playSettings: {
+                ...state.playSettings,
+                [playId]: migrated,
+              },
+            }))
+          }
+
+          return migrated
         }
 
         // Créer paramètres par défaut
@@ -166,9 +196,111 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
           },
         }))
       },
+
+      setTTSProvider: (playId: string, provider: TTSProviderType) => {
+        get().updatePlaySettings(playId, { ttsProvider: provider })
+      },
+
+      setCharacterVoiceAssignment: (
+        playId: string,
+        provider: TTSProviderType,
+        characterId: string,
+        voiceId: string
+      ) => {
+        const settings = get().getPlaySettings(playId)
+
+        // Récupérer l'ancienne voix assignée pour la supprimer du cache
+        let oldVoiceId: string | undefined
+        if (provider === 'piper-wasm') {
+          oldVoiceId = settings.characterVoicesPiper[characterId]
+        } else {
+          oldVoiceId = settings.characterVoicesGoogle[characterId]
+        }
+
+        // Vider le cache de l'ancienne voix si elle existe et est différente
+        if (oldVoiceId && oldVoiceId !== voiceId && provider === 'piper-wasm') {
+          // Import dynamique pour éviter les dépendances circulaires
+          import('../core/tts/providers/PiperWASMProvider')
+            .then(({ piperWASMProvider }) => {
+              piperWASMProvider.clearCacheForVoice(oldVoiceId).then((deletedCount) => {
+                if (deletedCount > 0) {
+                  console.warn(
+                    `[PlaySettings] 🗑️ Cache vidé pour l'ancienne voix ${oldVoiceId} (${deletedCount} entrées)`
+                  )
+                }
+              })
+            })
+            .catch((err) => {
+              console.error('[PlaySettings] Erreur lors du vidage du cache:', err)
+            })
+        }
+
+        // Choisir la bonne map selon le provider
+        if (provider === 'piper-wasm') {
+          const updatedAssignments = {
+            ...settings.characterVoicesPiper,
+            [characterId]: voiceId,
+          }
+          get().updatePlaySettings(playId, { characterVoicesPiper: updatedAssignments })
+        } else {
+          const updatedAssignments = {
+            ...settings.characterVoicesGoogle,
+            [characterId]: voiceId,
+          }
+          get().updatePlaySettings(playId, { characterVoicesGoogle: updatedAssignments })
+        }
+      },
+
+      reassignAllVoices: (playId: string, provider: TTSProviderType) => {
+        const settings = get().getPlaySettings(playId)
+
+        // Récupérer les personnages avec leurs genres
+        const characters: Array<{ id: string; gender: VoiceGender }> = Object.entries(
+          settings.characterVoices
+        ).map(([id, gender]) => ({
+          id,
+          gender: gender as VoiceGender,
+        }))
+
+        // Générer nouvelles assignations via le provider
+        const providerInstance = ttsProviderManager.getActiveProvider()
+        if (!providerInstance) {
+          console.warn('[PlaySettingsStore] Aucun provider actif pour réassigner les voix')
+          return
+        }
+
+        const newAssignments = providerInstance.generateVoiceAssignments(characters, {})
+
+        // Sauvegarder selon le provider
+        if (provider === 'piper-wasm') {
+          get().updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
+        } else {
+          get().updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
+        }
+      },
     }),
     {
       name: 'repet-play-settings-storage',
+      // Middleware pour migrer automatiquement les voix lors de l'hydratation
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('[PlaySettingsStore] Erreur lors de la réhydratation:', error)
+            return
+          }
+
+          if (state) {
+            // Migrer toutes les assignations de voix obsolètes
+            const migratedSettings = migrateAllPlaySettings(state.playSettings)
+
+            // Mettre à jour l'état si des migrations ont eu lieu
+            if (migratedSettings !== state.playSettings) {
+              state.playSettings = migratedSettings
+              console.warn('[PlaySettingsStore] ✅ Migrations de voix appliquées au chargement')
+            }
+          }
+        }
+      },
     }
   )
 )

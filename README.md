@@ -30,7 +30,48 @@ Application PWA de répétition de théâtre en italiennes.
 - **Node.js** 18+ 
 - **npm** 7+
 
-## 🛠️ Installation
+## 📴 Mode Déconnecté (Nouveau !)
+
+Répét fonctionne maintenant **100% hors ligne** ! Tous les fichiers WASM et modèles de voix Piper sont intégrés au build.
+
+### Installation Rapide
+
+```bash
+npm install   # Télécharge automatiquement les modèles (~270 MB)
+npm run dev   # L'app fonctionne en mode déconnecté
+```
+
+### Fonctionnalités Offline
+
+- ✅ **Fichiers WASM locaux** : ONNX Runtime + Piper phonemize (~29 MB)
+- ✅ **4 voix françaises** : Siwis, Tom, UPMC Jessica, MLS Pierre (~270 MB)
+- ✅ **PWA complète** : Fonctionne sans Internet après installation
+- ✅ **Cache audio** : Les répliques générées sont mises en cache
+- ⚠️ **Limitation** : Les modèles .onnx sont toujours téléchargés depuis HuggingFace lors de la première utilisation (limitation de la bibliothèque)
+
+### Documentation Complète
+
+- **[OFFLINE_QUICKSTART.md](OFFLINE_QUICKSTART.md)** - Guide de démarrage rapide
+- **[docs/OFFLINE_MODE.md](docs/OFFLINE_MODE.md)** - Documentation technique complète
+- **[OFFLINE_MODE_READY.md](OFFLINE_MODE_READY.md)** - Instructions de test
+
+### Commandes
+
+```bash
+# Télécharger/re-télécharger les modèles
+npm run download-models
+
+# Vérifier les fichiers
+ls public/voices/  # 4 dossiers de modèles
+ls public/wasm/    # Fichiers WASM Piper + ONNX
+
+# Build avec tous les assets
+npm run build      # dist/ contient tout (~390 MB)
+```
+
+---
+
+## 🚀 Installation
 
 ```bash
 # Cloner le dépôt
@@ -207,7 +248,14 @@ npm run dev
 - **iOS** : Safari 15+ (support PWA)
 - **Android** : Chrome 90+ (support PWA)
 
-## 📖 Documentation
+## 📚 Documentation
+
+### Guides Utilisateur
+
+- [README.md](README.md) - Ce fichier
+- [OFFLINE_QUICKSTART.md](OFFLINE_QUICKSTART.md) - Mode déconnecté : guide rapide
+
+### Documentation Technique
 
 - [Guide utilisateur](docs/USER_GUIDE.md) - Instructions complètes d'utilisation et mode italiennes
 - [Architecture](docs/ARCHITECTURE.md) - Documentation technique complète (AST, flux, stores)

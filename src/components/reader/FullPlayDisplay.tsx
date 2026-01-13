@@ -64,6 +64,9 @@ interface Props {
 
   /** Durée estimée totale en secondes */
   estimatedDuration?: number
+
+  /** Audio en cours de génération (synthèse) */
+  isGenerating?: boolean
 }
 
 /**
@@ -89,6 +92,7 @@ export function FullPlayDisplay({
   progressPercentage,
   elapsedTime,
   estimatedDuration,
+  isGenerating,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const currentLineRef = useRef<HTMLDivElement>(null)
@@ -205,6 +209,7 @@ export function FullPlayDisplay({
                           progressPercentage={isPlaying ? progressPercentage : 0}
                           elapsedTime={isPlaying ? elapsedTime : 0}
                           estimatedDuration={isPlaying ? estimatedDuration : 0}
+                          isGenerating={isPlaying ? isGenerating : false}
                         />
                       </div>
                     )
@@ -237,6 +242,7 @@ export function FullPlayDisplay({
                         progressPercentage={isPlaying ? progressPercentage : 0}
                         elapsedTime={isPlaying ? elapsedTime : 0}
                         estimatedDuration={isPlaying ? estimatedDuration : 0}
+                        isGenerating={isPlaying ? isGenerating : false}
                       />
                     </div>
                   )

@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+#### Corrections Audio - Superposition et Volume en Mode Italienne (2025-01-XX)
+
+- **CORRECTIF MAJEUR** - Les répliques en mode italiennes sont maintenant complètement muettes pour le personnage choisi
+  - **Problème** : En mode italiennes, les répliques du personnage choisi étaient audibles alors qu'elles devraient être muettes (volume=0)
+  - **Cause racine #1** : Utilisation de `||` au lieu de `??` pour le volume → `0 || 1` retournait `1`
+  - **Cause racine #2** : Volume inclus dans la clé de cache (erreur conceptuelle - le volume est une propriété de lecture, pas de synthèse)
+  - **Correction** : Remplacement de tous les `||` par `??` (nullish coalescing) pour permettre explicitement `volume=0`
+  - **Correction** : Suppression du volume de la clé de cache dans `AudioCacheService.generateCacheKey()`
+  - **Impact** : Une seule entrée en cache par audio (au lieu de multiples avec différents volumes), économie d'espace
+  - **Fichiers modifiés** :
+    - `src/core/tts/providers/PiperWASMProvider.ts` : Correction volume pour audio depuis cache ET nouvellement synthétisé
+    - `src/core/tts/services/AudioCacheService.ts` : Exclusion du volume de la clé de cache
+    - `src/screens/PlayScreen.tsx` : Ajout de logs de débogage pour mode italiennes
+
+- **CORRECTIF** - Correction de la superposition audio lors de clics rapides sur différentes répliques
+  - **Problème** : Cliquer sur une réplique pendant qu'une autre était en lecture créait une superposition audio
+  - **Cause racine** : L'ancien élément `HTMLAudioElement` n'était pas complètement arrêté avant le démarrage d'un nouveau
+  - **Conséquences** : Événements non nettoyés, URLs blob non libérées (fuite mémoire)
+  - **Correction** : Amélioration de `PiperWASMProvider.stop()` avec nettoyage complet :
+    - Suppression de tous les événements (onplay, onended, onerror, ontimeupdate)
+    - Arrêt complet de la lecture (pause + reset currentTime)
+    - Libération de l'URL blob avec `URL.revokeObjectURL()`
+  - **Correction** : Appel proactif de `stop()` avant de créer un nouvel audio
+  - **Impact** : Pas de superposition audio, pas de fuite mémoire
+
+- **Amélioration** - Logs de débogage ajoutés pour faciliter le diagnostic
+  - `[PlayScreen] 🎭 Mode italiennes - Ligne utilisateur détectée: volume=X, rate=Y`
+  - `[PiperWASM] 🔊 Audio depuis cache - volume appliqué: X, rate: Y`
+  - `[PiperWASM] 🔊 Audio nouvellement synthétisé - volume appliqué: X, rate: Y`
+
+- **Documentation** - Ajout de `AUDIO_FIXES_TEST.md` et `VOLUME_FIX_SUMMARY.md` avec tests détaillés
+
+#### Désactivation de la voix Gilles et migration automatique (2025-01-XX)
+
+- **Voix Gilles désactivée** - La voix `fr_FR-gilles-low` a été retirée de la liste des voix disponibles
+  - Raison : Erreurs ONNX Runtime récurrentes (Gather node index out of bounds)
+  - Les erreurs se produisaient sur des lignes contenant didascalies, onomatopées ou ponctuation inhabituelle
+  - Le modèle produit des indices hors limites (ex: idx=141 pour range [-130,129])
+- **Migration automatique des assignations**
+  - Les personnages utilisant Gilles sont automatiquement réassignés à Tom (`fr_FR-tom-medium`)
+  - La migration s'applique automatiquement au chargement des paramètres depuis localStorage
+  - Un système de mapping gère les voix obsolètes : `fr_FR-gilles-low` → `fr_FR-tom-medium`
+- **Utilitaires de diagnostic ajoutés**
+  - `voiceMigration.ts` : Gestion des migrations de voix obsolètes
+  - `voiceDiagnostics.ts` : Détection des voix problématiques et analyse de texte
+  - Détection automatique des patterns problématiques (???, !!!, onomatopées, didascalies)
+- **Voix masculine recommandée** - Tom (`fr_FR-tom-medium`) est maintenant la seule voix masculine fiable
+- **Note historique** - La voix MLS (`fr_FR-mls-medium`) avait été retirée précédemment pour audio distordu
+
 ### ✨ Features
 
 #### Support Format de Répliques Sans Deux-Points (2025-01-XX)

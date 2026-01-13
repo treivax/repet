@@ -10,14 +10,19 @@ import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { playsRepository } from '../core/storage/plays'
 import type { Play } from '../core/models/Play'
 import { getPlayTitle, getPlayCharacters, getPlayAuthor } from '../core/models/playHelpers'
-import { VoiceAssignment } from '../components/play/VoiceAssignment'
+import { TTSProviderSelector } from '../components/play/TTSProviderSelector'
+import { CharacterVoiceEditor } from '../components/play/CharacterVoiceEditor'
 import { AudioSettings } from '../components/play/AudioSettings'
 import { ItalianSettings } from '../components/play/ItalianSettings'
+import { PiperModelManager } from '../components/play/PiperModelManager'
 import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { CharacterSelector } from '../components/play/CharacterSelector'
 import { StandardHeader } from '../components/common/StandardHeader'
 import { useFrenchVoices } from '../hooks/useFrenchVoices'
+import { ttsProviderManager } from '../core/tts/providers'
+import { PiperWASMProvider } from '../core/tts/providers/PiperWASMProvider'
+import type { VoiceDescriptor, VoiceGender } from '../core/tts/types'
 
 /**
  * Écran de présentation détaillée d'une pièce (Écran "Texte" dans la spec)
@@ -31,6 +36,8 @@ export function PlayDetailScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showCharacterSelector, setShowCharacterSelector] = useState(false)
+  const [showModelManager, setShowModelManager] = useState(false)
+  const [availableVoices, setAvailableVoices] = useState<VoiceDescriptor[]>([])
 
   // Compter les voix françaises disponibles
   const frenchVoices = useFrenchVoices()
@@ -50,6 +57,11 @@ export function PlayDetailScreen() {
   const setDefaultSpeed = usePlaySettingsStore((state) => state.setDefaultSpeed)
   const toggleVoiceOff = usePlaySettingsStore((state) => state.toggleVoiceOff)
   const deletePlaySettings = usePlaySettingsStore((state) => state.deletePlaySettings)
+  const setTTSProvider = usePlaySettingsStore((state) => state.setTTSProvider)
+  const setCharacterVoiceAssignment = usePlaySettingsStore(
+    (state) => state.setCharacterVoiceAssignment
+  )
+  const reassignAllVoices = usePlaySettingsStore((state) => state.reassignAllVoices)
 
   // Chargement de la pièce
   useEffect(() => {
@@ -75,6 +87,59 @@ export function PlayDetailScreen() {
 
     loadPlay()
   }, [playId, navigate])
+
+  // Charger les voix disponibles quand le provider change
+  useEffect(() => {
+    if (!settings) return
+
+    const loadVoices = async () => {
+      try {
+        // Initialiser le provider manager avec le provider des settings
+        await ttsProviderManager.initialize(settings.ttsProvider)
+
+        // Récupérer les voix
+        const voices = ttsProviderManager.getVoices()
+        setAvailableVoices(voices)
+
+        // Auto-générer les assignations si vides
+        const assignmentMap =
+          settings.ttsProvider === 'piper-wasm'
+            ? settings.characterVoicesPiper
+            : settings.characterVoicesGoogle
+
+        if (Object.keys(assignmentMap).length === 0 && characters.length > 0) {
+          // Générer les assignations automatiquement
+          const charactersWithGender = characters.map((char) => ({
+            id: char.id,
+            gender: (settings.characterVoices[char.id] || 'male') as VoiceGender,
+          }))
+
+          const provider = ttsProviderManager.getActiveProvider()
+          if (provider) {
+            const newAssignments = provider.generateVoiceAssignments(charactersWithGender, {})
+
+            // Sauvegarder
+            if (playId) {
+              if (settings.ttsProvider === 'piper-wasm') {
+                usePlaySettingsStore
+                  .getState()
+                  .updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
+              } else {
+                usePlaySettingsStore
+                  .getState()
+                  .updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des voix:', error)
+      }
+    }
+
+    loadVoices()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.ttsProvider, playId])
 
   if (isLoading) {
     return (
@@ -134,6 +199,53 @@ export function PlayDetailScreen() {
     } catch {
       // Gérer l'erreur si nécessaire
     }
+  }
+
+  const handleProviderChange = async (provider: 'web-speech' | 'piper-wasm') => {
+    if (!playId) return
+
+    try {
+      // Changer le provider dans le manager
+      await ttsProviderManager.switchProvider(provider)
+
+      // Mettre à jour les settings
+      setTTSProvider(playId, provider)
+
+      // Recharger les voix
+      const voices = ttsProviderManager.getVoices()
+      setAvailableVoices(voices)
+    } catch (error) {
+      console.error('Erreur lors du changement de provider:', error)
+    }
+  }
+
+  const handleReassignVoices = () => {
+    if (!playId || !settings) return
+    reassignAllVoices(playId, settings.ttsProvider)
+  }
+
+  const handleVoiceChange = (characterId: string, voiceId: string) => {
+    if (!playId || !settings) return
+    setCharacterVoiceAssignment(playId, settings.ttsProvider, characterId, voiceId)
+  }
+
+  const handleGenderChange = (characterId: string, gender: 'male' | 'female' | 'neutral') => {
+    if (!playId) return
+
+    // Mettre à jour le genre
+    setCharacterGender(playId, characterId, gender as 'male' | 'female')
+
+    // Réassigner automatiquement une voix du nouveau genre
+    if (gender !== 'neutral') {
+      const voices = availableVoices.filter((v) => v.gender === gender)
+      if (voices.length > 0) {
+        setCharacterVoiceAssignment(playId, settings!.ttsProvider, characterId, voices[0].id)
+      }
+    }
+  }
+
+  const handleManageModels = () => {
+    setShowModelManager(true)
   }
 
   return (
@@ -308,19 +420,45 @@ export function PlayDetailScreen() {
 
             {/* BLOC 3 : Les voix */}
             <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-              <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Voix des personnages
               </h2>
-              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Choisissez le sexe pour chaque personnage afin d'assigner la voix appropriée
-              </p>
-              <VoiceAssignment
-                characters={characters}
-                characterVoices={settings.characterVoices}
-                onVoiceChange={(characterId, gender) =>
-                  setCharacterGender(playId, characterId, gender)
-                }
-              />
+
+              {/* Provider Selector */}
+              <div className="mb-6">
+                <TTSProviderSelector
+                  currentProvider={settings.ttsProvider}
+                  onProviderChange={handleProviderChange}
+                  onReassignVoices={handleReassignVoices}
+                  onManageModels={handleManageModels}
+                />
+              </div>
+
+              {/* Liste des personnages avec éditeur de voix */}
+              <div className="space-y-3">
+                {characters.map((character) => {
+                  const gender = settings.characterVoices[character.id] || 'male'
+                  const assignmentMap =
+                    settings.ttsProvider === 'piper-wasm'
+                      ? settings.characterVoicesPiper
+                      : settings.characterVoicesGoogle
+                  const voiceId = assignmentMap[character.id]
+                  const voice = availableVoices.find((v) => v.id === voiceId) || null
+
+                  return (
+                    <CharacterVoiceEditor
+                      key={character.id}
+                      characterId={character.id}
+                      characterName={character.name}
+                      currentGender={gender}
+                      currentVoice={voice}
+                      availableVoices={availableVoices}
+                      onGenderChange={handleGenderChange}
+                      onVoiceChange={handleVoiceChange}
+                    />
+                  )
+                })}
+              </div>
             </section>
 
             {/* BLOC 4 : Réglages */}
@@ -431,6 +569,14 @@ export function PlayDetailScreen() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de gestion des modèles Piper */}
+      {showModelManager && settings.ttsProvider === 'piper-wasm' && (
+        <PiperModelManager
+          provider={ttsProviderManager.getActiveProvider() as PiperWASMProvider}
+          onClose={() => setShowModelManager(false)}
+        />
       )}
     </div>
   )

@@ -7,10 +7,42 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 
 export default defineConfig({
   plugins: [
     react(),
+    viteStaticCopy({
+      targets: [
+        // Fichiers WASM de ONNX Runtime
+        {
+          src: 'node_modules/onnxruntime-web/dist/*.wasm',
+          dest: 'wasm',
+        },
+        {
+          src: 'node_modules/onnxruntime-web/dist/*.mjs',
+          dest: 'wasm',
+        },
+        {
+          src: 'node_modules/onnxruntime-web/dist/*.js',
+          dest: 'wasm',
+        },
+        // Fichiers WASM de Piper (phonemize)
+        {
+          src: 'public/wasm/piper_phonemize.wasm',
+          dest: 'wasm',
+        },
+        {
+          src: 'public/wasm/piper_phonemize.data',
+          dest: 'wasm',
+        },
+        // Modèles de voix Piper (téléchargés via script)
+        {
+          src: 'public/voices/**/*',
+          dest: 'voices',
+        },
+      ],
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       // Décommenter pour activer le service worker en mode dev (test PWA)
@@ -43,7 +75,16 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Inclure tous les assets statiques + petits fichiers WASM
+        // Les gros modèles (.onnx > 50MB) seront chargés à la demande, pas précachés
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,mjs}'],
+        // Exclure les très gros fichiers du precache (seront chargés à la demande)
+        globIgnores: [
+          '**/voices/**/*.onnx', // Modèles vocaux (~60-76 MB chacun)
+          '**/wasm/ort-wasm-simd-threaded*.wasm', // WASM threadé volumineux
+        ],
+        // Limite pour les fichiers WASM plus petits et .data
+        maximumFileSizeToCacheInBytes: 100 * 1024 * 1024, // 100 MB
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -63,4 +104,13 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    headers: {
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+    },
+  },
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
+  },
 })
