@@ -5,3 +5,11 @@
  */
 
 /// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_BUILD_MODE: 'offline' | 'online'
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}

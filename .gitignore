@@ -37,6 +37,8 @@ public/voices/*
 
 # Build outputs
 dist
+dist-offline
+dist-online
 build
 out
 

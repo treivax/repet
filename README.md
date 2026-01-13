@@ -30,24 +30,113 @@ Application PWA de répétition de théâtre en italiennes.
 - **Node.js** 18+ 
 - **npm** 7+
 
-## 📴 Mode Déconnecté (Nouveau !)
-
-Répét fonctionne maintenant **100% hors ligne** ! Tous les fichiers WASM et modèles de voix Piper sont intégrés au build.
-
-### Installation Rapide
+## 🚀 Installation et Développement
 
 ```bash
-npm install   # Télécharge automatiquement les modèles (~270 MB)
-npm run dev   # L'app fonctionne en mode déconnecté
+# Cloner le repository
+git clone https://github.com/OWNER/repet.git
+cd repet
+
+# Installer les dépendances
+npm install
+
+# Télécharger les modèles vocaux (~268 MB)
+npm run download-models
+
+# Développement version offline (default)
+npm run dev:offline
+
+# Développement version online (iOS)
+npm run dev:online
 ```
 
-### Fonctionnalités Offline
+## 🏗️ Build de Production
 
-- ✅ **Fichiers WASM locaux** : ONNX Runtime + Piper phonemize (~29 MB)
-- ✅ **4 voix françaises** : Siwis, Tom, UPMC Jessica, MLS Pierre (~270 MB)
-- ✅ **PWA complète** : Fonctionne sans Internet après installation
-- ✅ **Cache audio** : Les répliques générées sont mises en cache
-- ⚠️ **Limitation** : Les modèles .onnx sont toujours téléchargés depuis HuggingFace lors de la première utilisation (limitation de la bibliothèque)
+### Build des deux versions
+
+```bash
+# Build complet (offline + online)
+npm run build
+
+# Build offline uniquement
+npm run build:offline
+
+# Build online uniquement
+npm run build:online
+```
+
+### Structure des builds
+
+```
+repet/
+├── dist-offline/     # Version offline (~675 MB)
+│   └── voices/       # Voix embarquées
+└── dist-online/      # Version online (~5-10 MB)
+    └── (pas de dossier voices/)
+```
+
+### Preview
+
+```bash
+# Preview version offline
+npm run preview:offline
+
+# Preview version online
+npm run preview:online
+```
+
+## 📦 Déploiement
+
+### Version Offline → app.repet.com
+
+```bash
+npm run build:offline
+# Déployer dist-offline/
+```
+
+### Version Online → ios.repet.com
+
+```bash
+npm run build:online
+# Déployer dist-online/
+# + Héberger les voix sur CDN (voir docs/CDN_SETUP.md)
+```
+
+📚 **Guide de déploiement** : Voir [docs/TWO_BUILDS_ARCHITECTURE.md](docs/TWO_BUILDS_ARCHITECTURE.md) et [docs/CDN_SETUP.md](docs/CDN_SETUP.md)
+
+## 📱 Deux Versions Disponibles
+
+Répét est disponible en **deux versions** pour s'adapter aux contraintes des différentes plateformes :
+
+### 🖥️ Version Offline - Desktop/Android
+
+**URL** : https://app.repet.com
+
+- ✅ **100% hors ligne** après le premier chargement
+- ✅ **Toutes les voix embarquées** (~675 MB)
+- ✅ Compatible **Desktop** (Chrome, Firefox, Edge, Safari) et **Android**
+- ✅ Expérience optimale pour répétitions sans connexion
+
+### 📱 Version Online - iOS/Safari/macOS
+
+**URL** : https://ios.repet.com
+
+- ✅ **Léger** : ~5-10 MB seulement
+- ✅ **Compatible iOS/Safari** : respecte les limites de stockage strictes
+- ✅ Les voix sont **téléchargées à la demande** depuis le CDN
+- ✅ **Cache intelligent** avec stratégie LRU
+- ⚠️ **Nécessite Internet** pour le téléchargement initial des voix
+
+### 🎯 Quelle Version Choisir ?
+
+| Plateforme | Version Recommandée |
+|------------|---------------------|
+| Desktop (Chrome, Firefox, Edge) | **Offline** |
+| Android moderne | **Offline** |
+| iOS / iPhone / iPad | **Online** |
+| macOS Safari | **Online** |
+
+📚 **Documentation complète** : Voir [docs/TWO_BUILDS_ARCHITECTURE.md](docs/TWO_BUILDS_ARCHITECTURE.md)
 
 ### Documentation Complète
 
