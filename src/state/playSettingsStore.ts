@@ -12,6 +12,7 @@ import type { ReadingMode } from '../core/tts/readingModes'
 import type { Gender } from '../core/models/types'
 import type { TTSProviderType, VoiceGender } from '../core/tts/types'
 import { ttsProviderManager } from '../core/tts/providers'
+import { migrateAllPlaySettings, migratePlaySettingsVoices } from '../utils/voiceMigration'
 
 /**
  * État du PlaySettings Store
@@ -88,7 +89,20 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
       getPlaySettings: (playId: string) => {
         const existing = get().playSettings[playId]
         if (existing) {
-          return existing
+          // Appliquer les migrations de voix si nécessaire
+          const migrated = migratePlaySettingsVoices(existing)
+
+          // Si des migrations ont eu lieu, sauvegarder les changements
+          if (migrated !== existing) {
+            set((state) => ({
+              playSettings: {
+                ...state.playSettings,
+                [playId]: migrated,
+              },
+            }))
+          }
+
+          return migrated
         }
 
         // Créer paramètres par défaut
@@ -195,6 +209,32 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
       ) => {
         const settings = get().getPlaySettings(playId)
 
+        // Récupérer l'ancienne voix assignée pour la supprimer du cache
+        let oldVoiceId: string | undefined
+        if (provider === 'piper-wasm') {
+          oldVoiceId = settings.characterVoicesPiper[characterId]
+        } else {
+          oldVoiceId = settings.characterVoicesGoogle[characterId]
+        }
+
+        // Vider le cache de l'ancienne voix si elle existe et est différente
+        if (oldVoiceId && oldVoiceId !== voiceId && provider === 'piper-wasm') {
+          // Import dynamique pour éviter les dépendances circulaires
+          import('../core/tts/providers/PiperWASMProvider')
+            .then(({ piperWASMProvider }) => {
+              piperWASMProvider.clearCacheForVoice(oldVoiceId).then((deletedCount) => {
+                if (deletedCount > 0) {
+                  console.warn(
+                    `[PlaySettings] 🗑️ Cache vidé pour l'ancienne voix ${oldVoiceId} (${deletedCount} entrées)`
+                  )
+                }
+              })
+            })
+            .catch((err) => {
+              console.error('[PlaySettings] Erreur lors du vidage du cache:', err)
+            })
+        }
+
         // Choisir la bonne map selon le provider
         if (provider === 'piper-wasm') {
           const updatedAssignments = {
@@ -241,6 +281,26 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
     }),
     {
       name: 'repet-play-settings-storage',
+      // Middleware pour migrer automatiquement les voix lors de l'hydratation
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.error('[PlaySettingsStore] Erreur lors de la réhydratation:', error)
+            return
+          }
+
+          if (state) {
+            // Migrer toutes les assignations de voix obsolètes
+            const migratedSettings = migrateAllPlaySettings(state.playSettings)
+
+            // Mettre à jour l'état si des migrations ont eu lieu
+            if (migratedSettings !== state.playSettings) {
+              state.playSettings = migratedSettings
+              console.warn('[PlaySettingsStore] ✅ Migrations de voix appliquées au chargement')
+            }
+          }
+        }
+      },
     }
   )
 )

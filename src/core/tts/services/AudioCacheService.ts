@@ -28,49 +28,75 @@ export class AudioCacheService {
   private initPromise: Promise<void> | null = null
 
   /**
-   * Initialize the IndexedDB database
+   * Initialize the IndexedDB database and clear cache on startup
    */
   async initialize(): Promise<void> {
     if (this.initPromise) {
       return this.initPromise
     }
 
-    this.initPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, 1)
+    this.initPromise = (async () => {
+      await new Promise<void>((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, 1)
 
-      request.onerror = () => {
-        console.error('Failed to open audio cache database:', request.error)
-        reject(request.error)
-      }
-
-      request.onsuccess = () => {
-        this.db = request.result
-        resolve()
-      }
-
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result
-
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, { keyPath: 'key' })
-          store.createIndex('lastAccess', 'lastAccess', { unique: false })
-          store.createIndex('createdAt', 'createdAt', { unique: false })
+        request.onerror = () => {
+          console.error('Failed to open audio cache database:', request.error)
+          reject(request.error)
         }
+
+        request.onsuccess = () => {
+          this.db = request.result
+          resolve()
+        }
+
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result
+
+          if (!db.objectStoreNames.contains(this.storeName)) {
+            const store = db.createObjectStore(this.storeName, { keyPath: 'key' })
+            store.createIndex('lastAccess', 'lastAccess', { unique: false })
+            store.createIndex('createdAt', 'createdAt', { unique: false })
+          }
+        }
+      })
+
+      // Vider le cache au démarrage pour garantir la cohérence avec les modèles rechargés
+      // On le fait directement ici pour éviter le deadlock (clearCache() appelle initialize())
+      if (this.db) {
+        await new Promise<void>((resolve) => {
+          console.warn('[AudioCache] 🗑️ Vidage du cache au démarrage (modèles rechargés)')
+          const transaction = this.db!.transaction([this.storeName], 'readwrite')
+          const store = transaction.objectStore(this.storeName)
+          const request = store.clear()
+
+          request.onsuccess = () => {
+            console.warn('[AudioCache] ✅ Cache vidé avec succès')
+            resolve()
+          }
+
+          request.onerror = () => {
+            console.error('[AudioCache] ❌ Erreur lors du vidage du cache:', request.error)
+            // On ne rejette pas pour ne pas bloquer l'initialisation
+            resolve()
+          }
+        })
       }
-    })
+    })()
 
     return this.initPromise
   }
 
   /**
    * Generate a cache key from text and synthesis options
+   * Note: volume is NOT included because it's a playback property, not a synthesis property
    */
   generateCacheKey(
     text: string,
     voiceId: string,
     settings: { rate?: number; pitch?: number; volume?: number } = {}
   ): string {
-    const data = `${text}|${voiceId}|${settings.rate || 1}|${settings.pitch || 1}|${settings.volume || 1}`
+    // Volume is excluded from cache key - it's applied at playback time
+    const data = `${text}|${voiceId}|${settings.rate ?? 1}|${settings.pitch ?? 1}`
 
     // Simple hash function
     let hash = 0
@@ -80,7 +106,12 @@ export class AudioCacheService {
       hash = hash & hash // Convert to 32bit integer
     }
 
-    return `audio_${Math.abs(hash).toString(16)}`
+    const key = `audio_${Math.abs(hash).toString(16)}`
+    console.warn(`[AudioCache] 🔑 Clé générée: ${key}`)
+    console.warn(`[AudioCache]    - voiceId: ${voiceId}`)
+    console.warn(`[AudioCache]    - texte: "${text.substring(0, 30)}..."`)
+    console.warn(`[AudioCache]    - data complète: "${data.substring(0, 100)}..."`)
+    return key
   }
 
   /**
@@ -100,6 +131,7 @@ export class AudioCacheService {
     }
 
     const key = this.generateCacheKey(text, voiceId, settings)
+    console.warn(`[AudioCache] 💾 Mise en cache avec clé: ${key}`)
     const now = Date.now()
 
     const cached: CachedAudio = {
@@ -119,6 +151,9 @@ export class AudioCacheService {
       const request = store.put(cached)
 
       request.onsuccess = () => {
+        console.warn(
+          `[AudioCache] ✅ Audio mis en cache avec succès (clé: ${key}, taille: ${blob.size} bytes)`
+        )
         // Check cache size and cleanup if needed
         this.cleanupIfNeeded().catch(console.error)
         resolve()
@@ -146,6 +181,7 @@ export class AudioCacheService {
     }
 
     const key = this.generateCacheKey(text, voiceId, settings)
+    console.warn(`[AudioCache] 🔍 Recherche dans le cache avec clé: ${key}`)
 
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([this.storeName], 'readwrite')
@@ -156,9 +192,14 @@ export class AudioCacheService {
         const cached = request.result as CachedAudio | undefined
 
         if (!cached) {
+          console.warn(`[AudioCache] ❌ Clé ${key} NON trouvée dans le cache`)
           resolve(null)
           return
         }
+
+        console.warn(`[AudioCache] ✅ Clé ${key} TROUVÉE dans le cache (${cached.blob.size} bytes)`)
+        console.warn(`[AudioCache]    - voiceId: ${cached.voiceId}`)
+        console.warn(`[AudioCache]    - texte: "${cached.text.substring(0, 30)}..."`)
 
         // Update access statistics
         cached.lastAccess = Date.now()
@@ -303,7 +344,7 @@ export class AudioCacheService {
       const request = store.clear()
 
       request.onsuccess = () => {
-        console.log('Audio cache cleared')
+        console.warn('[AudioCache] ✅ Cache audio vidé avec succès')
         resolve()
       }
 
@@ -341,6 +382,70 @@ export class AudioCacheService {
 
       request.onerror = () => {
         console.error('Failed to delete cache item:', request.error)
+        reject(request.error)
+      }
+    })
+  }
+
+  /**
+   * Delete all cached items for a specific voice
+   * Useful when changing voice assignment for a character
+   */
+  async deleteByVoiceId(voiceId: string): Promise<number> {
+    await this.initialize()
+
+    if (!this.db) {
+      return 0
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([this.storeName], 'readwrite')
+      const store = transaction.objectStore(this.storeName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        const items = request.result as CachedAudio[]
+        const toDelete = items.filter((item) => item.voiceId === voiceId)
+
+        if (toDelete.length === 0) {
+          console.warn(`[AudioCache] 🔍 Aucune entrée trouvée pour voiceId: ${voiceId}`)
+          resolve(0)
+          return
+        }
+
+        console.warn(
+          `[AudioCache] 🗑️ Suppression de ${toDelete.length} entrées pour voiceId: ${voiceId}`
+        )
+
+        let deletedCount = 0
+        let processedCount = 0
+
+        for (const item of toDelete) {
+          const deleteRequest = store.delete(item.key)
+
+          deleteRequest.onsuccess = () => {
+            deletedCount++
+            processedCount++
+
+            if (processedCount === toDelete.length) {
+              console.warn(`[AudioCache] ✅ ${deletedCount} entrées supprimées`)
+              resolve(deletedCount)
+            }
+          }
+
+          deleteRequest.onerror = () => {
+            console.error(`[AudioCache] ❌ Erreur lors de la suppression de ${item.key}`)
+            processedCount++
+
+            if (processedCount === toDelete.length) {
+              resolve(deletedCount)
+            }
+          }
+        }
+      }
+
+      request.onerror = () => {
+        console.error('Failed to get items for deletion:', request.error)
         reject(request.error)
       }
     })

@@ -15,6 +15,7 @@ import type {
 import { TtsSession, type VoiceId } from '@mintplex-labs/piper-tts-web'
 import { audioCacheService } from '../services/AudioCacheService'
 import * as ort from 'onnxruntime-web'
+import { ALL_VOICE_PROFILES, getVoiceProfile, applyBasicModifiers } from '../voiceProfiles'
 
 /**
  * Configuration d'un modèle Piper
@@ -29,6 +30,7 @@ interface PiperModelConfig extends VoiceDescriptor {
 
 /**
  * Configuration des modèles Piper disponibles
+ * Tous les modèles sont intégrés au build pour fonctionnement déconnecté
  */
 const PIPER_MODELS: PiperModelConfig[] = [
   {
@@ -40,7 +42,7 @@ const PIPER_MODELS: PiperModelConfig[] = [
     provider: 'piper-wasm',
     quality: 'medium',
     isLocal: true,
-    requiresDownload: true,
+    requiresDownload: false, // Déjà dans le build
     piperVoiceId: 'fr_FR-siwis-medium',
     downloadSize: 15_000_000, // ~15MB
   },
@@ -53,7 +55,7 @@ const PIPER_MODELS: PiperModelConfig[] = [
     provider: 'piper-wasm',
     quality: 'medium',
     isLocal: true,
-    requiresDownload: true,
+    requiresDownload: false, // Déjà dans le build
     piperVoiceId: 'fr_FR-tom-medium',
     downloadSize: 15_000_000, // ~15MB
   },
@@ -66,55 +68,84 @@ const PIPER_MODELS: PiperModelConfig[] = [
     provider: 'piper-wasm',
     quality: 'medium',
     isLocal: true,
-    requiresDownload: true,
+    requiresDownload: false, // Déjà dans le build
     piperVoiceId: 'fr_FR-upmc-medium',
     downloadSize: 16_000_000, // ~16MB
   },
-  {
-    id: 'fr_FR-mls-medium',
-    name: 'fr_FR-mls-medium',
-    displayName: 'MLS Pierre (Homme, France)',
-    language: 'fr-FR',
-    gender: 'male',
-    provider: 'piper-wasm',
-    quality: 'medium',
-    isLocal: true,
-    requiresDownload: true,
-    piperVoiceId: 'fr_FR-mls-medium',
-    downloadSize: 14_000_000, // ~14MB
-  },
+  // DÉSACTIVÉ : Gilles (fr_FR-gilles-low) - Cause des erreurs ONNX Runtime
+  // (Gather node index out of bounds - indices hors limites du modèle)
+  // Les personnages utilisant Gilles doivent être réassignés à Tom
+  // {
+  //   id: 'fr_FR-gilles-low',
+  //   name: 'fr_FR-gilles-low',
+  //   displayName: 'Gilles (Homme, France)',
+  //   language: 'fr-FR',
+  //   gender: 'male',
+  //   provider: 'piper-wasm',
+  //   quality: 'low',
+  //   isLocal: true,
+  //   requiresDownload: false, // Déjà dans le build
+  //   piperVoiceId: 'fr_FR-gilles-low',
+  //   downloadSize: 14_000_000, // ~14MB
+  // },
 ]
 
 /**
  * Provider TTS utilisant Piper-WASM via @mintplex-labs/piper-tts-web
+ * Mode 100% déconnecté : tous les modèles sont intégrés au build
  */
 export class PiperWASMProvider implements TTSProvider {
   readonly type = 'piper-wasm' as const
   readonly name = 'Piper (Voix naturelles)'
 
-  private currentSession: TtsSession | null = null
-  private currentVoiceId: string | null = null
   private currentAudio: HTMLAudioElement | null = null
   private initialized = false
   private downloadProgress: Map<string, number> = new Map()
   private isPaused = false
 
   /**
+   * Cache de sessions TtsSession par voix pour éviter de recharger les modèles
+   */
+  private sessionCache: Map<string, TtsSession> = new Map()
+
+  /**
    * Initialise le provider et le service de cache
+   * Configure ONNX Runtime pour utiliser les fichiers WASM locaux
    */
   async initialize(): Promise<void> {
     if (this.initialized) return
+
+    console.warn('[PiperWASM] 🔧 Initialisation du provider...')
 
     // Configurer ONNX Runtime pour utiliser les fichiers WASM locaux
     // Désactiver le multi-threading pour éviter les problèmes CORS
     ort.env.wasm.numThreads = 1
     ort.env.wasm.simd = true
-
-    // Utiliser le backend WASM simple au lieu du threaded
     ort.env.wasm.wasmPaths = '/wasm/'
 
+    console.warn('[PiperWASM] ✅ ONNX Runtime configuré')
+    console.warn('[PiperWASM]    - WASM Path: /wasm/')
+    console.warn('[PiperWASM]    - Threads: 1 (single-threaded)')
+    console.warn('[PiperWASM]    - SIMD: enabled')
+
+    // Configurer les chemins WASM pour TtsSession (utilisés par predict())
+    TtsSession.WASM_LOCATIONS = {
+      onnxWasm: '/wasm/',
+      piperData: '/wasm/piper_phonemize.data',
+      piperWasm: '/wasm/piper_phonemize.wasm',
+    }
+    console.warn('[PiperWASM] ✅ Chemins WASM configurés pour TtsSession')
+
     // Initialiser le service de cache audio
+    console.warn('[PiperWASM] 🔄 Initialisation du cache audio...')
     await audioCacheService.initialize()
+
+    // Afficher les statistiques du cache après initialisation
+    const cacheStats = await audioCacheService.getStats()
+    console.warn('[PiperWASM] ✅ Cache audio initialisé')
+    console.warn(
+      `[PiperWASM] 📊 Statistiques du cache: ${cacheStats.count} entrées, ${cacheStats.sizeFormatted}`
+    )
 
     this.initialized = true
   }
@@ -139,7 +170,8 @@ export class PiperWASMProvider implements TTSProvider {
    * Récupère la liste des voix disponibles
    */
   getVoices(): VoiceDescriptor[] {
-    return PIPER_MODELS.map((model) => ({
+    // Voix de base depuis les modèles Piper
+    const baseVoices = PIPER_MODELS.map((model) => ({
       id: model.id,
       name: model.name,
       displayName: model.displayName,
@@ -151,6 +183,22 @@ export class PiperWASMProvider implements TTSProvider {
       requiresDownload: model.requiresDownload,
       downloadSize: model.downloadSize,
     }))
+
+    // Profils vocaux (variantes des voix de base)
+    const profileVoices = ALL_VOICE_PROFILES.map((profile) => ({
+      id: profile.id,
+      name: profile.id,
+      displayName: profile.displayName,
+      language: 'fr-FR',
+      gender: (profile.perceivedGender || 'male') as VoiceGender,
+      provider: 'piper-wasm' as const,
+      quality: 'medium',
+      isLocal: true,
+      requiresDownload: false,
+    }))
+
+    // Retourner les voix de base + les profils
+    return [...baseVoices, ...profileVoices]
   }
 
   /**
@@ -233,10 +281,26 @@ export class PiperWASMProvider implements TTSProvider {
   async synthesize(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
     const startTime = Date.now()
 
-    console.warn(`[PiperWASM] synthesize() appelé avec voiceId: ${options.voiceId}`)
+    console.warn('[PiperWASM] synthesize() appelé avec voiceId:', options.voiceId)
+
+    // Détecter si c'est un profil vocal
+    const profile = getVoiceProfile(options.voiceId)
+    let actualVoiceId = options.voiceId
+    let voiceModifiers = null
+
+    if (profile) {
+      console.warn(
+        `[PiperWASM] 🎭 Profil vocal détecté: "${profile.displayName}" (base: ${profile.baseVoiceId})`
+      )
+      actualVoiceId = profile.baseVoiceId
+      voiceModifiers = profile.modifiers
+    }
 
     try {
-      // Vérifier le cache d'abord
+      // Vérifier le cache d'abord (avec le voiceId original pour les profils)
+      console.warn(
+        `[PiperWASM] 🔍 Vérification du cache pour voiceId="${options.voiceId}", texte="${text.substring(0, 30)}..."`
+      )
       const cachedBlob = await audioCacheService.getAudio(text, options.voiceId, {
         rate: options.rate,
         pitch: options.pitch,
@@ -244,10 +308,17 @@ export class PiperWASMProvider implements TTSProvider {
       })
 
       if (cachedBlob) {
+        console.warn(
+          `[PiperWASM] ✅ Audio trouvé dans le cache pour voiceId="${options.voiceId}" (${cachedBlob.size} bytes)`
+        )
         // Utiliser l'audio en cache
         const audio = new Audio(URL.createObjectURL(cachedBlob))
-        audio.playbackRate = options.rate || 1
-        audio.volume = options.volume || 1
+        audio.playbackRate = options.rate ?? 1
+        audio.volume = options.volume ?? 1
+
+        console.warn(
+          `[PiperWASM] 🔊 Audio depuis cache - volume appliqué: ${audio.volume}, rate: ${audio.playbackRate}, options.volume: ${options.volume}`
+        )
 
         // Connecter les événements
         audio.addEventListener('play', () => options.onStart?.())
@@ -263,70 +334,120 @@ export class PiperWASMProvider implements TTSProvider {
           duration: Date.now() - startTime,
           fromCache: true,
         }
+      } else {
+        console.warn(
+          `[PiperWASM] ❌ Audio NON trouvé dans le cache pour voiceId="${options.voiceId}", synthèse nécessaire`
+        )
       }
 
       // Pas en cache, synthétiser avec Piper
-      const modelConfig = PIPER_MODELS.find((m) => m.id === options.voiceId)
+      // Utiliser actualVoiceId (la voix de base si c'est un profil)
+      const modelConfig = PIPER_MODELS.find((m) => m.id === actualVoiceId)
       if (!modelConfig) {
-        throw new Error(`Modèle Piper ${options.voiceId} non trouvé`)
+        throw new Error(`Modèle Piper ${actualVoiceId} non trouvé`)
       }
 
-      // Créer une nouvelle session si la voix a changé
-      let session: TtsSession
-      if (this.currentVoiceId === options.voiceId && this.currentSession) {
-        console.warn(`[PiperWASM] 🔄 Réutilisation de la session pour ${options.voiceId}`)
-        session = this.currentSession
-      } else {
+      // Vérifier si nous avons déjà une session pour cette voix de base
+      let session = this.sessionCache.get(actualVoiceId)
+
+      if (!session) {
         console.warn(
-          `[PiperWASM] 🆕 Création d'une NOUVELLE session pour ${options.voiceId} (ancienne voix: ${this.currentVoiceId})`
+          `[PiperWASM] 🔄 Création d'une nouvelle session pour ${modelConfig.piperVoiceId}`
         )
+        const sessionStartTime = Date.now()
+
+        // CRITICAL: Réinitialiser le singleton TtsSession pour créer une nouvelle instance
+        // La bibliothèque @mintplex-labs/piper-tts-web réutilise _instance même avec un voiceId différent
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(TtsSession as any)._instance = null
+
+        // Créer une nouvelle session pour cette voix
         session = await TtsSession.create({
           voiceId: modelConfig.piperVoiceId,
-          progress: (progress) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          progress: (progress: any) => {
             const percent = Math.round((progress.loaded / progress.total) * 100)
             console.warn(
-              `[PiperWASM] Téléchargement ${modelConfig.piperVoiceId}: ${percent}% (${progress.loaded}/${progress.total} bytes)`
+              `[PiperWASM] 📥 Chargement modèle ${modelConfig.piperVoiceId}: ${percent}% (${progress.loaded}/${progress.total} bytes)`
             )
-            this.downloadProgress.set(options.voiceId, percent)
+            this.downloadProgress.set(actualVoiceId, percent)
             options.onProgress?.(percent)
           },
-          logger: (msg) => console.warn(`[Piper TTS] ${msg}`),
-          wasmPaths: {
-            onnxWasm: '/wasm/',
-            piperData: '/wasm/piper_phonemize.data',
-            piperWasm: '/wasm/piper_phonemize.wasm',
-          },
         })
-        console.warn(`[PiperWASM] ✅ Session créée pour ${modelConfig.piperVoiceId}`)
+
+        // Mettre en cache la session (avec la voix de base)
+        this.sessionCache.set(actualVoiceId, session)
+
+        const sessionLoadTime = Date.now() - sessionStartTime
         console.warn(
-          `[PiperWASM] Session object:`,
-          session,
-          `voiceId interne:`,
-          (session as any).voiceId
+          `[PiperWASM] ✅ Session créée et mise en cache pour ${modelConfig.piperVoiceId} (${sessionLoadTime}ms)`
         )
-        this.currentSession = session
-        this.currentVoiceId = options.voiceId
+      } else {
+        console.warn(
+          `[PiperWASM] ♻️ Utilisation de la session en cache pour ${modelConfig.piperVoiceId}`
+        )
       }
 
-      // Synthétiser le texte
+      // CRITICAL: Toujours réinitialiser _instance avant d'utiliser la session
+      // Même si la session vient du cache, la bibliothèque pourrait utiliser _instance en interne
       console.warn(
-        `[PiperWASM] 🎤 Appel de session.predict() avec la session pour ${options.voiceId} (piperVoiceId: ${modelConfig.piperVoiceId})`
+        `[PiperWASM] 🔧 Réinitialisation de TtsSession._instance avant synthèse avec ${modelConfig.piperVoiceId}`
+      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(TtsSession as any)._instance = session
+
+      // Synthétiser avec la session
+      console.warn(
+        `[PiperWASM] 🎤 Synthèse avec ${actualVoiceId} (piperVoiceId: ${modelConfig.piperVoiceId})${profile ? ` [Profil: ${profile.displayName}]` : ''}`
       )
       console.warn(`[PiperWASM] Texte à synthétiser: "${text.substring(0, 50)}..."`)
+
+      const synthesisStartTime = Date.now()
       const audioBlob = await session.predict(text)
+      const synthesisTime = Date.now() - synthesisStartTime
+
+      console.warn(`[PiperWASM] ✅ Synthèse terminée en ${synthesisTime}ms`)
       console.warn(`[PiperWASM] ✅ Audio généré: ${audioBlob.size} bytes pour ${options.voiceId}`)
 
       // Mettre en cache
+      console.warn(
+        `[PiperWASM] 💾 Mise en cache de l'audio pour voiceId="${options.voiceId}", texte="${text.substring(0, 30)}..."`
+      )
       await audioCacheService.cacheAudio(text, options.voiceId, audioBlob, {
         rate: options.rate,
         pitch: options.pitch,
         volume: options.volume,
       })
+      console.warn(`[PiperWASM] ✅ Audio mis en cache avec succès`)
 
       // Créer l'élément audio
       const audio = new Audio(URL.createObjectURL(audioBlob))
-      audio.playbackRate = options.rate || 1
-      audio.volume = options.volume || 1
+
+      // Appliquer les modificateurs du profil vocal ou les options par défaut
+      if (voiceModifiers) {
+        console.warn(
+          `[PiperWASM] 🎨 Application des modificateurs du profil: playbackRate=${voiceModifiers.playbackRate}, volume=${voiceModifiers.volume ?? 1.0}`
+        )
+        applyBasicModifiers(audio, voiceModifiers)
+
+        // IMPORTANT: Le volume des options (ex: 0 en mode italienne) a toujours priorité sur le volume du profil
+        if (options.volume !== undefined) {
+          audio.volume = options.volume
+          console.warn(
+            `[PiperWASM] 🔊 Volume des options appliqué (priorité sur profil): ${audio.volume}`
+          )
+        }
+      } else {
+        audio.playbackRate = options.rate ?? 1
+        audio.volume = options.volume ?? 1
+
+        console.warn(
+          `[PiperWASM] 🔊 Audio nouvellement synthétisé - volume appliqué: ${audio.volume}, rate: ${audio.playbackRate}`
+        )
+      }
+
+      // Arrêter complètement tout audio précédent avant d'en démarrer un nouveau
+      this.stop()
 
       // Connecter les événements
       audio.addEventListener('play', () => options.onStart?.())
@@ -357,7 +478,8 @@ export class PiperWASMProvider implements TTSProvider {
   }
 
   /**
-   * Pré-télécharger un modèle pour l'utiliser hors ligne
+   * Pré-charge un modèle en mémoire pour une utilisation plus rapide
+   * En mode déconnecté, les modèles sont déjà disponibles localement
    */
   async preloadModel(voiceId: string, onProgress?: (percent: number) => void): Promise<void> {
     const modelConfig = PIPER_MODELS.find((m) => m.id === voiceId)
@@ -365,15 +487,36 @@ export class PiperWASMProvider implements TTSProvider {
       throw new Error(`Modèle Piper ${voiceId} non trouvé`)
     }
 
-    // Créer une session pour pré-télécharger le modèle
-    await TtsSession.create({
+    // Vérifier si déjà en cache
+    if (this.sessionCache.has(voiceId)) {
+      console.warn(`[PiperWASM] ✅ Modèle ${voiceId} déjà en cache, préchargement ignoré`)
+      onProgress?.(100)
+      return
+    }
+
+    console.warn(`[PiperWASM] 📥 Pré-chargement du modèle ${voiceId}...`)
+    const startTime = Date.now()
+
+    // CRITICAL: Réinitialiser le singleton TtsSession pour créer une nouvelle instance
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(TtsSession as any)._instance = null
+
+    // Créer une nouvelle session pour cette voix
+    const session = await TtsSession.create({
       voiceId: modelConfig.piperVoiceId,
-      progress: (progress) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      progress: (progress: any) => {
         const percent = Math.round((progress.loaded / progress.total) * 100)
         this.downloadProgress.set(voiceId, percent)
         onProgress?.(percent)
       },
     })
+
+    // Mettre en cache la session
+    this.sessionCache.set(voiceId, session)
+
+    const loadTime = Date.now() - startTime
+    console.warn(`[PiperWASM] ✅ Modèle ${voiceId} pré-chargé avec succès (${loadTime}ms)`)
   }
 
   /**
@@ -381,8 +524,21 @@ export class PiperWASMProvider implements TTSProvider {
    */
   stop(): void {
     if (this.currentAudio) {
+      // Supprimer tous les événements pour éviter les callbacks après l'arrêt
+      this.currentAudio.onplay = null
+      this.currentAudio.onended = null
+      this.currentAudio.onerror = null
+      this.currentAudio.ontimeupdate = null
+
+      // Arrêter la lecture
       this.currentAudio.pause()
       this.currentAudio.currentTime = 0
+
+      // Libérer l'URL de l'objet blob si elle existe
+      if (this.currentAudio.src && this.currentAudio.src.startsWith('blob:')) {
+        URL.revokeObjectURL(this.currentAudio.src)
+      }
+
       this.currentAudio = null
     }
     this.isPaused = false
@@ -415,8 +571,12 @@ export class PiperWASMProvider implements TTSProvider {
    */
   async dispose(): Promise<void> {
     this.stop()
-    this.ttsSessions.clear()
     this.downloadProgress.clear()
+
+    // Libérer toutes les sessions en cache
+    console.warn(`[PiperWASM] 🗑️ Libération de ${this.sessionCache.size} sessions en cache`)
+    this.sessionCache.clear()
+
     this.initialized = false
   }
 
@@ -433,4 +593,33 @@ export class PiperWASMProvider implements TTSProvider {
   async clearCache(): Promise<void> {
     await audioCacheService.clearCache()
   }
+
+  /**
+   * Vider le cache audio pour une voix spécifique
+   * Utile lors du changement d'affectation de voix à un personnage
+   */
+  async clearCacheForVoice(voiceId: string): Promise<number> {
+    return audioCacheService.deleteByVoiceId(voiceId)
+  }
+
+  /**
+   * Vider le cache de sessions (force le rechargement des modèles)
+   */
+  async clearSessionCache(): Promise<void> {
+    console.warn(`[PiperWASM] 🗑️ Vidage du cache de sessions (${this.sessionCache.size} sessions)`)
+    this.sessionCache.clear()
+  }
+
+  /**
+   * Obtenir les statistiques du cache de sessions
+   */
+  getSessionCacheStats(): { voiceCount: number; voices: string[] } {
+    return {
+      voiceCount: this.sessionCache.size,
+      voices: Array.from(this.sessionCache.keys()),
+    }
+  }
 }
+
+// Singleton instance
+export const piperWASMProvider = new PiperWASMProvider()

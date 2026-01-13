@@ -77,6 +77,9 @@ export class TTSEngine {
         .speak(config.text, options)
         .then((result) => {
           // Jouer l'audio résultant
+          console.warn(
+            `[TTSEngine] 🎵 PLAY audio - volume: ${result.audio.volume}, muted: ${result.audio.muted}, src: ${result.audio.src?.substring(0, 30)}...`
+          )
           result.audio.play().catch((error) => {
             console.error('Erreur lors de la lecture audio:', error)
             this.events.onError?.(error)

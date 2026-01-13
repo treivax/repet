@@ -4,15 +4,17 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import './styles/globals.css'
 import { Router } from './router'
 import { Toast } from './components/common/Toast'
 import { HelpScreen } from './screens/HelpScreen'
 import { useUIStore } from './state/uiStore'
+import { VoicePreloader } from './components/voice-preloader'
 
 function App() {
   const { setTheme } = useUIStore()
+  const [voicesLoaded, setVoicesLoaded] = useState(false)
 
   // Initialiser le thème au démarrage
   useEffect(() => {
@@ -23,6 +25,11 @@ function App() {
       setTheme('dark')
     }
   }, [setTheme])
+
+  // Afficher le préchargement des voix avant l'application
+  if (!voicesLoaded) {
+    return <VoicePreloader onComplete={() => setVoicesLoaded(true)} />
+  }
 
   return (
     <>

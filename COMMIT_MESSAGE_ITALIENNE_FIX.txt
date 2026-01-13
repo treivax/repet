@@ -1,0 +1,28 @@
+fix(tts): Corriger le volume en mode italienne pour WebSpeechProvider
+
+Le personnage choisi en mode italienne était toujours lu à voix haute
+au lieu d'être muet (volume=0) lorsque Google TTS était utilisé.
+
+Cause: L'opérateur || était utilisé au lieu de ?? dans WebSpeechProvider.
+Avec ||, la valeur 0 (falsy) était remplacée par 1.0, rendant l'audio
+audible. Avec ??, seuls null et undefined sont remplacés, donc 0
+reste 0.
+
+Correction:
+- src/core/tts/providers/WebSpeechProvider.ts (lignes 188-190)
+  - utterance.rate = options.rate ?? 1.0
+  - utterance.pitch = options.pitch ?? 1.0
+  - utterance.volume = options.volume ?? 1.0
+
+Impact:
+- Mode italienne: répliques utilisateur maintenant muettes (volume=0)
+- Autres modes: aucun changement
+- Complète la correction précédente de PiperWASMProvider
+
+Fichiers modifiés:
+- src/core/tts/providers/WebSpeechProvider.ts
+
+Documentation:
+- BUGFIX_ITALIENNE_WEBSPEECH.md
+
+Fixes: Bug de lecture en mode italienne (Google TTS)

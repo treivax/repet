@@ -13,6 +13,10 @@ dist
 dist-ssr
 *.local
 
+# Voice models (too large for git, downloaded via script)
+public/voices/*
+!public/voices/.gitkeep
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

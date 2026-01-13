@@ -302,8 +302,11 @@ export function LineRenderer({
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
+            e.stopPropagation()
             if (onClick) {
               onClick()
+              // Ne pas modifier l'état clicked quand onClick est défini
+              // pour éviter la sélection visuelle lors de pause/resume
             } else {
               setIsClicked(true)
               setTimeout(() => setIsClicked(false), 150)

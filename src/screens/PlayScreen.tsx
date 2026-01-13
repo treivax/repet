@@ -205,6 +205,40 @@ export function PlayScreen() {
     }
   }, [])
 
+  // Gestionnaire global pour la touche espace en mode lecture audio
+  useEffect(() => {
+    if (!playSettings || playSettings.readingMode !== 'audio') {
+      return
+    }
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Intercepter espace uniquement si on est en train de lire
+      if (e.key === ' ' || e.code === 'Space') {
+        // Vérifier qu'on n'est pas dans un input/textarea
+        const target = e.target as HTMLElement
+        if (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable
+        ) {
+          return
+        }
+
+        // Si on est en train de lire, pause/resume
+        if (playingLineIndex !== undefined) {
+          e.preventDefault()
+          e.stopPropagation()
+          pausePlayback()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleGlobalKeyDown, { capture: true })
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
+    }
+  }, [playSettings, playingLineIndex, isPaused])
+
   // Créer la map des personnages
   const charactersMap: Record<string, Character> = {}
   if (currentPlay?.ast?.characters) {
@@ -416,6 +450,11 @@ export function PlayScreen() {
 
       voiceId = assignmentMap[line.characterId] || ''
 
+      console.warn(
+        `[PlayScreen] 🎭 Personnage: ${line.characterId}, Provider: ${playSettings.ttsProvider}, voiceId assignée: "${voiceId}"`
+      )
+      console.warn(`[PlayScreen] 📋 Assignment map:`, assignmentMap)
+
       // Si pas d'assignation, utiliser la première voix du bon genre (fallback)
       if (!voiceId) {
         const character = charactersMap[line.characterId]
@@ -452,9 +491,32 @@ export function PlayScreen() {
     }
 
     // Mode italiennes : répliques utilisateur à volume 0
+    console.warn('[PlayScreen] 🔍 DEBUG - Vérification ligne:')
+    console.warn(`  - line.characterId: "${line.characterId}"`)
+    console.warn(
+      `  - userCharacter: ${userCharacter ? JSON.stringify({ id: userCharacter.id, name: userCharacter.name }) : 'null'}`
+    )
+    console.warn(`  - playSettings.readingMode: "${playSettings.readingMode}"`)
+
     const isUserLine = userCharacter && line.characterId === userCharacter.id
+    console.warn(`  - isUserLine: ${isUserLine}`)
+
     const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
     const rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
+
+    console.warn(`  - volume calculé: ${volume}`)
+    console.warn(`  - rate calculé: ${rate}`)
+
+    // Log pour le mode italiennes
+    if (playSettings.readingMode === 'italian' && isUserLine) {
+      console.warn(
+        `[PlayScreen] 🎭 Mode italiennes - Ligne utilisateur détectée: volume=${volume}, rate=${rate}`
+      )
+    } else if (playSettings.readingMode === 'italian' && !isUserLine) {
+      console.warn(
+        `[PlayScreen] 🎭 Mode italiennes - Ligne autre personnage: volume=${volume}, rate=${rate}`
+      )
+    }
 
     // Estimer et démarrer le tracking de la durée
     const totalWords = countWords(line.text)
@@ -466,7 +528,7 @@ export function PlayScreen() {
 
     // Log pour debug
     console.warn(
-      `[PlayScreen] Lecture ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}"`
+      `[PlayScreen] ▶️ LECTURE ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}", volume=${volume}, rate=${rate}`
     )
 
     // Utiliser le nouveau système TTS
