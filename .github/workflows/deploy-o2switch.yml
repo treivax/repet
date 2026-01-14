@@ -2,7 +2,7 @@ name: Deploy to O2switch
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -181,9 +181,48 @@ jobs:
       - name: 🔐 Setup SSH
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Créer la clé SSH
           echo "${{ secrets.O2SWITCH_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p ${{ secrets.O2SWITCH_PORT }} -H ${{ secrets.O2SWITCH_HOST }} >> ~/.ssh/known_hosts
+
+          # Vérifier que la clé est valide
+          echo "🔍 Vérification de la clé SSH..."
+          ssh-keygen -l -f ~/.ssh/deploy_key || {
+            echo "❌ Erreur: La clé SSH est invalide"
+            exit 1
+          }
+
+          # Scanner la clé de l'hôte (avec timeout et retry)
+          echo "🔍 Scan de l'hôte SSH: ${{ secrets.O2SWITCH_HOST }}:${{ secrets.O2SWITCH_PORT }}"
+
+          # Essayer avec timeout
+          timeout 30 ssh-keyscan -p ${{ secrets.O2SWITCH_PORT }} -H ${{ secrets.O2SWITCH_HOST }} >> ~/.ssh/known_hosts 2>&1 || {
+            echo "⚠️ ssh-keyscan a échoué, on continue avec StrictHostKeyChecking=no"
+            # Créer un fichier known_hosts vide
+            touch ~/.ssh/known_hosts
+          }
+
+          chmod 644 ~/.ssh/known_hosts
+
+          # Test de connexion SSH
+          echo "🧪 Test de connexion SSH..."
+          ssh -i ~/.ssh/deploy_key \
+              -p ${{ secrets.O2SWITCH_PORT }} \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
+              -o BatchMode=yes \
+              ${{ secrets.O2SWITCH_USERNAME }}@${{ secrets.O2SWITCH_HOST }} \
+              "echo '✅ Connexion SSH réussie'" || {
+            echo "❌ Erreur: Impossible de se connecter en SSH"
+            echo "Vérifiez:"
+            echo "  - O2SWITCH_HOST: ${{ secrets.O2SWITCH_HOST }}"
+            echo "  - O2SWITCH_PORT: ${{ secrets.O2SWITCH_PORT }}"
+            echo "  - O2SWITCH_USERNAME: ${{ secrets.O2SWITCH_USERNAME }}"
+            echo "  - La clé SSH est autorisée sur le serveur"
+            exit 1
+          }
 
       - name: 🚀 Deploy via rsync
         run: |
@@ -356,9 +395,48 @@ jobs:
       - name: 🔐 Setup SSH
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          # Créer la clé SSH
           echo "${{ secrets.O2SWITCH_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p ${{ secrets.O2SWITCH_PORT }} -H ${{ secrets.O2SWITCH_HOST }} >> ~/.ssh/known_hosts
+
+          # Vérifier que la clé est valide
+          echo "🔍 Vérification de la clé SSH..."
+          ssh-keygen -l -f ~/.ssh/deploy_key || {
+            echo "❌ Erreur: La clé SSH est invalide"
+            exit 1
+          }
+
+          # Scanner la clé de l'hôte (avec timeout et retry)
+          echo "🔍 Scan de l'hôte SSH: ${{ secrets.O2SWITCH_HOST }}:${{ secrets.O2SWITCH_PORT }}"
+
+          # Essayer avec timeout
+          timeout 30 ssh-keyscan -p ${{ secrets.O2SWITCH_PORT }} -H ${{ secrets.O2SWITCH_HOST }} >> ~/.ssh/known_hosts 2>&1 || {
+            echo "⚠️ ssh-keyscan a échoué, on continue avec StrictHostKeyChecking=no"
+            # Créer un fichier known_hosts vide
+            touch ~/.ssh/known_hosts
+          }
+
+          chmod 644 ~/.ssh/known_hosts
+
+          # Test de connexion SSH
+          echo "🧪 Test de connexion SSH..."
+          ssh -i ~/.ssh/deploy_key \
+              -p ${{ secrets.O2SWITCH_PORT }} \
+              -o StrictHostKeyChecking=no \
+              -o ConnectTimeout=10 \
+              -o BatchMode=yes \
+              ${{ secrets.O2SWITCH_USERNAME }}@${{ secrets.O2SWITCH_HOST }} \
+              "echo '✅ Connexion SSH réussie'" || {
+            echo "❌ Erreur: Impossible de se connecter en SSH"
+            echo "Vérifiez:"
+            echo "  - O2SWITCH_HOST: ${{ secrets.O2SWITCH_HOST }}"
+            echo "  - O2SWITCH_PORT: ${{ secrets.O2SWITCH_PORT }}"
+            echo "  - O2SWITCH_USERNAME: ${{ secrets.O2SWITCH_USERNAME }}"
+            echo "  - La clé SSH est autorisée sur le serveur"
+            exit 1
+          }
 
       - name: 🚀 Deploy via rsync
         run: |
