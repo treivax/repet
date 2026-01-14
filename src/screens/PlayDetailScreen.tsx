@@ -561,10 +561,18 @@ export function PlayDetailScreen() {
                 </h2>
                 <button
                   onClick={handleRegenerateVoices}
-                  className="rounded-md bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 transition-all hover:bg-blue-200 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
                   title="Régénérer automatiquement toutes les voix"
+                  aria-label="Régénérer les voix"
                 >
-                  Régénérer
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
                 </button>
               </div>
 

@@ -53,7 +53,7 @@ export function PlayCard({ play, onClick, showConfigButton = false }: PlayCardPr
 
   return (
     <div
-      className="group relative cursor-pointer rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-blue-500 hover:shadow-md focus-within:ring-2 focus-within:ring-blue-500 dark:border-gray-700 dark:bg-gray-800"
+      className="group relative cursor-pointer rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg transition-all hover:border-blue-400 hover:shadow-xl focus-within:ring-2 focus-within:ring-blue-500 dark:border-blue-800 dark:from-blue-900/20 dark:to-gray-800"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       role="button"
