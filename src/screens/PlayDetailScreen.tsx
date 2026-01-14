@@ -58,7 +58,6 @@ export function PlayDetailScreen() {
   const setCharacterVoiceAssignment = usePlaySettingsStore(
     (state) => state.setCharacterVoiceAssignment
   )
-  const reassignAllVoices = usePlaySettingsStore((state) => state.reassignAllVoices)
 
   // Chargement de la pièce
   useEffect(() => {
@@ -98,13 +97,22 @@ export function PlayDetailScreen() {
         const voices = ttsProviderManager.getVoices()
         setAvailableVoices(voices)
 
-        // Auto-générer les assignations si vides
+        // Auto-générer les assignations si vides OU si les voix assignées n'existent plus
         const assignmentMap =
           settings.ttsProvider === 'piper-wasm'
             ? settings.characterVoicesPiper
             : settings.characterVoicesGoogle
 
-        if (Object.keys(assignmentMap).length === 0 && characters.length > 0) {
+        // Vérifier si toutes les voix assignées existent dans le provider actuel
+        const voiceIds = voices.map((v) => v.id)
+        const allVoicesExist = Object.values(assignmentMap).every((voiceId) =>
+          voiceIds.includes(voiceId)
+        )
+
+        const needsRegeneration =
+          Object.keys(assignmentMap).length === 0 || !allVoicesExist || characters.length === 0
+
+        if (needsRegeneration && characters.length > 0) {
           // Générer les assignations automatiquement
           const charactersWithGender = characters.map((char) => ({
             id: char.id,
@@ -218,7 +226,29 @@ export function PlayDetailScreen() {
 
   const handleReassignVoices = () => {
     if (!playId || !settings) return
-    reassignAllVoices(playId, settings.ttsProvider)
+
+    // Régénérer toutes les voix (pas de réutilisation des assignations existantes)
+    const charactersWithGender = characters.map((char) => ({
+      id: char.id,
+      gender: (settings.characterVoices[char.id] || 'male') as VoiceGender,
+    }))
+
+    const provider = ttsProviderManager.getActiveProvider()
+    if (provider) {
+      // Passer un objet vide pour forcer une réassignation complète
+      const newAssignments = provider.generateVoiceAssignments(charactersWithGender, {})
+
+      // Sauvegarder selon le provider
+      if (settings.ttsProvider === 'piper-wasm') {
+        usePlaySettingsStore
+          .getState()
+          .updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
+      } else {
+        usePlaySettingsStore
+          .getState()
+          .updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
+      }
+    }
   }
 
   const handleVoiceChange = (characterId: string, voiceId: string) => {
@@ -428,6 +458,47 @@ export function PlayDetailScreen() {
 
               {/* Liste des personnages avec éditeur de voix */}
               <div className="space-y-3">
+                {/* Voix off / Narrateur */}
+                <div className="mb-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-lg" aria-hidden="true">
+                      🎙️
+                    </span>
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">
+                      Voix off / Narrateur
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Utilisée pour les didascalies, actes et scènes
+                  </p>
+                  {(() => {
+                    const assignmentMap =
+                      settings.ttsProvider === 'piper-wasm'
+                        ? settings.characterVoicesPiper
+                        : settings.characterVoicesGoogle
+                    const narratorVoiceId = assignmentMap['__narrator__']
+                    const narratorVoice = availableVoices.find((v) => v.id === narratorVoiceId)
+                    const neutralVoices = availableVoices.filter((v) => v.gender === 'neutral')
+                    const voicesForNarrator =
+                      neutralVoices.length > 0 ? neutralVoices : availableVoices
+
+                    return (
+                      <CharacterVoiceEditor
+                        key="__narrator__"
+                        characterId="__narrator__"
+                        characterName="Voix off"
+                        currentGender="neutral"
+                        currentVoice={narratorVoice || null}
+                        availableVoices={voicesForNarrator}
+                        onGenderChange={() => {
+                          /* Pas de changement de genre pour le narrateur */
+                        }}
+                        onVoiceChange={handleVoiceChange}
+                      />
+                    )
+                  })()}
+                </div>
+
                 {characters.map((character) => {
                   const gender = settings.characterVoices[character.id] || 'male'
                   const assignmentMap =

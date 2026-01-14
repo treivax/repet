@@ -212,6 +212,7 @@ export class PiperWASMProvider implements TTSProvider {
   /**
    * Génère une assignation de voix pour des personnages
    * Algorithme : round-robin pour maximiser la diversité
+   * Inclut automatiquement une voix pour le narrateur/voix off
    */
   generateVoiceAssignments(
     characters: Array<{ id: string; gender: VoiceGender }>,
@@ -233,7 +234,33 @@ export class PiperWASMProvider implements TTSProvider {
       usageCount[voiceId] = (usageCount[voiceId] || 0) + 1
     })
 
-    // Pour chaque personnage sans assignation
+    // 1. Assigner une voix au narrateur/voix off si non assignée
+    if (!assignments['__narrator__']) {
+      const neutralVoices = voices.filter((v) => v.gender === 'neutral')
+      const narratorCandidates = neutralVoices.length > 0 ? neutralVoices : voices
+
+      if (narratorCandidates.length > 0) {
+        // Sélectionner la voix la moins utilisée
+        let selectedVoice = narratorCandidates[0]
+        let minUsage = Infinity
+
+        narratorCandidates.forEach((voice) => {
+          const usage = usageCount[voice.id] || 0
+          if (usage < minUsage) {
+            minUsage = usage
+            selectedVoice = voice
+          }
+        })
+
+        assignments['__narrator__'] = selectedVoice.id
+        usageCount[selectedVoice.id] = minUsage + 1
+        console.warn(
+          `[PiperWASM] Narrateur assigné à ${selectedVoice.displayName} (usage: ${minUsage})`
+        )
+      }
+    }
+
+    // 2. Pour chaque personnage sans assignation
     characters.forEach((char) => {
       if (assignments[char.id]) {
         console.warn(`[PiperWASM] ${char.id} déjà assigné: ${assignments[char.id]}`)
