@@ -50,6 +50,71 @@ npm run dev:offline
 npm run dev:online
 ```
 
+## 📦 Déploiement
+
+Répét utilise une architecture dual-build pour optimiser l'expérience utilisateur selon la plateforme :
+
+### Architecture de déploiement
+
+- **Build OFFLINE** (~675 MB) : Version complète avec toutes les voix embarquées
+  - URL : `https://app.repet.ecanasso.org`
+  - Cible : Desktop (Chrome, Firefox, Edge, Safari) et Android
+  
+- **Build ONLINE** (~10 MB) : Version légère qui télécharge les voix à la demande
+  - URL : `https://ios.repet.ecanasso.org`
+  - Cible : iOS/Safari/macOS (compatible avec les limites de stockage iOS)
+
+### Déploiement automatique
+
+Le déploiement se fait automatiquement via GitHub Actions à chaque push sur `main` :
+
+```bash
+# Build les deux versions
+npm run build
+
+# Le workflow GitHub Actions déploie automatiquement :
+# - dist-offline/ vers app.repet.ecanasso.org
+# - dist-online/ vers ios.repet.ecanasso.org
+```
+
+### Configuration requise
+
+Pour configurer le déploiement automatique sur O2switch :
+
+1. Suivre le guide complet : [`deployment/O2SWITCH_DEPLOYMENT.md`](deployment/O2SWITCH_DEPLOYMENT.md)
+2. Utiliser la checklist : [`deployment/SETUP_CHECKLIST.md`](deployment/SETUP_CHECKLIST.md)
+
+**Secrets GitHub requis :**
+- `O2SWITCH_HOST` : Hôte SSH
+- `O2SWITCH_PORT` : Port SSH (généralement 2222)
+- `O2SWITCH_USERNAME` : Nom d'utilisateur cPanel
+- `O2SWITCH_SSH_KEY` : Clé privée SSH pour le déploiement
+- `O2SWITCH_PATH_OFFLINE` : Chemin vers le dossier offline
+- `O2SWITCH_PATH_ONLINE` : Chemin vers le dossier online
+
+Voir [`deployment/O2SWITCH_DEPLOYMENT.md`](deployment/O2SWITCH_DEPLOYMENT.md) pour les instructions détaillées.
+
+### Déploiement manuel
+
+Si nécessaire, vous pouvez déployer manuellement via rsync :
+
+```bash
+# Build local
+npm run build
+
+# Déployer la version offline
+rsync -avz --delete \
+  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
+  dist-offline/ \
+  user@ecanasso.org:/home/user/public_html/app.repet.ecanasso.org/
+
+# Déployer la version online
+rsync -avz --delete \
+  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
+  dist-online/ \
+  user@ecanasso.org:/home/user/public_html/ios.repet.ecanasso.org/
+```
+
 ## 🏗️ Build de Production
 
 ### Build des deux versions

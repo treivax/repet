@@ -1,0 +1,430 @@
+# Déploiement O2switch - Guide Complet
+
+Ce document décrit la procédure complète pour déployer les deux builds de Répét sur l'hébergeur O2switch.
+
+## 📋 Vue d'ensemble
+
+Répét utilise une architecture dual-build :
+
+- **Build OFFLINE** (~675 MB) : Version complète avec toutes les voix embarquées
+  - URL : `https://app.repet.ecanasso.org`
+  - Dossier : `dist-offline/`
+  - Cible : Desktop (Chrome, Firefox, Edge, Safari) et Android
+
+- **Build ONLINE** (~10 MB) : Version légère qui télécharge les voix à la demande
+  - URL : `https://ios.repet.ecanasso.org`
+  - Dossier : `dist-online/`
+  - Cible : iOS/Safari/macOS
+
+## 🔧 Prérequis
+
+- [x] Compte O2switch avec accès cPanel
+- [x] Domaine `ecanasso.org` configuré sur O2switch
+- [x] Accès SSH activé (recommandé) ou accès FTP
+- [x] Git et Node.js installés localement
+- [x] Accès au repository GitHub
+
+## 📦 Configuration O2switch (cPanel)
+
+### Étape 1 : Créer les sous-domaines
+
+**Via cPanel → Domaines → Sous-domaines :**
+
+1. **Créer le sous-domaine pour le build OFFLINE**
+   - Sous-domaine : `app.repet`
+   - Domaine : `ecanasso.org`
+   - Racine du document : `/home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org`
+   - Cliquer sur "Créer"
+
+2. **Créer le sous-domaine pour le build ONLINE**
+   - Sous-domaine : `ios.repet`
+   - Domaine : `ecanasso.org`
+   - Racine du document : `/home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org`
+   - Cliquer sur "Créer"
+
+### Étape 2 : Activer SSL (Let's Encrypt)
+
+**Via cPanel → Sécurité → SSL/TLS Status :**
+
+1. Rechercher `app.repet.ecanasso.org`
+2. Cliquer sur "Run AutoSSL"
+3. Répéter pour `ios.repet.ecanasso.org`
+
+Vérifier que les certificats sont bien installés (icône verte).
+
+### Étape 3 : Vérifier l'accès SSH
+
+**Via cPanel → Sécurité → Accès SSH :**
+
+1. Vérifier que SSH est activé
+2. Noter les informations de connexion :
+   - Hôte : généralement `ecanasso.org` ou `ssh.ecanasso.org`
+   - Port : généralement `2222` ou `22`
+   - Utilisateur : votre nom d'utilisateur cPanel
+
+**Test de connexion SSH :**
+```bash
+ssh VOTRE_USERNAME@ecanasso.org -p 2222
+```
+
+Si la connexion réussit, vous êtes prêt pour le déploiement automatique.
+
+## 🔑 Configuration des clés SSH pour GitHub Actions
+
+### Étape 1 : Générer une paire de clés SSH dédiée
+
+Sur votre machine locale :
+
+```bash
+# Générer une nouvelle paire de clés ED25519
+ssh-keygen -t ed25519 -C "github-actions-deploy-repet" -f ~/.ssh/o2switch_deploy_repet
+
+# Ne PAS mettre de passphrase (appuyer sur Entrée)
+```
+
+Cela crée deux fichiers :
+- `~/.ssh/o2switch_deploy_repet` (clé privée) ← Pour GitHub Secrets
+- `~/.ssh/o2switch_deploy_repet.pub` (clé publique) ← Pour O2switch
+
+### Étape 2 : Ajouter la clé publique sur O2switch
+
+**Option A : Via SSH**
+
+```bash
+# Se connecter au serveur
+ssh VOTRE_USERNAME@ecanasso.org -p 2222
+
+# Ajouter la clé publique aux clés autorisées
+nano ~/.ssh/authorized_keys
+# Coller le contenu de o2switch_deploy_repet.pub
+# Ctrl+O pour sauvegarder, Ctrl+X pour quitter
+
+# Vérifier les permissions
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+```
+
+**Option B : Via cPanel**
+
+1. Aller dans **cPanel → Sécurité → Clés SSH**
+2. Cliquer sur "Gérer" à côté de "Clés publiques"
+3. Cliquer sur "Importer une clé"
+4. Coller le contenu de `o2switch_deploy_repet.pub`
+5. Cliquer sur "Importer"
+6. Cliquer sur "Autoriser" pour activer la clé
+
+### Étape 3 : Tester la connexion
+
+```bash
+# Tester avec la clé privée
+ssh -i ~/.ssh/o2switch_deploy_repet VOTRE_USERNAME@ecanasso.org -p 2222
+```
+
+Si la connexion fonctionne sans demander de mot de passe, c'est bon !
+
+## 🔐 Configuration des secrets GitHub
+
+### Étape 1 : Accéder aux secrets du repository
+
+1. Aller sur GitHub : `https://github.com/VOTRE_USERNAME/repet`
+2. Cliquer sur **Settings** (Paramètres)
+3. Dans le menu latéral : **Secrets and variables** → **Actions**
+4. Onglet **"Repository secrets"**
+
+### Étape 2 : Ajouter les secrets
+
+Cliquer sur **"New repository secret"** pour chaque secret :
+
+#### Secret 1 : O2SWITCH_HOST
+```
+Name: O2SWITCH_HOST
+Value: ecanasso.org
+```
+
+#### Secret 2 : O2SWITCH_PORT
+```
+Name: O2SWITCH_PORT
+Value: 2222
+```
+*(Vérifier le port avec votre hébergeur, peut être 22)*
+
+#### Secret 3 : O2SWITCH_USERNAME
+```
+Name: O2SWITCH_USERNAME
+Value: VOTRE_USERNAME_CPANEL
+```
+
+#### Secret 4 : O2SWITCH_SSH_KEY
+```
+Name: O2SWITCH_SSH_KEY
+Value: [Contenu complet de ~/.ssh/o2switch_deploy_repet]
+```
+
+**Comment copier la clé privée :**
+```bash
+# Sur Linux/Mac
+cat ~/.ssh/o2switch_deploy_repet | pbcopy   # Mac
+cat ~/.ssh/o2switch_deploy_repet | xclip    # Linux
+
+# Ou simplement afficher et copier manuellement
+cat ~/.ssh/o2switch_deploy_repet
+```
+
+⚠️ **Important** : Copier TOUT le contenu, y compris les lignes :
+```
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+#### Secret 5 : O2SWITCH_PATH_OFFLINE
+```
+Name: O2SWITCH_PATH_OFFLINE
+Value: /home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org
+```
+
+#### Secret 6 : O2SWITCH_PATH_ONLINE
+```
+Name: O2SWITCH_PATH_ONLINE
+Value: /home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org
+```
+
+**Comment trouver le chemin exact :**
+```bash
+# Se connecter en SSH
+ssh VOTRE_USERNAME@ecanasso.org -p 2222
+
+# Afficher le chemin complet
+pwd
+# Résultat exemple : /home/votreuser
+
+# Le chemin sera donc :
+# /home/votreuser/public_html/app.repet.ecanasso.org
+```
+
+### Résumé des secrets
+
+| Nom du secret | Exemple de valeur |
+|---------------|-------------------|
+| `O2SWITCH_HOST` | `ecanasso.org` |
+| `O2SWITCH_PORT` | `2222` |
+| `O2SWITCH_USERNAME` | `ecanasso` |
+| `O2SWITCH_SSH_KEY` | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
+| `O2SWITCH_PATH_OFFLINE` | `/home/ecanasso/public_html/app.repet.ecanasso.org` |
+| `O2SWITCH_PATH_ONLINE` | `/home/ecanasso/public_html/ios.repet.ecanasso.org` |
+
+## 🚀 Déploiement
+
+### Déploiement automatique (via GitHub Actions)
+
+Le déploiement se fait automatiquement à chaque push sur la branche `main`.
+
+**Workflow :**
+1. Push du code sur `main`
+2. GitHub Actions détecte le push
+3. Build des deux versions (offline + online)
+4. Vérification de la qualité (type-check + lint)
+5. Déploiement via rsync sur O2switch
+
+**Fichier de workflow :** `.github/workflows/deploy-o2switch.yml`
+
+**Voir le statut du déploiement :**
+- GitHub → Actions → Dernière exécution
+
+### Déploiement manuel (local)
+
+Si vous devez déployer manuellement sans passer par GitHub Actions :
+
+```bash
+# 1. Builder les deux versions
+npm run build
+
+# 2. Déployer la version OFFLINE
+rsync -avz --progress --delete \
+  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
+  dist-offline/ \
+  VOTRE_USERNAME@ecanasso.org:/home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org/
+
+# 3. Déployer la version ONLINE
+rsync -avz --progress --delete \
+  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
+  dist-online/ \
+  VOTRE_USERNAME@ecanasso.org:/home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org/
+```
+
+**Options rsync expliquées :**
+- `-a` : Archive mode (préserve permissions, timestamps, etc.)
+- `-v` : Verbose (affiche les fichiers transférés)
+- `-z` : Compression pendant le transfert
+- `--progress` : Affiche la progression
+- `--delete` : Supprime les fichiers qui n'existent plus localement
+
+## ✅ Vérification post-déploiement
+
+### 1. Vérifier que les sites sont accessibles
+
+- **Build OFFLINE** : https://app.repet.ecanasso.org
+- **Build ONLINE** : https://ios.repet.ecanasso.org
+
+### 2. Vérifier les headers HTTP
+
+```bash
+# Vérifier COOP/COEP (requis pour WASM threadé)
+curl -I https://app.repet.ecanasso.org | grep -i "cross-origin"
+
+# Doit afficher :
+# cross-origin-embedder-policy: credentialless
+# cross-origin-opener-policy: same-origin
+```
+
+### 3. Vérifier les types MIME
+
+```bash
+# Vérifier le type MIME des fichiers WASM
+curl -I https://app.repet.ecanasso.org/wasm/ort-wasm-simd.wasm | grep -i "content-type"
+
+# Doit afficher :
+# content-type: application/wasm
+```
+
+### 4. Tester dans le navigateur
+
+1. Ouvrir https://app.repet.ecanasso.org
+2. Ouvrir les DevTools (F12)
+3. Onglet **Console** : Vérifier qu'il n'y a pas d'erreurs
+4. Onglet **Network** : Vérifier que les fichiers .wasm se chargent
+5. Onglet **Application** → Service Workers : Vérifier que le SW est actif
+
+### 5. Tester la PWA
+
+**Sur Desktop :**
+- Chrome : Icône "Installer l'application" dans la barre d'adresse
+
+**Sur iOS (build online) :**
+1. Safari → Ouvrir https://ios.repet.ecanasso.org
+2. Bouton Partager → Ajouter à l'écran d'accueil
+3. Lancer l'app depuis l'écran d'accueil
+4. Vérifier que l'app fonctionne hors ligne (mode avion)
+
+## 🐛 Dépannage
+
+### Erreur : "Permission denied (publickey)"
+
+**Cause :** La clé SSH n'est pas autorisée sur le serveur.
+
+**Solution :**
+```bash
+# Vérifier que la clé publique est bien ajoutée
+ssh VOTRE_USERNAME@ecanasso.org -p 2222 'cat ~/.ssh/authorized_keys'
+
+# Si la clé n'y est pas, l'ajouter manuellement
+```
+
+### Erreur : "Cross-Origin-Embedder-Policy"
+
+**Cause :** Les headers COOP/COEP ne sont pas configurés.
+
+**Solution :**
+1. Vérifier que le `.htaccess` est bien présent dans le dossier
+2. Vérifier que `mod_headers` est activé sur Apache (c'est le cas chez O2switch)
+3. Contacter le support O2switch si nécessaire
+
+### Erreur : "Failed to load WASM"
+
+**Cause :** Type MIME incorrect pour les fichiers .wasm
+
+**Solution :**
+1. Vérifier la section MIME types du `.htaccess`
+2. Forcer le rechargement (Ctrl+Shift+R)
+3. Vider le cache du Service Worker
+
+### Le site affiche une erreur 404 sur les routes
+
+**Cause :** La réécriture SPA n'est pas active.
+
+**Solution :**
+1. Vérifier que le `.htaccess` contient les règles RewriteRule
+2. Vérifier que `mod_rewrite` est activé (le cas chez O2switch)
+3. Vérifier les permissions du `.htaccess` (644)
+
+### Le déploiement GitHub Actions échoue
+
+**Vérifier :**
+1. Les secrets GitHub sont bien configurés
+2. Le port SSH est correct (2222 ou 22)
+3. La clé SSH est complète (avec BEGIN et END)
+4. Les chemins de destination sont corrects
+
+**Consulter les logs :**
+- GitHub → Actions → Cliquer sur le workflow échoué
+- Lire les logs de l'étape qui a échoué
+
+## 📊 Monitoring
+
+### Espace disque utilisé
+
+```bash
+# Se connecter en SSH
+ssh VOTRE_USERNAME@ecanasso.org -p 2222
+
+# Vérifier l'espace utilisé
+du -sh ~/public_html/app.repet.ecanasso.org
+du -sh ~/public_html/ios.repet.ecanasso.org
+
+# Résultat attendu :
+# ~675M pour app.repet (offline)
+# ~10M pour ios.repet (online)
+```
+
+### Bande passante
+
+Via cPanel → Métriques → Bande passante
+
+O2switch offre de la bande passante illimitée, mais surveiller la consommation est recommandé.
+
+### Logs Apache
+
+Via cPanel → Métriques → Erreurs ou Visitors
+
+## 🔄 Rollback (retour arrière)
+
+Si un déploiement pose problème, vous pouvez revenir à la version précédente :
+
+### Option 1 : Redéployer un commit précédent
+
+```bash
+# Localement
+git checkout COMMIT_SHA
+npm run build
+# Puis déployer manuellement avec rsync
+```
+
+### Option 2 : Via GitHub Actions
+
+1. GitHub → Actions
+2. Sélectionner un workflow réussi précédent
+3. Cliquer sur "Re-run all jobs"
+
+### Option 3 : Restaurer depuis une sauvegarde
+
+Si vous avez activé les sauvegardes O2switch :
+1. cPanel → Fichiers → Gestionnaire de sauvegardes
+2. Restaurer le dossier concerné
+
+## 📚 Ressources
+
+- [Documentation O2switch](https://faq.o2switch.fr/)
+- [Guide SSH O2switch](https://faq.o2switch.fr/hebergement-mutualise/acces-ssh)
+- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- [rsync Manual](https://linux.die.net/man/1/rsync)
+
+## 🆘 Support
+
+- **O2switch Support :** https://www.o2switch.fr/support/
+- **GitHub Issues :** https://github.com/VOTRE_USERNAME/repet/issues
+- **Email :** votre-email@example.com
+
+---
+
+**Dernière mise à jour :** 2025-01-XX
+**Version :** 1.0.0
