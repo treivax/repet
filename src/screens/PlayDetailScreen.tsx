@@ -458,8 +458,31 @@ export function PlayDetailScreen() {
 
               {/* Liste des personnages avec éditeur de voix */}
               <div className="space-y-3">
+                {characters.map((character) => {
+                  const gender = settings.characterVoices[character.id] || 'male'
+                  const assignmentMap =
+                    settings.ttsProvider === 'piper-wasm'
+                      ? settings.characterVoicesPiper
+                      : settings.characterVoicesGoogle
+                  const voiceId = assignmentMap[character.id]
+                  const voice = availableVoices.find((v) => v.id === voiceId) || null
+
+                  return (
+                    <CharacterVoiceEditor
+                      key={character.id}
+                      characterId={character.id}
+                      characterName={character.name}
+                      currentGender={gender}
+                      currentVoice={voice}
+                      availableVoices={availableVoices}
+                      onGenderChange={handleGenderChange}
+                      onVoiceChange={handleVoiceChange}
+                    />
+                  )
+                })}
+
                 {/* Voix off / Narrateur */}
-                <div className="mb-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                <div className="mt-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
                   <div className="mb-2 flex items-center gap-2">
                     <span className="text-lg" aria-hidden="true">
                       🎙️
@@ -498,29 +521,6 @@ export function PlayDetailScreen() {
                     )
                   })()}
                 </div>
-
-                {characters.map((character) => {
-                  const gender = settings.characterVoices[character.id] || 'male'
-                  const assignmentMap =
-                    settings.ttsProvider === 'piper-wasm'
-                      ? settings.characterVoicesPiper
-                      : settings.characterVoicesGoogle
-                  const voiceId = assignmentMap[character.id]
-                  const voice = availableVoices.find((v) => v.id === voiceId) || null
-
-                  return (
-                    <CharacterVoiceEditor
-                      key={character.id}
-                      characterId={character.id}
-                      characterName={character.name}
-                      currentGender={gender}
-                      currentVoice={voice}
-                      availableVoices={availableVoices}
-                      onGenderChange={handleGenderChange}
-                      onVoiceChange={handleVoiceChange}
-                    />
-                  )
-                })}
               </div>
             </section>
 
