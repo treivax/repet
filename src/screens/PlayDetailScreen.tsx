@@ -105,15 +105,21 @@ export function PlayDetailScreen() {
         const needsRegeneration = Object.keys(assignmentMap).length === 0 || !allVoicesExist
 
         if (needsRegeneration && characters.length > 0) {
+          console.warn('🔄 Régénération des voix nécessaire')
+
           // Générer les assignations automatiquement
           const charactersWithGender = characters.map((char) => ({
             id: char.id,
             gender: (settings.characterVoices[char.id] || char.gender || 'male') as VoiceGender,
           }))
 
+          console.warn('📋 Personnages avec genres:', charactersWithGender)
+
           const provider = ttsProviderManager.getActiveProvider()
           if (provider) {
             const newAssignments = provider.generateVoiceAssignments(charactersWithGender, {})
+
+            console.warn('🎤 Nouvelles assignations générées:', newAssignments)
 
             // Sauvegarder les genres détectés dans characterVoices
             const updatedCharacterVoices = { ...settings.characterVoices }
@@ -123,14 +129,20 @@ export function PlayDetailScreen() {
               }
             })
 
+            console.warn('👥 Genres de personnages mis à jour:', updatedCharacterVoices)
+
             // Sauvegarder
             if (playId) {
               usePlaySettingsStore.getState().updatePlaySettings(playId, {
                 characterVoicesPiper: newAssignments,
                 characterVoices: updatedCharacterVoices,
               })
+
+              console.warn('✅ Settings sauvegardés pour play:', playId)
             }
           }
+        } else {
+          console.warn('ℹ️ Pas de régénération nécessaire. Assignment map:', assignmentMap)
         }
       } catch (error) {
         console.error('Erreur lors du chargement des voix:', error)
@@ -216,6 +228,51 @@ export function PlayDetailScreen() {
       if (voices.length > 0) {
         setCharacterVoiceAssignment(playId, characterId, voices[0].id)
       }
+    }
+  }
+
+  const handleRegenerateVoices = () => {
+    if (!playId || !play) return
+
+    console.warn('🔄 RÉGÉNÉRATION MANUELLE DES VOIX')
+
+    // Générer les assignations automatiquement
+    const charactersWithGender = characters.map((char) => ({
+      id: char.id,
+      gender: (settings.characterVoices[char.id] || char.gender || 'male') as VoiceGender,
+    }))
+
+    console.warn('📋 Personnages avec genres:', charactersWithGender)
+
+    const provider = ttsProviderManager.getActiveProvider()
+    if (provider) {
+      const newAssignments = provider.generateVoiceAssignments(charactersWithGender, {})
+
+      console.warn('🎤 Nouvelles assignations:', newAssignments)
+
+      // Vérifier les voix assignées
+      Object.entries(newAssignments).forEach(([charId, voiceId]) => {
+        const voice = availableVoices.find((v) => v.id === voiceId)
+        const char = characters.find((c) => c.id === charId)
+        const gender = settings.characterVoices[charId] || char?.gender
+        console.warn(`  ${char?.name} (${gender}) → ${voice?.displayName} (${voice?.gender})`)
+      })
+
+      // Sauvegarder les genres détectés dans characterVoices
+      const updatedCharacterVoices = { ...settings.characterVoices }
+      charactersWithGender.forEach((char) => {
+        if (!updatedCharacterVoices[char.id]) {
+          updatedCharacterVoices[char.id] = char.gender
+        }
+      })
+
+      // Sauvegarder
+      usePlaySettingsStore.getState().updatePlaySettings(playId, {
+        characterVoicesPiper: newAssignments,
+        characterVoices: updatedCharacterVoices,
+      })
+
+      console.warn('✅ Voix régénérées et sauvegardées')
     }
   }
 
@@ -495,9 +552,18 @@ export function PlayDetailScreen() {
 
             {/* BLOC 4 : Voix des personnages */}
             <section className="rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg dark:border-blue-800 dark:from-blue-900/20 dark:to-gray-800">
-              <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Voix des personnages
-              </h2>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  Voix des personnages
+                </h2>
+                <button
+                  onClick={handleRegenerateVoices}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  title="Régénérer automatiquement toutes les voix"
+                >
+                  🔄 Régénérer
+                </button>
+              </div>
 
               {/* Liste des personnages avec éditeur de voix */}
               <div className="space-y-3">
