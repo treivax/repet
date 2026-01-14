@@ -53,6 +53,9 @@ interface Props {
   /** Callback optionnel pour le clic sur une ligne (mode audio) */
   onLineClick?: (lineIndex: number) => void
 
+  /** Callback optionnel pour l'appui long sur une ligne (mode audio/italiennes) */
+  onLongPress?: (lineIndex: number) => void
+
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
 
@@ -88,6 +91,7 @@ export function FullPlayDisplay({
   charactersMap,
   playTitle,
   onLineClick,
+  onLongPress,
   isPaused,
   progressPercentage,
   elapsedTime,
@@ -205,6 +209,9 @@ export function FullPlayDisplay({
                           hasBeenRead={hasBeenRead}
                           charactersMap={charactersMap}
                           onClick={onLineClick ? () => onLineClick(currentGlobalIndex) : undefined}
+                          onLongPress={
+                            onLongPress ? () => onLongPress(currentGlobalIndex) : undefined
+                          }
                           isPaused={isPaused}
                           progressPercentage={isPlaying ? progressPercentage : 0}
                           elapsedTime={isPlaying ? elapsedTime : 0}
@@ -238,6 +245,9 @@ export function FullPlayDisplay({
                         hasBeenRead={hasBeenRead}
                         charactersMap={charactersMap}
                         onClick={onLineClick ? () => onLineClick(currentGlobalIndex) : undefined}
+                        onLongPress={
+                          onLongPress ? () => onLongPress(currentGlobalIndex) : undefined
+                        }
                         isPaused={isPaused}
                         progressPercentage={isPlaying ? progressPercentage : 0}
                         elapsedTime={isPlaying ? elapsedTime : 0}
