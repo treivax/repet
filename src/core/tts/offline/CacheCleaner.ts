@@ -179,9 +179,9 @@ export function exposeCleanerToWindow(): void {
  * Expose les utilitaires de diagnostic pour le provider Piper
  */
 export function exposePiperDebugToWindow(provider: {
-  getSessionCacheStats?: () => unknown
+  getSessionCacheStats?: () => { voiceCount: number; voices: string[] }
   clearSessionCache?: () => Promise<void>
-  getCacheStats?: () => Promise<unknown>
+  getCacheStats?: () => Promise<{ count: number; size: number; sizeFormatted: string }>
   preloadModel?: (voiceId: string, onProgress: (percent: number) => void) => Promise<void>
 }): void {
   if (typeof window !== 'undefined') {

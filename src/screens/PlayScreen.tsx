@@ -74,6 +74,17 @@ export function PlayScreen() {
   const wordsSpokenRef = useRef<number>(0)
   const useBoundaryTrackingRef = useRef<boolean>(true)
 
+  // Fonction pour mettre en pause/reprendre
+  const pausePlayback = useCallback(() => {
+    if (ttsEngine.isSpeaking() && !isPaused) {
+      ttsEngine.pause()
+      setIsPaused(true)
+    } else if (isPaused) {
+      ttsEngine.resume()
+      setIsPaused(false)
+    }
+  }, [isPaused])
+
   // Charger la pièce au montage
   useEffect(() => {
     if (!playId) {
@@ -604,17 +615,6 @@ export function PlayScreen() {
     setIsGenerating(false)
     stopProgressTracking()
   }
-
-  // Fonction pour mettre en pause/reprendre
-  const pausePlayback = useCallback(() => {
-    if (ttsEngine.isSpeaking() && !isPaused) {
-      ttsEngine.pause()
-      setIsPaused(true)
-    } else if (isPaused) {
-      ttsEngine.resume()
-      setIsPaused(false)
-    }
-  }, [isPaused])
 
   // Handler pour le clic sur une ligne (reçoit l'index global)
   const handleLineClick = (globalLineIndex: number) => {

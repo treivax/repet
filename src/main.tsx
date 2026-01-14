@@ -35,7 +35,14 @@ async function initializeApp() {
     // Exposer les utilitaires de debug Piper
     const piperProvider = ttsProviderManager.getActiveProvider()
     if (piperProvider && piperProvider.type === 'piper-wasm') {
-      exposePiperDebugToWindow(piperProvider)
+      exposePiperDebugToWindow(
+        piperProvider as {
+          getSessionCacheStats?: () => { voiceCount: number; voices: string[] }
+          clearSessionCache?: () => Promise<void>
+          getCacheStats?: () => Promise<{ count: number; size: number; sizeFormatted: string }>
+          preloadModel?: (voiceId: string, onProgress: (percent: number) => void) => Promise<void>
+        }
+      )
     }
 
     console.warn('[Main] ✅ Application prête à démarrer')
