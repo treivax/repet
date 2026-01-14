@@ -146,7 +146,7 @@ export function LineRenderer({
       }
 
       const handleHiddenMouseDown = () => {
-        if (onLongPress && isPlaying) {
+        if (onLongPress) {
           const timer = window.setTimeout(() => {
             onLongPress()
           }, 500) // 500ms pour l'appui long
@@ -162,7 +162,7 @@ export function LineRenderer({
       }
 
       const handleHiddenTouchStart = () => {
-        if (onLongPress && isPlaying) {
+        if (onLongPress) {
           const timer = window.setTimeout(() => {
             onLongPress()
           }, 500)
@@ -305,7 +305,7 @@ export function LineRenderer({
 
     // Handlers pour l'appui long
     const handleMouseDown = () => {
-      if (onLongPress && isPlaying) {
+      if (onLongPress) {
         const timer = window.setTimeout(() => {
           onLongPress()
         }, 500) // 500ms pour l'appui long
@@ -326,7 +326,7 @@ export function LineRenderer({
     }
 
     const handleTouchStart = () => {
-      if (onLongPress && isPlaying) {
+      if (onLongPress) {
         const timer = window.setTimeout(() => {
           onLongPress()
         }, 500)

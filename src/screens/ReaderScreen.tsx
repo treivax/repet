@@ -9,6 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
+import { globalLineIndexToPosition } from '../core/models/playHelpers'
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts'
 import { Button } from '../components/common/Button'
@@ -168,6 +169,36 @@ export function ReaderScreen() {
     }
   }
 
+  // Handler pour l'appui long sur une ligne en mode silencieux
+  const handleLongPress = (globalLineIndex: number) => {
+    if (!currentPlay || !playId || !playSettings) return
+
+    // Ne gérer l'appui long que si on est en mode silencieux
+    if (playSettings.readingMode !== 'silent') return
+
+    // Si aucun personnage n'est sélectionné, rediriger vers la sélection
+    if (!userCharacter) {
+      navigate(`/play/${playId}/detail`)
+      return
+    }
+
+    // Basculer vers le mode italiennes
+    const { updatePlaySettings } = usePlaySettingsStore.getState()
+    updatePlaySettings(playId, {
+      readingMode: 'italian',
+    })
+
+    // Calculer la position de la ligne pour le PlayScreen
+    const position = globalLineIndexToPosition(currentPlay.ast.acts, globalLineIndex)
+    if (position) {
+      const { goToScene } = usePlayStore.getState()
+      goToScene(position.actIndex, position.sceneIndex)
+    }
+
+    // Naviguer vers le PlayScreen
+    navigate(`/play/${playId}`)
+  }
+
   // Rendu
   if (!currentPlay) {
     return (
@@ -278,6 +309,7 @@ export function ReaderScreen() {
             readLinesSet={readLinesSet}
             charactersMap={charactersMap}
             playTitle={getPlayTitle(currentPlay)}
+            onLongPress={playSettings.readingMode === 'silent' ? handleLongPress : undefined}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
