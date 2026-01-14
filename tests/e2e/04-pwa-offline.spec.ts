@@ -260,8 +260,8 @@ test.describe('PWA et Mode Offline', () => {
       await page.waitForURL(/\/play\//, { timeout: 10000 })
 
       // Extraire l'ID
-      const url = page.url()
-      const match = url.match(/\/play\/([^\/]+)/)
+      const currentUrl = page.url()
+      const match = currentUrl.match(/\/play\/([^/]+)/)
       let playId = ''
       if (match && match[1]) {
         playId = match[1]

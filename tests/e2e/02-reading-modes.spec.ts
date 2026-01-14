@@ -25,7 +25,7 @@ test.describe('Modes de Lecture', () => {
 
     // Extraire l'ID de la pièce depuis l'URL
     const url = pageWithTTS.url()
-    const match = url.match(/\/play\/([^\/]+)/)
+    const match = url.match(/\/play\/([^/]+)/)
     if (match && match[1]) {
       playId = match[1]
     }
@@ -102,8 +102,6 @@ test.describe('Modes de Lecture', () => {
     })
 
     test('devrait démarrer la lecture TTS en mode audio', async ({ pageWithTTS }) => {
-      const helpers = new TestHelpers(pageWithTTS)
-
       // Naviguer vers la page de config
       await pageWithTTS.goto(`/play/${playId}/config`)
       await pageWithTTS.waitForTimeout(500)

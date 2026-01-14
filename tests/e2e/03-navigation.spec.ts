@@ -23,7 +23,7 @@ test.describe('Navigation', () => {
 
     // Extraire l'ID de la pièce depuis l'URL
     const url = page.url()
-    const match = url.match(/\/play\/([^\/]+)/)
+    const match = url.match(/\/play\/([^/]+)/)
     let playId = ''
     if (match && match[1]) {
       playId = match[1]
@@ -299,7 +299,7 @@ test.describe('Navigation', () => {
       // Donner le focus au body
       await page.evaluate(() => document.body.focus())
 
-      const initialIndex = await page.evaluate(() => {
+      await page.evaluate(() => {
         const state = localStorage.getItem('repet-play-storage')
         if (state) {
           const parsed = JSON.parse(state)
@@ -336,7 +336,10 @@ test.describe('Navigation', () => {
 
       // Vérifier que la lecture existe (peut être en cours ou non selon le mode)
       const isPlaying = await pageWithTTS.evaluate(() => {
-        return (window as any).__mockSpeechSynthesis?.speaking || false
+        return (
+          (window as { __mockSpeechSynthesis?: { speaking?: boolean } }).__mockSpeechSynthesis
+            ?.speaking || false
+        )
       })
 
       // Peut être en lecture ou pas selon l'implémentation et le mode

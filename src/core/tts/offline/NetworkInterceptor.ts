@@ -116,7 +116,7 @@ export function interceptURL(url: string, mode: BuildMode = getBuildMode()): str
     if (mapping.pattern.test(url)) {
       const localPath = mapping.localPath(url)
       if (localPath) {
-        console.log(`[NetworkInterceptor] 🔀 Redirection (offline): ${url} → ${localPath}`)
+        console.warn(`[NetworkInterceptor] 🔀 Redirection (offline): ${url} → ${localPath}`)
         return localPath
       }
     }
@@ -172,7 +172,7 @@ export function installNetworkInterceptor(): void {
     return originalFetch(input, init)
   }
 
-  console.log(`[NetworkInterceptor] ✅ Intercepteur réseau installé (mode: ${mode})`)
+  console.warn(`[NetworkInterceptor] ✅ Intercepteur réseau installé (mode: ${mode})`)
 }
 
 /**

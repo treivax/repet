@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
@@ -237,7 +237,7 @@ export function PlayScreen() {
     return () => {
       document.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
     }
-  }, [playSettings, playingLineIndex, isPaused])
+  }, [playSettings, playingLineIndex, isPaused, pausePlayback])
 
   // Créer la map des personnages
   const charactersMap: Record<string, Character> = {}
@@ -606,7 +606,7 @@ export function PlayScreen() {
   }
 
   // Fonction pour mettre en pause/reprendre
-  const pausePlayback = () => {
+  const pausePlayback = useCallback(() => {
     if (ttsEngine.isSpeaking() && !isPaused) {
       ttsEngine.pause()
       setIsPaused(true)
@@ -614,7 +614,7 @@ export function PlayScreen() {
       ttsEngine.resume()
       setIsPaused(false)
     }
-  }
+  }, [isPaused])
 
   // Handler pour le clic sur une ligne (reçoit l'index global)
   const handleLineClick = (globalLineIndex: number) => {

@@ -95,7 +95,7 @@ export class VoiceCacheService {
     const cached = await this.db.voiceCache.get(url)
 
     if (cached) {
-      console.log(`[VoiceCacheService] ✅ Cache hit: ${cached.fileName}`)
+      console.warn(`[VoiceCacheService] ✅ Cache hit: ${cached.fileName}`)
 
       // Mettre à jour la date de dernier accès (stratégie LRU)
       await this.db.voiceCache.update(url, { lastAccessed: new Date() })
@@ -104,7 +104,7 @@ export class VoiceCacheService {
     }
 
     // 2. Fichier non en cache → télécharger
-    console.log(`[VoiceCacheService] ⬇️ Téléchargement: ${url}`)
+    console.warn(`[VoiceCacheService] ⬇️ Téléchargement: ${url}`)
 
     const data = await this.downloadWithProgress(url, onProgress)
 
@@ -219,14 +219,14 @@ export class VoiceCacheService {
 
     await this.db.voiceCache.put(entry)
 
-    console.log(`[VoiceCacheService] 💾 Mise en cache: ${fileName} (${this.formatBytes(size)})`)
+    console.warn(`[VoiceCacheService] 💾 Mise en cache: ${fileName} (${this.formatBytes(size)})`)
   }
 
   /**
    * Supprimer les entrées les plus anciennes pour libérer de l'espace
    */
   private async evictOldestEntries(spaceNeeded: number): Promise<void> {
-    console.log(`[VoiceCacheService] 🗑️ Libération d'espace: ${this.formatBytes(spaceNeeded)}`)
+    console.warn(`[VoiceCacheService] 🗑️ Libération d'espace: ${this.formatBytes(spaceNeeded)}`)
 
     // Récupérer toutes les entrées triées par date d'accès (les plus anciennes en premier)
     const entries = await this.db.voiceCache.orderBy('lastAccessed').toArray()
@@ -238,12 +238,12 @@ export class VoiceCacheService {
         break
       }
 
-      console.log(`[VoiceCacheService] 🗑️ Éviction: ${entry.fileName}`)
+      console.warn(`[VoiceCacheService] 🗑️ Éviction: ${entry.fileName}`)
       await this.db.voiceCache.delete(entry.url)
       freedSpace += entry.size
     }
 
-    console.log(`[VoiceCacheService] ✅ Espace libéré: ${this.formatBytes(freedSpace)}`)
+    console.warn(`[VoiceCacheService] ✅ Espace libéré: ${this.formatBytes(freedSpace)}`)
   }
 
   /**
@@ -285,7 +285,7 @@ export class VoiceCacheService {
    * Vider complètement le cache
    */
   async clearCache(): Promise<void> {
-    console.log('[VoiceCacheService] 🗑️ Vidage complet du cache')
+    console.warn('[VoiceCacheService] 🗑️ Vidage complet du cache')
     await this.db.voiceCache.clear()
   }
 
@@ -295,7 +295,7 @@ export class VoiceCacheService {
   async removeFromCache(url: string): Promise<void> {
     const entry = await this.db.voiceCache.get(url)
     if (entry) {
-      console.log(`[VoiceCacheService] 🗑️ Suppression: ${entry.fileName}`)
+      console.warn(`[VoiceCacheService] 🗑️ Suppression: ${entry.fileName}`)
       await this.db.voiceCache.delete(url)
     }
   }

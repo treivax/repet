@@ -74,7 +74,7 @@ test.describe('Import et Parsing de Pièce', () => {
     })
 
     if (metadata) {
-      expect((metadata as any).title).toBeTruthy()
+      expect((metadata as { title?: string }).title).toBeTruthy()
     }
   })
 
@@ -115,7 +115,7 @@ test.describe('Import et Parsing de Pièce', () => {
     })
 
     if (ast) {
-      const parsedAst = ast as any
+      const parsedAst = ast as { acts?: Array<{ scenes?: unknown[] }> }
       expect(parsedAst.acts).toBeDefined()
       expect(Array.isArray(parsedAst.acts)).toBeTruthy()
       expect(parsedAst.acts.length).toBeGreaterThan(0)
@@ -187,7 +187,7 @@ test.describe('Import et Parsing de Pièce', () => {
       // Vérifier qu'on n'a pas crashé
       const pageIsResponsive = await page.locator('body').isVisible()
       expect(pageIsResponsive).toBeTruthy()
-    } catch (error) {
+    } catch {
       // Si le test échoue, ce n'est pas grave - fonctionnalité optionnelle
     }
   })

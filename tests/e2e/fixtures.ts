@@ -137,8 +137,9 @@ async function mockSpeechAPI(page: Page) {
     })
 
     // Exposer pour les tests
-    ;(window as any).__utterances = utterances
-    ;(window as any).__mockSpeechSynthesis = mockSpeechSynthesis
+    ;(window as { __utterances?: typeof utterances }).__utterances = utterances
+    ;(window as { __mockSpeechSynthesis?: typeof mockSynthesis }).__mockSpeechSynthesis =
+      mockSynthesis
   })
 }
 
@@ -146,12 +147,12 @@ async function mockSpeechAPI(page: Page) {
  * Test avec fixtures Répét
  */
 export const test = base.extend<RepetFixtures>({
-  pageWithTTS: async ({ page }, use) => {
+  pageWithTTS: async ({ page }, _use) => {
     await mockSpeechAPI(page)
-    await use(page)
+    await _use(page)
   },
 
-  importPlay: async ({ page }, use) => {
+  importPlay: async ({ page }, _use) => {
     const importPlayHelper = async (fileName: string) => {
       const filePath = path.join(process.cwd(), 'examples', fileName)
 
@@ -177,10 +178,10 @@ export const test = base.extend<RepetFixtures>({
       })
     }
 
-    await use(importPlayHelper)
+    await _use(importPlayHelper)
   },
 
-  waitForAppReady: async ({ page }, use) => {
+  waitForAppReady: async ({ page }, _use) => {
     const waitHelper = async () => {
       // Attendre que React soit monté
       await page.waitForLoadState('domcontentloaded')
@@ -195,7 +196,7 @@ export const test = base.extend<RepetFixtures>({
       await page.waitForTimeout(100)
     }
 
-    await use(waitHelper)
+    await _use(waitHelper)
   },
 })
 
@@ -229,8 +230,10 @@ export class TestHelpers {
   /**
    * Obtenir les utterances TTS émises
    */
-  async getTTSUtterances(): Promise<any[]> {
-    return await this.page.evaluate(() => (window as any).__utterances || [])
+  async getTTSUtterances(): Promise<Array<{ text?: string }>> {
+    return await this.page.evaluate(
+      () => (window as { __utterances?: Array<{ text?: string }> }).__utterances || []
+    )
   }
 
   /**
@@ -265,12 +268,12 @@ export class TestHelpers {
           dbs.forEach((dbName) => {
             try {
               indexedDB.deleteDatabase(dbName)
-            } catch (e) {
-              console.log('Could not delete', dbName)
+            } catch {
+              console.warn('Could not delete', dbName)
             }
           })
         }
-      } catch (e) {
+      } catch {
         // Ignorer les erreurs de storage
       }
     })

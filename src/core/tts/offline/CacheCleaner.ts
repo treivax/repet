@@ -27,8 +27,8 @@ export async function clearPiperOPFSCache(): Promise<void> {
 
     // Lister tous les fichiers/dossiers
     const entries: string[] = []
-    // @ts-ignore - API OPFS
-    for await (const [name, handle] of root.entries()) {
+    // @ts-expect-error - API OPFS
+    for await (const [name] of root.entries()) {
       entries.push(name)
       console.warn(`[CacheCleaner] Trouvé: ${name}`)
     }
@@ -114,7 +114,7 @@ export async function getStorageStats(): Promise<{
     quota,
     usage,
     percentUsed,
-    details: (estimate as any).usageDetails || {},
+    details: (estimate as { usageDetails?: Record<string, number> }).usageDetails || {},
   }
 }
 
@@ -125,14 +125,13 @@ export async function logStorageStats(): Promise<void> {
   try {
     const stats = await getStorageStats()
 
-    console.group('[CacheCleaner] 📊 Statistiques de stockage')
-    console.log(`Quota: ${formatBytes(stats.quota)}`)
-    console.log(`Utilisé: ${formatBytes(stats.usage)} (${stats.percentUsed.toFixed(2)}%)`)
-    console.log('Détails:')
+    console.warn('[CacheCleaner] 📊 Statistiques de stockage')
+    console.warn(`Quota: ${formatBytes(stats.quota)}`)
+    console.warn(`Utilisé: ${formatBytes(stats.usage)} (${stats.percentUsed.toFixed(2)}%)`)
+    console.warn('Détails:')
     for (const [key, value] of Object.entries(stats.details)) {
-      console.log(`  - ${key}: ${formatBytes(value)}`)
+      console.warn(`  - ${key}: ${formatBytes(value)}`)
     }
-    console.groupEnd()
   } catch (error) {
     console.error("[CacheCleaner] Impossible d'obtenir les statistiques:", error)
   }
@@ -156,15 +155,15 @@ function formatBytes(bytes: number): string {
  */
 export function exposeCleanerToWindow(): void {
   if (typeof window !== 'undefined') {
-    // @ts-ignore
+    // @ts-expect-error - Exposing debug functions to window
     window.clearPiperCache = clearPiperOPFSCache
-    // @ts-ignore
+    // @ts-expect-error - Exposing debug functions to window
     window.clearAudioCache = clearAudioCache
-    // @ts-ignore
+    // @ts-expect-error - Exposing debug functions to window
     window.clearAllCaches = clearAllCaches
-    // @ts-ignore
+    // @ts-expect-error - Exposing debug functions to window
     window.getStorageStats = getStorageStats
-    // @ts-ignore
+    // @ts-expect-error - Exposing debug functions to window
     window.logStorageStats = logStorageStats
 
     console.warn('[CacheCleaner] 🔧 Fonctions exposées dans window:')
@@ -179,9 +178,14 @@ export function exposeCleanerToWindow(): void {
 /**
  * Expose les utilitaires de diagnostic pour le provider Piper
  */
-export function exposePiperDebugToWindow(provider: any): void {
+export function exposePiperDebugToWindow(provider: {
+  getSessionCacheStats?: () => unknown
+  clearSessionCache?: () => Promise<void>
+  getCacheStats?: () => Promise<unknown>
+  preloadModel?: (voiceId: string, onProgress: (percent: number) => void) => Promise<void>
+}): void {
   if (typeof window !== 'undefined') {
-    // @ts-ignore
+    // @ts-expect-error - Exposing debug functions to window
     window.piperDebug = {
       // Stats du cache de sessions
       getSessionCacheStats: () => {
@@ -230,21 +234,19 @@ export function exposePiperDebugToWindow(provider: any): void {
 
       // Afficher toutes les stats
       logAllStats: async () => {
-        console.group('[PiperDebug] 📊 Statistiques complètes')
+        console.warn('[PiperDebug] 📊 Statistiques complètes')
 
-        // @ts-ignore
+        // @ts-expect-error - Accessing debug functions from window
         if (window.piperDebug.getSessionCacheStats) {
-          // @ts-ignore
+          // @ts-expect-error - Accessing debug functions from window
           window.piperDebug.getSessionCacheStats()
         }
 
-        // @ts-ignore
+        // @ts-expect-error - Accessing debug functions from window
         if (window.piperDebug.getCacheStats) {
-          // @ts-ignore
+          // @ts-expect-error - Accessing debug functions from window
           await window.piperDebug.getCacheStats()
         }
-
-        console.groupEnd()
       },
     }
 

@@ -192,7 +192,7 @@ export class TTSProviderManager {
    */
   pause(): void {
     if (this.activeProvider && 'pause' in this.activeProvider) {
-      ;(this.activeProvider as any).pause()
+      ;(this.activeProvider as { pause: () => void }).pause()
     }
   }
 
@@ -201,7 +201,7 @@ export class TTSProviderManager {
    */
   resume(): void {
     if (this.activeProvider && 'resume' in this.activeProvider) {
-      ;(this.activeProvider as any).resume()
+      ;(this.activeProvider as { resume: () => void }).resume()
     }
   }
 

@@ -58,11 +58,11 @@ export function VoiceProfilePreview({
         pitch: 1.0,
         volume: 1.0,
         onStart: () => {
-          console.log(`[VoiceProfilePreview] Lecture du profil ${profile.displayName}`)
+          console.warn(`[VoiceProfilePreview] Lecture du profil ${profile.displayName}`)
         },
         onEnd: () => {
           setIsPlaying(false)
-          console.log(`[VoiceProfilePreview] Fin de la lecture du profil ${profile.displayName}`)
+          console.warn(`[VoiceProfilePreview] Fin de la lecture du profil ${profile.displayName}`)
         },
         onError: (err) => {
           setIsPlaying(false)
@@ -103,9 +103,7 @@ export function VoiceProfilePreview({
       {/* En-tête */}
       <div className="mb-2 flex items-center justify-between">
         <div className="flex-1">
-          <h4 className="font-medium text-gray-900 dark:text-gray-100">
-            {profile.displayName}
-          </h4>
+          <h4 className="font-medium text-gray-900 dark:text-gray-100">{profile.displayName}</h4>
           {profile.description && (
             <p className="text-xs text-gray-600 dark:text-gray-400">{profile.description}</p>
           )}
@@ -138,8 +136,7 @@ export function VoiceProfilePreview({
       {/* Paramètres du profil */}
       <div className="mb-2 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400">
         <div>
-          <span className="font-medium">Vitesse:</span>{' '}
-          {profile.modifiers.playbackRate.toFixed(2)}x
+          <span className="font-medium">Vitesse:</span> {profile.modifiers.playbackRate.toFixed(2)}x
         </div>
         {profile.modifiers.pitchShift !== undefined && profile.modifiers.pitchShift !== 0 && (
           <div>
