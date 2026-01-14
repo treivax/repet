@@ -10,7 +10,6 @@ import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { playsRepository } from '../core/storage/plays'
 import type { Play } from '../core/models/Play'
 import { getPlayTitle, getPlayCharacters, getPlayAuthor } from '../core/models/playHelpers'
-import { TTSProviderSelector } from '../components/play/TTSProviderSelector'
 import { CharacterVoiceEditor } from '../components/play/CharacterVoiceEditor'
 
 import { ItalianSettings } from '../components/play/ItalianSettings'
@@ -18,7 +17,6 @@ import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { CharacterSelector } from '../components/play/CharacterSelector'
 import { StandardHeader } from '../components/common/StandardHeader'
-import { useFrenchVoices } from '../hooks/useFrenchVoices'
 import { ttsProviderManager } from '../core/tts/providers'
 import type { VoiceDescriptor, VoiceGender } from '../core/tts/types'
 
@@ -36,9 +34,6 @@ export function PlayDetailScreen() {
   const [showCharacterSelector, setShowCharacterSelector] = useState(false)
   const [availableVoices, setAvailableVoices] = useState<VoiceDescriptor[]>([])
 
-  // Compter les voix françaises disponibles
-  const frenchVoices = useFrenchVoices()
-
   // Récupération réactive des settings pour ce playId
   const settings = usePlaySettingsStore((state) =>
     playId ? state.playSettings[playId] || state.getPlaySettings(playId) : null
@@ -53,7 +48,6 @@ export function PlayDetailScreen() {
   const setDefaultSpeed = usePlaySettingsStore((state) => state.setDefaultSpeed)
   const toggleVoiceOff = usePlaySettingsStore((state) => state.toggleVoiceOff)
   const deletePlaySettings = usePlaySettingsStore((state) => state.deletePlaySettings)
-  const setTTSProvider = usePlaySettingsStore((state) => state.setTTSProvider)
   const setCharacterVoiceAssignment = usePlaySettingsStore(
     (state) => state.setCharacterVoiceAssignment
   )
@@ -84,23 +78,23 @@ export function PlayDetailScreen() {
   }, [playId, navigate])
 
   // Charger les voix disponibles quand le provider change
+  // Récupérer les personnages de la pièce
+  const characters = play ? getPlayCharacters(play) : []
+
   useEffect(() => {
-    if (!settings) return
+    if (!settings || !play) return
 
     const loadVoices = async () => {
       try {
-        // Initialiser le provider manager avec le provider des settings
-        await ttsProviderManager.initialize(settings.ttsProvider)
+        // Initialiser le provider manager Piper WASM
+        await ttsProviderManager.initialize()
 
         // Récupérer les voix
         const voices = ttsProviderManager.getVoices()
         setAvailableVoices(voices)
 
         // Auto-générer les assignations si vides OU si les voix assignées n'existent plus
-        const assignmentMap =
-          settings.ttsProvider === 'piper-wasm'
-            ? settings.characterVoicesPiper
-            : settings.characterVoicesGoogle
+        const assignmentMap = settings.characterVoicesPiper
 
         // Vérifier si toutes les voix assignées existent dans le provider actuel
         const voiceIds = voices.map((v) => v.id)
@@ -108,31 +102,33 @@ export function PlayDetailScreen() {
           voiceIds.includes(voiceId)
         )
 
-        const needsRegeneration =
-          Object.keys(assignmentMap).length === 0 || !allVoicesExist || characters.length === 0
+        const needsRegeneration = Object.keys(assignmentMap).length === 0 || !allVoicesExist
 
         if (needsRegeneration && characters.length > 0) {
           // Générer les assignations automatiquement
           const charactersWithGender = characters.map((char) => ({
             id: char.id,
-            gender: (settings.characterVoices[char.id] || 'male') as VoiceGender,
+            gender: (settings.characterVoices[char.id] || char.gender || 'male') as VoiceGender,
           }))
 
           const provider = ttsProviderManager.getActiveProvider()
           if (provider) {
             const newAssignments = provider.generateVoiceAssignments(charactersWithGender, {})
 
+            // Sauvegarder les genres détectés dans characterVoices
+            const updatedCharacterVoices = { ...settings.characterVoices }
+            charactersWithGender.forEach((char) => {
+              if (!updatedCharacterVoices[char.id]) {
+                updatedCharacterVoices[char.id] = char.gender
+              }
+            })
+
             // Sauvegarder
             if (playId) {
-              if (settings.ttsProvider === 'piper-wasm') {
-                usePlaySettingsStore
-                  .getState()
-                  .updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
-              } else {
-                usePlaySettingsStore
-                  .getState()
-                  .updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
-              }
+              usePlaySettingsStore.getState().updatePlaySettings(playId, {
+                characterVoicesPiper: newAssignments,
+                characterVoices: updatedCharacterVoices,
+              })
             }
           }
         }
@@ -143,7 +139,7 @@ export function PlayDetailScreen() {
 
     loadVoices()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings?.ttsProvider, playId])
+  }, [playId, play])
 
   if (isLoading) {
     return (
@@ -159,8 +155,6 @@ export function PlayDetailScreen() {
   if (!playId || !play || !settings) {
     return null
   }
-
-  const characters = getPlayCharacters(play)
 
   // Obtenir le personnage actuellement sélectionné ou le premier par défaut
   const selectedCharacter = settings.userCharacterId
@@ -205,54 +199,9 @@ export function PlayDetailScreen() {
     }
   }
 
-  const handleProviderChange = async (provider: 'web-speech' | 'piper-wasm') => {
-    if (!playId) return
-
-    try {
-      // Changer le provider dans le manager
-      await ttsProviderManager.switchProvider(provider)
-
-      // Mettre à jour les settings
-      setTTSProvider(playId, provider)
-
-      // Recharger les voix
-      const voices = ttsProviderManager.getVoices()
-      setAvailableVoices(voices)
-    } catch (error) {
-      console.error('Erreur lors du changement de provider:', error)
-    }
-  }
-
-  const handleReassignVoices = () => {
-    if (!playId || !settings) return
-
-    // Régénérer toutes les voix (pas de réutilisation des assignations existantes)
-    const charactersWithGender = characters.map((char) => ({
-      id: char.id,
-      gender: (settings.characterVoices[char.id] || 'male') as VoiceGender,
-    }))
-
-    const provider = ttsProviderManager.getActiveProvider()
-    if (provider) {
-      // Passer un objet vide pour forcer une réassignation complète
-      const newAssignments = provider.generateVoiceAssignments(charactersWithGender, {})
-
-      // Sauvegarder selon le provider
-      if (settings.ttsProvider === 'piper-wasm') {
-        usePlaySettingsStore
-          .getState()
-          .updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
-      } else {
-        usePlaySettingsStore
-          .getState()
-          .updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
-      }
-    }
-  }
-
   const handleVoiceChange = (characterId: string, voiceId: string) => {
     if (!playId || !settings) return
-    setCharacterVoiceAssignment(playId, settings.ttsProvider, characterId, voiceId)
+    setCharacterVoiceAssignment(playId, characterId, voiceId)
   }
 
   const handleGenderChange = (characterId: string, gender: 'male' | 'female' | 'neutral') => {
@@ -265,7 +214,7 @@ export function PlayDetailScreen() {
     if (gender !== 'neutral') {
       const voices = availableVoices.filter((v) => v.gender === gender)
       if (voices.length > 0) {
-        setCharacterVoiceAssignment(playId, settings!.ttsProvider, characterId, voices[0].id)
+        setCharacterVoiceAssignment(playId, characterId, voices[0].id)
       }
     }
   }
@@ -290,6 +239,18 @@ export function PlayDetailScreen() {
             Retour
           </button>
         }
+        centerContent={
+          <div className="flex-1 flex items-baseline justify-center gap-2 px-4 min-w-0">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+              {getPlayTitle(play)}
+            </h1>
+            {getPlayAuthor(play) && (
+              <span className="text-sm text-gray-600 dark:text-gray-400 truncate hidden sm:inline">
+                par {getPlayAuthor(play)}
+              </span>
+            )}
+          </div>
+        }
         className="border-b"
       />
 
@@ -297,45 +258,10 @@ export function PlayDetailScreen() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-4xl px-4 py-6">
           <div className="space-y-6">
-            {/* BLOC 1 : Informations de la pièce - BIEN MIS EN AVANT */}
-            <section className="rounded-lg border-2 border-blue-200 bg-white p-8 shadow-lg dark:border-blue-800 dark:bg-gray-800">
-              <h1 className="mb-3 text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {getPlayTitle(play)}
-              </h1>
-              <div className="space-y-2 text-lg text-gray-700 dark:text-gray-300">
-                {getPlayAuthor(play) && (
-                  <p>
-                    <span className="font-semibold">Auteur :</span> {getPlayAuthor(play)}
-                  </p>
-                )}
-                {play.ast.metadata.year && (
-                  <p>
-                    <span className="font-semibold">Année :</span> {play.ast.metadata.year}
-                  </p>
-                )}
-                {play.ast.metadata.category && (
-                  <p>
-                    <span className="font-semibold">Catégorie :</span> {play.ast.metadata.category}
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-4 border-t border-gray-200 pt-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400">
-                <div>
-                  <span className="font-semibold">Personnages :</span> {characters.length}
-                </div>
-                <div>
-                  <span className="font-semibold">Actes :</span> {play.ast.acts.length}
-                </div>
-                <div>
-                  <span className="font-semibold">Voix FR :</span> {frenchVoices}
-                </div>
-              </div>
-            </section>
-
-            {/* BLOC 2 : Méthode de lecture - BIEN MIS EN AVANT */}
+            {/* BLOC 1 : Méthode de lecture */}
             <section className="rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg dark:border-blue-800 dark:from-blue-900/20 dark:to-gray-800">
               <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
-                Choisir la méthode de lecture
+                Méthode de lecture
               </h2>
               <div className="space-y-3">
                 {/* Lecture silencieuse */}
@@ -440,131 +366,11 @@ export function PlayDetailScreen() {
               </div>
             </section>
 
-            {/* BLOC 3 : Les voix */}
-            <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Voix des personnages
+            {/* BLOC 2 : Options de lecture */}
+            <section className="rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg dark:border-blue-800 dark:from-blue-900/20 dark:to-gray-800">
+              <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                Options de lecture
               </h2>
-
-              {/* Provider Selector */}
-              <div className="mb-6">
-                <TTSProviderSelector
-                  currentProvider={settings.ttsProvider}
-                  onProviderChange={handleProviderChange}
-                  onReassignVoices={handleReassignVoices}
-                />
-              </div>
-
-              {/* Liste des personnages avec éditeur de voix */}
-              <div className="space-y-3">
-                {characters.map((character) => {
-                  const gender = settings.characterVoices[character.id] || 'male'
-                  const assignmentMap =
-                    settings.ttsProvider === 'piper-wasm'
-                      ? settings.characterVoicesPiper
-                      : settings.characterVoicesGoogle
-                  const voiceId = assignmentMap[character.id]
-                  const voice = availableVoices.find((v) => v.id === voiceId) || null
-
-                  return (
-                    <CharacterVoiceEditor
-                      key={character.id}
-                      characterId={character.id}
-                      characterName={character.name}
-                      currentGender={gender}
-                      currentVoice={voice}
-                      availableVoices={availableVoices}
-                      onGenderChange={handleGenderChange}
-                      onVoiceChange={handleVoiceChange}
-                    />
-                  )
-                })}
-
-                {/* Voix off / Narrateur */}
-                <div className="mt-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg" aria-hidden="true">
-                        🎙️
-                      </span>
-                      <span className="font-semibold text-gray-900 dark:text-gray-100">
-                        Voix off / Narrateur
-                      </span>
-                    </div>
-                  </div>
-                  <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
-                    Utilisée pour les didascalies, actes et scènes
-                  </p>
-
-                  {/* Toggle Ne pas lire les didascalies */}
-                  <div className="mb-3 flex items-center justify-between rounded-md border border-blue-300 bg-white p-2 dark:border-blue-700 dark:bg-gray-800">
-                    <div className="flex-1">
-                      <label
-                        htmlFor="skip-stage-directions-toggle"
-                        className="text-sm font-medium text-gray-900 dark:text-gray-100"
-                      >
-                        Ne pas lire les didascalies
-                      </label>
-                    </div>
-                    <button
-                      id="skip-stage-directions-toggle"
-                      type="button"
-                      role="switch"
-                      aria-checked={!settings.voiceOffEnabled}
-                      onClick={() => toggleVoiceOff(playId)}
-                      className={`
-                        relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out
-                        ${!settings.voiceOffEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
-                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                      `}
-                    >
-                      <span
-                        aria-hidden="true"
-                        className={`
-                          inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
-                          ${!settings.voiceOffEnabled ? 'translate-x-5' : 'translate-x-0'}
-                        `}
-                      />
-                    </button>
-                  </div>
-                  {(() => {
-                    const assignmentMap =
-                      settings.ttsProvider === 'piper-wasm'
-                        ? settings.characterVoicesPiper
-                        : settings.characterVoicesGoogle
-                    const narratorVoiceId = assignmentMap['__narrator__']
-                    const narratorVoice = availableVoices.find((v) => v.id === narratorVoiceId)
-                    const neutralVoices = availableVoices.filter((v) => v.gender === 'neutral')
-                    const voicesForNarrator =
-                      neutralVoices.length > 0 ? neutralVoices : availableVoices
-
-                    return (
-                      <CharacterVoiceEditor
-                        key="__narrator__"
-                        characterId="__narrator__"
-                        characterName="Voix off"
-                        currentGender="neutral"
-                        currentVoice={narratorVoice || null}
-                        availableVoices={voicesForNarrator}
-                        onGenderChange={() => {
-                          /* Pas de changement de genre pour le narrateur */
-                        }}
-                        onVoiceChange={handleVoiceChange}
-                      />
-                    )
-                  })()}
-                </div>
-              </div>
-            </section>
-
-            {/* BLOC 4 : Réglages */}
-            <section className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-              <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
-                Réglages
-              </h2>
-              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Configurez la vitesse de lecture et les options de masquage
-              </p>
 
               {/* Réglages audio de base */}
               <div className="space-y-6">
@@ -610,9 +416,6 @@ export function PlayDetailScreen() {
 
               {/* Réglages italiennes */}
               <div className="mt-6">
-                <h3 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">
-                  Options pour le mode Italiennes
-                </h3>
                 <ItalianSettings
                   hideUserLines={settings.hideUserLines}
                   showBefore={settings.showBefore}
@@ -624,9 +427,106 @@ export function PlayDetailScreen() {
               </div>
             </section>
 
+            {/* BLOC 3 : Voix off */}
+            <section className="rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg dark:border-blue-800 dark:from-blue-900/20 dark:to-gray-800">
+              <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                Voix off / Narrateur
+              </h2>
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                Utilisée pour les didascalies, actes et scènes
+              </p>
+
+              {/* Toggle Lire les didascalies */}
+              <div className="mb-4 flex items-center justify-between rounded-lg border-2 border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-700">
+                <div className="flex-1">
+                  <label
+                    htmlFor="read-stage-directions-toggle"
+                    className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                  >
+                    Lire les didascalies
+                  </label>
+                </div>
+                <button
+                  id="read-stage-directions-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.voiceOffEnabled}
+                  onClick={() => toggleVoiceOff(playId)}
+                  className={`
+                    relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out
+                    ${settings.voiceOffEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                  `}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`
+                      inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                      ${settings.voiceOffEnabled ? 'translate-x-5' : 'translate-x-0'}
+                    `}
+                  />
+                </button>
+              </div>
+
+              {(() => {
+                const assignmentMap = settings.characterVoicesPiper
+                const narratorVoiceId = assignmentMap['__narrator__']
+                const narratorVoice = availableVoices.find((v) => v.id === narratorVoiceId)
+                const neutralVoices = availableVoices.filter((v) => v.gender === 'neutral')
+                const voicesForNarrator = neutralVoices.length > 0 ? neutralVoices : availableVoices
+
+                return (
+                  <CharacterVoiceEditor
+                    key="__narrator__"
+                    characterId="__narrator__"
+                    characterName="Voix off"
+                    currentGender="neutral"
+                    currentVoice={narratorVoice || null}
+                    availableVoices={voicesForNarrator}
+                    onGenderChange={() => {
+                      /* Pas de changement de genre pour le narrateur */
+                    }}
+                    onVoiceChange={handleVoiceChange}
+                    hideGenderSelector={true}
+                  />
+                )
+              })()}
+            </section>
+
+            {/* BLOC 4 : Voix des personnages */}
+            <section className="rounded-lg border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg dark:border-blue-800 dark:from-blue-900/20 dark:to-gray-800">
+              <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-gray-100">
+                Voix des personnages
+              </h2>
+
+              {/* Liste des personnages avec éditeur de voix */}
+              <div className="space-y-3">
+                {characters.map((character) => {
+                  const gender =
+                    settings.characterVoices[character.id] || character.gender || 'male'
+                  const assignmentMap = settings.characterVoicesPiper
+                  const voiceId = assignmentMap[character.id]
+                  const voice = availableVoices.find((v) => v.id === voiceId) || null
+
+                  return (
+                    <CharacterVoiceEditor
+                      key={character.id}
+                      characterId={character.id}
+                      characterName={character.name}
+                      currentGender={gender}
+                      currentVoice={voice}
+                      availableVoices={availableVoices}
+                      onGenderChange={handleGenderChange}
+                      onVoiceChange={handleVoiceChange}
+                    />
+                  )
+                })}
+              </div>
+            </section>
+
             {/* BLOC 5 : Suppression */}
-            <section className="rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20">
-              <h2 className="mb-2 text-lg font-semibold text-red-900 dark:text-red-100">
+            <section className="rounded-lg border-2 border-red-200 bg-gradient-to-br from-red-50 to-white p-6 shadow-lg dark:border-red-800 dark:from-red-900/20 dark:to-gray-800">
+              <h2 className="mb-4 text-2xl font-bold text-red-900 dark:text-red-100">
                 Supprimer cette pièce
               </h2>
               <p className="mb-4 text-sm text-red-700 dark:text-red-300">

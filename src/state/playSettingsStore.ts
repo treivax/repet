@@ -10,7 +10,7 @@ import type { PlaySettings } from '../core/models/Settings'
 import { createDefaultPlaySettings } from '../core/models/Settings'
 import type { ReadingMode } from '../core/tts/readingModes'
 import type { Gender } from '../core/models/types'
-import type { TTSProviderType, VoiceGender } from '../core/tts/types'
+import type { VoiceGender } from '../core/tts/types'
 import { ttsProviderManager } from '../core/tts/providers'
 import { migrateAllPlaySettings, migratePlaySettingsVoices } from '../utils/voiceMigration'
 
@@ -61,19 +61,11 @@ interface PlaySettingsState {
   /** Réinitialise les paramètres d'une pièce */
   resetPlaySettings: (playId: string) => void
 
-  /** Change le provider TTS pour une pièce */
-  setTTSProvider: (playId: string, provider: TTSProviderType) => void
+  /** Assigne une voix spécifique à un personnage */
+  setCharacterVoiceAssignment: (playId: string, characterId: string, voiceId: string) => void
 
-  /** Assigne une voix spécifique à un personnage pour un provider donné */
-  setCharacterVoiceAssignment: (
-    playId: string,
-    provider: TTSProviderType,
-    characterId: string,
-    voiceId: string
-  ) => void
-
-  /** Réassigne toutes les voix pour un provider donné */
-  reassignAllVoices: (playId: string, provider: TTSProviderType) => void
+  /** Réassigne toutes les voix */
+  reassignAllVoices: (playId: string) => void
 }
 
 /**
@@ -197,28 +189,14 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
         }))
       },
 
-      setTTSProvider: (playId: string, provider: TTSProviderType) => {
-        get().updatePlaySettings(playId, { ttsProvider: provider })
-      },
-
-      setCharacterVoiceAssignment: (
-        playId: string,
-        provider: TTSProviderType,
-        characterId: string,
-        voiceId: string
-      ) => {
+      setCharacterVoiceAssignment: (playId: string, characterId: string, voiceId: string) => {
         const settings = get().getPlaySettings(playId)
 
         // Récupérer l'ancienne voix assignée pour la supprimer du cache
-        let oldVoiceId: string | undefined
-        if (provider === 'piper-wasm') {
-          oldVoiceId = settings.characterVoicesPiper[characterId]
-        } else {
-          oldVoiceId = settings.characterVoicesGoogle[characterId]
-        }
+        const oldVoiceId = settings.characterVoicesPiper[characterId]
 
         // Vider le cache de l'ancienne voix si elle existe et est différente
-        if (oldVoiceId && oldVoiceId !== voiceId && provider === 'piper-wasm') {
+        if (oldVoiceId && oldVoiceId !== voiceId) {
           // Import dynamique pour éviter les dépendances circulaires
           import('../core/tts/providers/PiperWASMProvider')
             .then(({ piperWASMProvider }) => {
@@ -235,23 +213,15 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
             })
         }
 
-        // Choisir la bonne map selon le provider
-        if (provider === 'piper-wasm') {
-          const updatedAssignments = {
-            ...settings.characterVoicesPiper,
-            [characterId]: voiceId,
-          }
-          get().updatePlaySettings(playId, { characterVoicesPiper: updatedAssignments })
-        } else {
-          const updatedAssignments = {
-            ...settings.characterVoicesGoogle,
-            [characterId]: voiceId,
-          }
-          get().updatePlaySettings(playId, { characterVoicesGoogle: updatedAssignments })
+        // Mettre à jour les assignations
+        const updatedAssignments = {
+          ...settings.characterVoicesPiper,
+          [characterId]: voiceId,
         }
+        get().updatePlaySettings(playId, { characterVoicesPiper: updatedAssignments })
       },
 
-      reassignAllVoices: (playId: string, provider: TTSProviderType) => {
+      reassignAllVoices: (playId: string) => {
         const settings = get().getPlaySettings(playId)
 
         // Récupérer les personnages avec leurs genres
@@ -271,12 +241,8 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
 
         const newAssignments = providerInstance.generateVoiceAssignments(characters, {})
 
-        // Sauvegarder selon le provider
-        if (provider === 'piper-wasm') {
-          get().updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
-        } else {
-          get().updatePlaySettings(playId, { characterVoicesGoogle: newAssignments })
-        }
+        // Sauvegarder les assignations
+        get().updatePlaySettings(playId, { characterVoicesPiper: newAssignments })
       },
     }),
     {

@@ -49,7 +49,7 @@ export function ItalianSettings({
             htmlFor="hide-lines-toggle"
             className="font-medium text-gray-900 dark:text-gray-100"
           >
-            Masquer vos répliques
+            Masquer vos répliques dans le mode Italiennes
           </label>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Cache vos répliques pendant la lecture

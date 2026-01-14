@@ -7,7 +7,6 @@
 export * from './PlayCard'
 export * from './CharacterBadge'
 export * from './CharacterSelector'
-export * from './TTSProviderSelector'
 export * from './CharacterVoiceEditor'
 export * from './VoiceAssignment'
 export * from './AudioSettings'

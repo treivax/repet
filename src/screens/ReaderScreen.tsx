@@ -17,7 +17,7 @@ import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { ReadingHeader } from '../components/reader/ReadingHeader'
 import { SceneBadge } from '../components/reader/SceneBadge'
 import { SceneSummary } from '../components/reader/SceneSummary'
-import { getPlayTitle } from '../core/models/playHelpers'
+import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
 
 /**
@@ -201,6 +201,7 @@ export function ReaderScreen() {
       {/* Header */}
       <ReadingHeader
         title={getPlayTitle(currentPlay)}
+        author={getPlayAuthor(currentPlay)}
         modeBadge={
           playSettings ? (
             <button

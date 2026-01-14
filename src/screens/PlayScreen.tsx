@@ -19,9 +19,10 @@ import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { ReadingHeader } from '../components/reader/ReadingHeader'
 import { SceneBadge } from '../components/reader/SceneBadge'
 import { SceneSummary } from '../components/reader/SceneSummary'
-import { getPlayTitle } from '../core/models/playHelpers'
+import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
 import type { Line } from '../core/models/Line'
+import { parseTextWithStageDirections, type TextSegment } from '../utils/textParser'
 
 /**
  * Écran de lecture audio
@@ -73,6 +74,8 @@ export function PlayScreen() {
   const totalWordsRef = useRef<number>(0)
   const wordsSpokenRef = useRef<number>(0)
   const useBoundaryTrackingRef = useRef<boolean>(true)
+  const currentSegmentIndexRef = useRef<number>(0)
+  const segmentsRef = useRef<TextSegment[]>([])
 
   // Fonction pour mettre en pause/reprendre
   const pausePlayback = useCallback(() => {
@@ -138,15 +141,13 @@ export function PlayScreen() {
       if (!playId || !currentPlay) return
 
       const settings = getPlaySettings(playId)
-      const provider = settings.ttsProvider || 'piper-wasm'
 
       try {
-        await ttsProviderManager.initialize(provider)
-        console.warn(`TTS Provider initialisé: ${provider}`)
+        await ttsProviderManager.initialize()
+        console.warn(`TTS Provider initialisé: Piper WASM`)
 
         // Générer automatiquement les assignations de voix si elles sont vides
-        const assignmentMap =
-          provider === 'piper-wasm' ? settings.characterVoicesPiper : settings.characterVoicesGoogle
+        const assignmentMap = settings.characterVoicesPiper
 
         const needsAssignments = Object.keys(assignmentMap).length === 0
 
@@ -179,17 +180,10 @@ export function PlayScreen() {
 
             // Sauvegarder les assignations ET les genres
             const { updatePlaySettings } = usePlaySettingsStore.getState()
-            if (provider === 'piper-wasm') {
-              updatePlaySettings(playId, {
-                characterVoicesPiper: newAssignments,
-                characterVoices: updatedCharacterVoices,
-              })
-            } else {
-              updatePlaySettings(playId, {
-                characterVoicesGoogle: newAssignments,
-                characterVoices: updatedCharacterVoices,
-              })
-            }
+            updatePlaySettings(playId, {
+              characterVoicesPiper: newAssignments,
+              characterVoices: updatedCharacterVoices,
+            })
 
             console.warn('Assignations de voix générées:', newAssignments)
             console.warn('Genres sauvegardés:', updatedCharacterVoices)
@@ -426,6 +420,148 @@ export function PlayScreen() {
     return total
   }
 
+  // Fonction pour scroller vers une ligne
+  const scrollToLine = (lineIndex: number) => {
+    const element = document.querySelector(`[data-line-index="${lineIndex}"]`)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
+  // Fonction pour arrêter la lecture
+  const stopPlayback = () => {
+    ttsEngine.stop()
+    utteranceRef.current = null
+    isPlayingRef.current = false
+    setPlayingLineIndex(undefined)
+    setIsPaused(false)
+    setIsGenerating(false)
+    stopProgressTracking()
+  }
+
+  /**
+   * Lit un segment de texte avec la voix appropriée
+   */
+  const speakSegment = (
+    segment: TextSegment,
+    voiceId: string,
+    rate: number,
+    volume: number,
+    globalLineIndex: number,
+    onSegmentEnd: () => void
+  ) => {
+    // Ne rien faire si le segment est vide
+    if (!segment.content.trim()) {
+      onSegmentEnd()
+      return
+    }
+
+    console.warn(
+      `[PlayScreen] 📖 Lecture segment ${segment.type}: "${segment.content.substring(0, 30)}..." avec voiceId="${voiceId}"`
+    )
+
+    ttsEngine.speak({
+      text: segment.content,
+      voiceURI: voiceId,
+      rate,
+      pitch: 1.0,
+      volume,
+      lineId: globalLineIndex.toString(),
+    })
+
+    ttsEngine.setEvents({
+      onStart: () => {
+        setIsGenerating(false)
+      },
+      onEnd: () => {
+        if (!isPlayingRef.current) return
+        onSegmentEnd()
+      },
+      onError: (error) => {
+        console.error('Erreur de lecture TTS segment', error)
+        if (!isPlayingRef.current) return
+        stopPlayback()
+      },
+      onProgress: (charIndex) => {
+        if (!isPlayingRef.current) return
+        // Mettre à jour les mots prononcés pour le segment actuel
+        const textSoFar = segment.content.substring(0, charIndex)
+        const wordsInSegment = countWords(textSoFar)
+
+        // Calculer le nombre total de mots prononcés en incluant les segments précédents
+        let wordsBefore = 0
+        for (let i = 0; i < currentSegmentIndexRef.current; i++) {
+          wordsBefore += countWords(segmentsRef.current[i].content)
+        }
+        wordsSpokenRef.current = wordsBefore + wordsInSegment
+      },
+    })
+  }
+
+  /**
+   * Lit les segments d'une ligne séquentiellement
+   */
+  const speakLineSegments = (
+    segments: TextSegment[],
+    characterVoiceId: string,
+    narratorVoiceId: string,
+    rate: number,
+    volume: number,
+    globalLineIndex: number
+  ) => {
+    segmentsRef.current = segments
+    currentSegmentIndexRef.current = 0
+
+    const speakNextSegment = (): void => {
+      if (!isPlayingRef.current) return
+
+      const segmentIndex = currentSegmentIndexRef.current
+      if (segmentIndex >= segments.length) {
+        // Tous les segments ont été lus, passer à la ligne suivante
+        stopProgressTracking()
+        setIsGenerating(false)
+
+        if (!currentPlay) return
+
+        const nextGlobalIndex = globalLineIndex + 1
+        const totalLines = getTotalLines()
+
+        if (nextGlobalIndex < totalLines) {
+          speakLine(nextGlobalIndex)
+        } else {
+          // Fin de la pièce
+          stopPlayback()
+        }
+        return
+      }
+
+      const segment = segments[segmentIndex]
+
+      // Déterminer la voix à utiliser pour ce segment
+      let voiceId = characterVoiceId
+      let segmentRate = rate
+
+      if (segment.type === 'stage-direction') {
+        // Didascalie : utiliser la voix off si activée, sinon ne pas lire
+        if (!playSettings?.voiceOffEnabled) {
+          // Passer au segment suivant sans lire
+          currentSegmentIndexRef.current++
+          speakNextSegment()
+          return
+        }
+        voiceId = narratorVoiceId
+        // Les didascalies sont lues légèrement plus lentement
+        segmentRate = rate * 0.9
+      }
+
+      currentSegmentIndexRef.current++
+      speakSegment(segment, voiceId, segmentRate, volume, globalLineIndex, speakNextSegment)
+    }
+
+    // Commencer la lecture du premier segment
+    speakNextSegment()
+  }
+
   // Fonction pour lire une ligne (avec index global)
   const speakLine = (globalLineIndex: number) => {
     if (!playSettings || !currentPlay) return
@@ -454,15 +590,12 @@ export function PlayScreen() {
 
     if (line.characterId) {
       // Obtenir l'assignation de voix pour ce personnage
-      const assignmentMap =
-        playSettings.ttsProvider === 'piper-wasm'
-          ? playSettings.characterVoicesPiper
-          : playSettings.characterVoicesGoogle
+      const assignmentMap = playSettings.characterVoicesPiper
 
       voiceId = assignmentMap[line.characterId] || ''
 
       console.warn(
-        `[PlayScreen] 🎭 Personnage: ${line.characterId}, Provider: ${playSettings.ttsProvider}, voiceId assignée: "${voiceId}"`
+        `[PlayScreen] 🎭 Personnage: ${line.characterId}, voiceId assignée: "${voiceId}"`
       )
       console.warn(`[PlayScreen] 📋 Assignment map:`, assignmentMap)
 
@@ -529,7 +662,10 @@ export function PlayScreen() {
       )
     }
 
-    // Estimer et démarrer le tracking de la durée
+    // Parser le texte en segments (texte normal et didascalies)
+    const segments = parseTextWithStageDirections(line.text)
+
+    // Calculer la durée totale basée sur le texte complet
     const totalWords = countWords(line.text)
     const duration = estimateLineDuration(line.text, rate)
     startProgressTracking(duration, totalWords)
@@ -537,83 +673,31 @@ export function PlayScreen() {
     // Créer une référence fictive pour compatibilité
     utteranceRef.current = { text: line.text } as SpeechSynthesisUtterance
 
+    // Obtenir la voix du narrateur pour les didascalies
+    let narratorVoiceId = ''
+    const assignmentMap = playSettings.characterVoicesPiper
+
+    narratorVoiceId = assignmentMap['__narrator__'] || ''
+
+    // Si pas de voix narrateur assignée, utiliser une voix neutre
+    if (!narratorVoiceId) {
+      const voices = ttsProviderManager.getVoices()
+      const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
+      if (neutralVoice) {
+        narratorVoiceId = neutralVoice.id
+      }
+    }
+
     // Log pour debug
     console.warn(
-      `[PlayScreen] ▶️ LECTURE ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}", volume=${volume}, rate=${rate}`
+      `[PlayScreen] ▶️ LECTURE ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}", narratorVoiceId="${narratorVoiceId}", volume=${volume}, rate=${rate}, segments=${segments.length}`
     )
 
-    // Utiliser le nouveau système TTS
-    ttsEngine.speak({
-      text: line.text,
-      voiceURI: voiceId,
-      rate,
-      pitch: 1.0,
-      volume,
-      lineId: globalLineIndex.toString(),
-    })
-
-    // Configurer les événements via setEvents
-    ttsEngine.setEvents({
-      onStart: () => {
-        // Audio généré et lecture démarrée
-        setIsGenerating(false)
-      },
-      onEnd: () => {
-        stopProgressTracking()
-        setIsGenerating(false)
-
-        if (!isPlayingRef.current || !currentPlay) return
-
-        // Passer à la ligne suivante automatiquement
-        const nextGlobalIndex = globalLineIndex + 1
-        const totalLines = getTotalLines()
-
-        if (nextGlobalIndex < totalLines) {
-          speakLine(nextGlobalIndex)
-        } else {
-          // Fin de la pièce
-          stopPlayback()
-        }
-      },
-      onError: (error) => {
-        stopProgressTracking()
-        setIsGenerating(false)
-
-        // Ne rien faire si on a déjà arrêté manuellement
-        if (!isPlayingRef.current) return
-        console.error('Erreur de lecture TTS', error)
-
-        stopPlayback()
-      },
-      onProgress: (charIndex) => {
-        if (!isPlayingRef.current) return
-        // Estimer le nombre de mots prononcés basé sur charIndex
-        const textSoFar = line.text.substring(0, charIndex)
-        wordsSpokenRef.current = countWords(textSoFar)
-      },
-    })
+    // Lire les segments séquentiellement
+    speakLineSegments(segments, voiceId, narratorVoiceId, rate, volume, globalLineIndex)
 
     // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
     scrollToLine(globalLineIndex)
-  }
-
-  // Fonction pour scroller vers une ligne
-  const scrollToLine = (lineIndex: number) => {
-    const element = document.querySelector(`[data-line-index="${lineIndex}"]`)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
-
-  // Fonction pour arrêter la lecture
-  const stopPlayback = () => {
-    ttsEngine.stop()
-    utteranceRef.current = null
-    isPlayingRef.current = false
-    setPlayingLineIndex(undefined)
-    setIsPaused(false)
-    setIsGenerating(false)
-    stopProgressTracking()
   }
 
   // Handler pour le clic sur une ligne (reçoit l'index global)
@@ -703,6 +787,7 @@ export function PlayScreen() {
       {/* Header */}
       <ReadingHeader
         title={getPlayTitle(currentPlay)}
+        author={getPlayAuthor(currentPlay)}
         modeBadge={
           playSettings ? (
             <button

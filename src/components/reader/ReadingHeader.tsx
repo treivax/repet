@@ -12,6 +12,8 @@ import { useUIStore } from '../../state/uiStore'
 export interface ReadingHeaderProps {
   /** Titre de la pièce */
   title: string
+  /** Auteur de la pièce (optionnel) */
+  author?: string
   /** Badge du mode de lecture */
   modeBadge?: React.ReactNode
   /** Callback pour le bouton retour */
@@ -26,6 +28,7 @@ export interface ReadingHeaderProps {
  */
 export function ReadingHeader({
   title,
+  author,
   modeBadge,
   onBack,
   testId = 'reading-header',
@@ -56,14 +59,21 @@ export function ReadingHeader({
           </svg>
         </button>
 
-        {/* Centre : titre avec badge mode de lecture */}
-        <div className="flex-1 mx-4 flex items-center justify-center gap-2">
-          <h1
-            className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
-            data-testid="play-title"
-          >
-            {title}
-          </h1>
+        {/* Centre : titre et auteur avec badge mode de lecture */}
+        <div className="flex-1 mx-4 flex items-center justify-center gap-2 min-w-0">
+          <div className="flex items-baseline gap-2 truncate">
+            <h1
+              className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate"
+              data-testid="play-title"
+            >
+              {title}
+            </h1>
+            {author && (
+              <span className="text-sm text-gray-600 dark:text-gray-400 truncate hidden sm:inline">
+                par {author}
+              </span>
+            )}
+          </div>
           {modeBadge}
         </div>
 

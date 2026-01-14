@@ -11,7 +11,7 @@ import {
   getPlayYear,
   getPlayCategory,
   getPlayCharacters,
-  getPlayLines,
+  getPlayActs,
 } from '../../core/models/playHelpers'
 import { formatDate } from '../../utils/formatting'
 import { useNavigate } from 'react-router-dom'
@@ -113,16 +113,16 @@ export function PlayCard({ play, onClick, showConfigButton = false }: PlayCardPr
 
         {getPlayCategory(play) && (
           <p data-testid="play-category">
-            <span className="font-medium">Catégorie :</span> {getPlayCategory(play)}
+            <span className="font-medium">Genre :</span> {getPlayCategory(play)}
           </p>
         )}
 
-        <p data-testid="play-characters-count">
-          <span className="font-medium">Personnages :</span> {getPlayCharacters(play).length}
+        <p data-testid="play-acts-count">
+          <span className="font-medium">Actes :</span> {getPlayActs(play).length}
         </p>
 
-        <p data-testid="play-lines-count">
-          <span className="font-medium">Lignes :</span> {getPlayLines(play).length}
+        <p data-testid="play-characters-count">
+          <span className="font-medium">Personnages :</span> {getPlayCharacters(play).length}
         </p>
 
         <p className="text-xs text-gray-500 dark:text-gray-500" data-testid="play-created-date">

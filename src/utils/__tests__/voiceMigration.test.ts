@@ -82,12 +82,10 @@ describe('voiceMigration', () => {
           char1: 'male',
           char2: 'female',
         },
-        ttsProvider: 'piper-wasm',
         characterVoicesPiper: {
           char1: 'fr_FR-gilles-low',
           char2: 'fr_FR-siwis-medium',
         },
-        characterVoicesGoogle: {},
         theme: undefined,
       }
 
@@ -113,11 +111,9 @@ describe('voiceMigration', () => {
         characterVoices: {
           char1: 'male',
         },
-        ttsProvider: 'piper-wasm',
         characterVoicesPiper: {
           char1: 'fr_FR-mls-medium',
         },
-        characterVoicesGoogle: {},
         theme: undefined,
       }
 
@@ -141,12 +137,10 @@ describe('voiceMigration', () => {
           char1: 'male',
           char2: 'female',
         },
-        ttsProvider: 'piper-wasm',
         characterVoicesPiper: {
           char1: 'fr_FR-tom-medium',
           char2: 'fr_FR-siwis-medium',
         },
-        characterVoicesGoogle: {},
         theme: undefined,
       }
 
@@ -172,13 +166,11 @@ describe('voiceMigration', () => {
           char2: 'male',
           char3: 'female',
         },
-        ttsProvider: 'piper-wasm',
         characterVoicesPiper: {
           char1: 'fr_FR-gilles-low',
           char2: 'fr_FR-mls-medium',
           char3: 'fr_FR-siwis-medium',
         },
-        characterVoicesGoogle: {},
         theme: undefined,
       }
 
@@ -203,9 +195,7 @@ describe('voiceMigration', () => {
         voiceOffEnabled: false,
         defaultSpeed: 1.0,
         characterVoices: {},
-        ttsProvider: 'piper-wasm',
         characterVoicesPiper: {},
-        characterVoicesGoogle: {},
         theme: undefined,
       }
 
@@ -230,11 +220,9 @@ describe('voiceMigration', () => {
           voiceOffEnabled: false,
           defaultSpeed: 1.0,
           characterVoices: { char1: 'male' },
-          ttsProvider: 'piper-wasm',
           characterVoicesPiper: {
             char1: 'fr_FR-gilles-low',
           },
-          characterVoicesGoogle: {},
           theme: undefined,
         },
         play2: {
@@ -248,11 +236,9 @@ describe('voiceMigration', () => {
           voiceOffEnabled: false,
           defaultSpeed: 1.0,
           characterVoices: { char2: 'male' },
-          ttsProvider: 'piper-wasm',
           characterVoicesPiper: {
             char2: 'fr_FR-mls-medium',
           },
-          characterVoicesGoogle: {},
           theme: undefined,
         },
         play3: {
@@ -266,11 +252,9 @@ describe('voiceMigration', () => {
           voiceOffEnabled: false,
           defaultSpeed: 1.0,
           characterVoices: { char3: 'female' },
-          ttsProvider: 'piper-wasm',
           characterVoicesPiper: {
             char3: 'fr_FR-siwis-medium',
           },
-          characterVoicesGoogle: {},
           theme: undefined,
         },
       }
@@ -295,11 +279,9 @@ describe('voiceMigration', () => {
           voiceOffEnabled: false,
           defaultSpeed: 1.0,
           characterVoices: { char1: 'male' },
-          ttsProvider: 'piper-wasm',
           characterVoicesPiper: {
             char1: 'fr_FR-tom-medium',
           },
-          characterVoicesGoogle: {},
           theme: undefined,
         },
       }

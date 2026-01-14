@@ -9,40 +9,7 @@ import type { Line } from '../../core/models/Line'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
 import { generateCharacterColor } from '../../utils/colors'
-
-/**
- * Parse le texte pour extraire les didascalies (texte entre parenthèses)
- * et retourne un tableau de segments avec leur type
- */
-function parseTextWithStageDirections(
-  text: string
-): Array<{ type: 'text' | 'stage-direction'; content: string }> {
-  const segments: Array<{ type: 'text' | 'stage-direction'; content: string }> = []
-  let currentPos = 0
-  let openParen = -1
-
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '(' && openParen === -1) {
-      // Début d'une didascalie
-      if (i > currentPos) {
-        segments.push({ type: 'text', content: text.substring(currentPos, i) })
-      }
-      openParen = i
-    } else if (text[i] === ')' && openParen !== -1) {
-      // Fin d'une didascalie
-      segments.push({ type: 'stage-direction', content: text.substring(openParen + 1, i) })
-      currentPos = i + 1
-      openParen = -1
-    }
-  }
-
-  // Ajouter le reste du texte
-  if (currentPos < text.length) {
-    segments.push({ type: 'text', content: text.substring(currentPos) })
-  }
-
-  return segments
-}
+import { parseTextWithStageDirections } from '../../utils/textParser'
 
 interface Props {
   /** Ligne à afficher */
@@ -173,62 +140,65 @@ export function LineRenderer({
 
       return (
         <button onClick={handleHiddenClick} className={hiddenCardClasses} data-testid="hidden-line">
-          <div className="font-bold uppercase text-gray-900 dark:text-gray-100">
-            {characterName}
+          <div className="flex items-center justify-between">
+            <div className="font-bold uppercase text-gray-900 dark:text-gray-100">
+              {characterName}
+            </div>
+            {isPlaying && (
+              <div className="flex items-center gap-2">
+                {/* Temps restant - largeur fixe pour éviter le déplacement du cercle */}
+                <div
+                  className={`text-xs font-medium text-right ${
+                    isPaused
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-blue-600 dark:text-blue-400'
+                  }`}
+                  style={{ minWidth: '180px' }}
+                >
+                  {isGenerating
+                    ? '⏳ Génération en cours...'
+                    : isPaused
+                      ? '⏸ En pause · ' +
+                        Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) +
+                        's'
+                      : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
+                </div>
+                {/* Indicateur de progression circulaire */}
+                <svg className="h-6 w-6 -rotate-90 transform flex-shrink-0" viewBox="0 0 24 24">
+                  {/* Cercle de fond */}
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    className="text-gray-300 dark:text-gray-600"
+                  />
+                  {/* Cercle de progression */}
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 10}`}
+                    strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
+                    className={
+                      isPaused
+                        ? 'text-yellow-500 dark:text-yellow-400'
+                        : 'text-blue-500 dark:text-blue-400'
+                    }
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            )}
           </div>
           <div className="mt-2 rounded-md border-2 border-dashed border-gray-300 bg-gray-100 p-4 text-center text-sm italic text-gray-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">
             [Réplique masquée - À vous de jouer]
           </div>
-          {isPlaying && (
-            <div className="mt-2 flex items-center gap-2">
-              {/* Indicateur de progression circulaire */}
-              <svg className="h-6 w-6 -rotate-90 transform" viewBox="0 0 24 24">
-                {/* Cercle de fond */}
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  className="text-gray-300 dark:text-gray-600"
-                />
-                {/* Cercle de progression */}
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeDasharray={`${2 * Math.PI * 10}`}
-                  strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
-                  className={
-                    isPaused
-                      ? 'text-yellow-500 dark:text-yellow-400'
-                      : 'text-blue-500 dark:text-blue-400'
-                  }
-                  strokeLinecap="round"
-                />
-              </svg>
-              {/* Temps restant */}
-              <div
-                className={`text-xs font-medium ${
-                  isPaused
-                    ? 'text-yellow-600 dark:text-yellow-400'
-                    : 'text-blue-600 dark:text-blue-400'
-                }`}
-              >
-                {isGenerating
-                  ? '⏳ Génération en cours...'
-                  : isPaused
-                    ? '⏸ En pause · ' +
-                      Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) +
-                      's'
-                    : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
-              </div>
-            </div>
-          )}
         </button>
       )
     }
@@ -314,11 +284,64 @@ export function LineRenderer({
           }
         }}
       >
-        <div
-          className="font-bold uppercase"
-          style={characterColor ? { color: characterColor } : undefined}
-        >
-          {characterName}
+        <div className="flex items-center justify-between">
+          <div
+            className="font-bold uppercase"
+            style={characterColor ? { color: characterColor } : undefined}
+          >
+            {characterName}
+          </div>
+          {isPlaying && (
+            <div className="flex items-center gap-2">
+              {/* Temps restant - largeur fixe pour éviter le déplacement du cercle */}
+              <div
+                className={`text-xs font-medium text-right ${
+                  isPaused
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-blue-600 dark:text-blue-400'
+                }`}
+                style={{ minWidth: '180px' }}
+              >
+                {isGenerating
+                  ? '⏳ Génération en cours...'
+                  : isPaused
+                    ? '⏸ En pause · ' +
+                      Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) +
+                      's'
+                    : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
+              </div>
+              {/* Indicateur de progression circulaire */}
+              <svg className="h-6 w-6 -rotate-90 transform flex-shrink-0" viewBox="0 0 24 24">
+                {/* Cercle de fond */}
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  className="text-gray-300 dark:text-gray-600"
+                />
+                {/* Cercle de progression */}
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeDasharray={`${2 * Math.PI * 10}`}
+                  strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
+                  className={
+                    isPaused
+                      ? 'text-yellow-500 dark:text-yellow-400'
+                      : 'text-blue-500 dark:text-blue-400'
+                  }
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          )}
         </div>
         <div className={textClasses}>
           {textSegments.map((segment, idx) => {
@@ -334,54 +357,6 @@ export function LineRenderer({
         </div>
         {shouldReveal && (
           <div className="mt-1 text-xs text-green-600 dark:text-green-400">✓ Révélée</div>
-        )}
-        {isPlaying && (
-          <div className="mt-2 flex items-center gap-2">
-            {/* Indicateur de progression circulaire */}
-            <svg className="h-6 w-6 -rotate-90 transform" viewBox="0 0 24 24">
-              {/* Cercle de fond */}
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
-                className="text-gray-300 dark:text-gray-600"
-              />
-              {/* Cercle de progression */}
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="2"
-                fill="none"
-                strokeDasharray={`${2 * Math.PI * 10}`}
-                strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
-                className={
-                  isPaused
-                    ? 'text-yellow-500 dark:text-yellow-400'
-                    : 'text-blue-500 dark:text-blue-400'
-                }
-                strokeLinecap="round"
-              />
-            </svg>
-            {/* Temps restant */}
-            <div
-              className={`text-xs font-medium ${
-                isPaused
-                  ? 'text-yellow-600 dark:text-yellow-400'
-                  : 'text-blue-600 dark:text-blue-400'
-              }`}
-            >
-              {isGenerating
-                ? '⏳ Génération en cours...'
-                : isPaused
-                  ? '⏸ En pause · ' + Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'
-                  : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
-            </div>
-          </div>
         )}
       </div>
     )

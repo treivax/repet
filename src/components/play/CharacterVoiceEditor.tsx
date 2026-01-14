@@ -4,7 +4,6 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { useState } from 'react'
 import type { Gender } from '../../core/models/types'
 import type { VoiceDescriptor } from '../../core/tts/types'
 
@@ -32,6 +31,9 @@ interface Props {
 
   /** Désactiver le composant */
   disabled?: boolean
+
+  /** Masquer le sélecteur de genre (utile pour voix off) */
+  hideGenderSelector?: boolean
 }
 
 /**
@@ -47,9 +49,8 @@ export function CharacterVoiceEditor({
   onGenderChange,
   onVoiceChange,
   disabled = false,
+  hideGenderSelector = false,
 }: Props) {
-  const [showVoiceDropdown, setShowVoiceDropdown] = useState(false)
-
   const genderOptions: Array<{ value: Gender; label: string; icon: string }> = [
     { value: 'male', label: 'Homme', icon: '♂' },
     { value: 'female', label: 'Femme', icon: '♀' },
@@ -63,19 +64,20 @@ export function CharacterVoiceEditor({
     onGenderChange(characterId, gender)
   }
 
-  const handleVoiceSelect = (voiceId: string) => {
-    onVoiceChange(characterId, voiceId)
-    setShowVoiceDropdown(false)
+  const handleVoiceSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const voiceId = event.target.value
+    if (voiceId) {
+      onVoiceChange(characterId, voiceId)
+    }
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+    <div className="grid grid-cols-[minmax(120px,200px)_auto_1fr] items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
       {/* Nom du personnage */}
       <div className="font-medium text-gray-900 dark:text-gray-100">{characterName}</div>
 
       {/* Sélecteur de genre */}
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-gray-600 dark:text-gray-400">Genre :</span>
+      {!hideGenderSelector ? (
         <div className="flex gap-2">
           {genderOptions.map((option) => {
             const isSelected = currentGender === option.value
@@ -106,73 +108,33 @@ export function CharacterVoiceEditor({
             )
           })}
         </div>
-      </div>
+      ) : (
+        <div></div>
+      )}
 
-      {/* Voix assignée + Bouton Edit */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex-1">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Voix : </span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {currentVoice?.displayName || 'Non assignée'}
-          </span>
-        </div>
-
-        {/* Bouton Edit */}
-        <button
-          type="button"
-          onClick={() => setShowVoiceDropdown(!showVoiceDropdown)}
+      {/* Sélecteur de voix */}
+      <div>
+        <select
+          value={currentVoice?.id || ''}
+          onChange={handleVoiceSelect}
           disabled={disabled || voicesForDropdown.length === 0}
           className="
-            flex items-center gap-1 rounded-md border border-gray-300 bg-white
-            px-2 py-1 text-xs font-medium text-gray-700 transition-colors
-            hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500
-            focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50
-            dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200
-            dark:hover:bg-gray-600
+            w-full rounded-md border border-gray-300 bg-white px-3 py-2
+            text-sm text-gray-900 transition-colors
+            focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500
+            disabled:cursor-not-allowed disabled:opacity-50
+            dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100
+            dark:focus:border-blue-400 dark:focus:ring-blue-400
           "
-          title="Choisir une voix spécifique"
         >
-          <span aria-hidden="true">✏️</span>
-          <span>Modifier</span>
-        </button>
+          {!currentVoice && <option value="">Sélectionner une voix...</option>}
+          {voicesForDropdown.map((voice) => (
+            <option key={voice.id} value={voice.id}>
+              {voice.displayName}
+            </option>
+          ))}
+        </select>
       </div>
-
-      {/* Dropdown de sélection de voix */}
-      {showVoiceDropdown && (
-        <div className="mt-2 rounded-md border border-gray-300 bg-white p-2 dark:border-gray-600 dark:bg-gray-700">
-          <div className="mb-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-            Choisir une voix :
-          </div>
-          <div className="max-h-40 space-y-1 overflow-y-auto">
-            {voicesForDropdown.map((voice) => {
-              const isSelected = voice.id === currentVoice?.id
-
-              return (
-                <button
-                  key={voice.id}
-                  type="button"
-                  onClick={() => handleVoiceSelect(voice.id)}
-                  className={`
-                    w-full rounded px-2 py-1.5 text-left text-sm transition-colors
-                    ${
-                      isSelected
-                        ? 'bg-blue-100 font-medium text-blue-900 dark:bg-blue-900/40 dark:text-blue-200'
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-600'
-                    }
-                  `}
-                >
-                  {voice.displayName}
-                  {isSelected && (
-                    <span className="ml-2 text-xs" aria-hidden="true">
-                      ✓
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

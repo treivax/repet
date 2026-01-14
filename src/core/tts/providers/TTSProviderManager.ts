@@ -4,195 +4,74 @@
  * See LICENSE file in the project root for full license text
  */
 
-import type {
-  TTSProvider,
-  TTSProviderType,
-  VoiceDescriptor,
-  SynthesisOptions,
-  SynthesisResult,
-} from '../types'
-import { WebSpeechProvider } from './WebSpeechProvider'
+import type { TTSProvider, VoiceDescriptor, SynthesisOptions, SynthesisResult } from '../types'
 import { PiperWASMProvider } from './PiperWASMProvider'
 
 /**
- * Informations sur un provider disponible
- */
-export interface ProviderInfo {
-  /** Type du provider */
-  type: TTSProviderType
-
-  /** Nom d'affichage */
-  name: string
-
-  /** Provider disponible */
-  available: boolean
-
-  /** Raison si indisponible */
-  reason?: string
-}
-
-/**
- * Gestionnaire centralisé des providers TTS
- * Permet de switcher entre différents moteurs (Web Speech, Piper, etc.)
+ * Gestionnaire centralisé du provider TTS Piper WASM
  */
 export class TTSProviderManager {
-  private providers: Map<TTSProviderType, TTSProvider> = new Map()
-  private activeProvider: TTSProvider | null = null
+  private provider: TTSProvider
   private initialized = false
 
   constructor() {
-    this.registerProviders()
+    this.provider = new PiperWASMProvider()
   }
 
   /**
-   * Enregistre tous les providers disponibles
+   * Initialise le provider Piper WASM
    */
-  private registerProviders(): void {
-    this.providers.set('web-speech', new WebSpeechProvider())
-    this.providers.set('piper-wasm', new PiperWASMProvider())
-  }
-
-  /**
-   * Initialise le provider manager avec un provider par défaut
-   */
-  async initialize(providerType: TTSProviderType = 'piper-wasm'): Promise<void> {
-    // Si déjà initialisé avec le même provider, ne rien faire
-    if (this.initialized && this.activeProvider?.type === providerType) {
+  async initialize(): Promise<void> {
+    // Si déjà initialisé, ne rien faire
+    if (this.initialized) {
       return
-    }
-
-    // Si déjà initialisé avec un autre provider, switch
-    if (this.initialized && this.activeProvider?.type !== providerType) {
-      await this.switchProvider(providerType)
-      return
-    }
-
-    const provider = this.providers.get(providerType)
-    if (!provider) {
-      throw new Error(`Provider ${providerType} non trouvé`)
     }
 
     // Vérifier disponibilité
-    const availability = await provider.checkAvailability()
+    const availability = await this.provider.checkAvailability()
     if (!availability.available) {
-      console.warn(
-        `Provider ${providerType} indisponible: ${availability.reason}. Fallback vers web-speech.`
-      )
-      // Fallback vers Web Speech
-      const fallbackProvider = this.providers.get('web-speech')
-      if (fallbackProvider) {
-        await fallbackProvider.initialize()
-        this.activeProvider = fallbackProvider
-        this.initialized = true
-        return
-      }
-      throw new Error('Aucun provider TTS disponible')
+      throw new Error(`Piper WASM indisponible: ${availability.reason}`)
     }
 
     // Initialiser le provider
-    await provider.initialize()
-    this.activeProvider = provider
+    await this.provider.initialize()
     this.initialized = true
   }
 
   /**
-   * Change le provider actif
-   */
-  async switchProvider(providerType: TTSProviderType): Promise<void> {
-    const provider = this.providers.get(providerType)
-    if (!provider) {
-      throw new Error(`Provider ${providerType} non trouvé`)
-    }
-
-    // Arrêter le provider actuel
-    if (this.activeProvider) {
-      this.activeProvider.stop()
-    }
-
-    // Vérifier disponibilité
-    const availability = await provider.checkAvailability()
-    if (!availability.available) {
-      throw new Error(`Provider ${providerType} indisponible: ${availability.reason}`)
-    }
-
-    // Initialiser le nouveau provider
-    await provider.initialize()
-    this.activeProvider = provider
-  }
-
-  /**
-   * Récupère la liste de tous les providers avec leur disponibilité
-   */
-  async getAvailableProviders(): Promise<ProviderInfo[]> {
-    const results: ProviderInfo[] = []
-
-    for (const [type, provider] of this.providers.entries()) {
-      const availability = await provider.checkAvailability()
-
-      results.push({
-        type,
-        name: provider.name,
-        available: availability.available,
-        reason: availability.reason,
-      })
-    }
-
-    return results
-  }
-
-  /**
-   * Récupère les voix du provider actif
+   * Récupère les voix du provider Piper WASM
    */
   getVoices(): VoiceDescriptor[] {
-    if (!this.activeProvider) {
-      console.warn('[TTSProviderManager] Aucun provider actif')
-      return []
-    }
-
-    return this.activeProvider.getVoices()
+    return this.provider.getVoices()
   }
 
   /**
    * Récupère le provider actif
    */
-  getActiveProvider(): TTSProvider | null {
-    return this.activeProvider
+  getActiveProvider(): TTSProvider {
+    return this.provider
   }
 
   /**
-   * Récupère le type du provider actif
-   */
-  getActiveProviderType(): TTSProviderType | null {
-    if (!this.activeProvider) return null
-    return this.activeProvider.type
-  }
-
-  /**
-   * Synthétise du texte avec le provider actif
+   * Synthétise du texte avec Piper WASM
    */
   async speak(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
-    if (!this.activeProvider) {
-      throw new Error('Aucun provider TTS actif')
-    }
-
-    return this.activeProvider.synthesize(text, options)
+    return this.provider.synthesize(text, options)
   }
 
   /**
    * Arrête la lecture en cours
    */
   stop(): void {
-    if (this.activeProvider) {
-      this.activeProvider.stop()
-    }
+    this.provider.stop()
   }
 
   /**
    * Met en pause la lecture en cours
    */
   pause(): void {
-    if (this.activeProvider && 'pause' in this.activeProvider) {
-      ;(this.activeProvider as { pause: () => void }).pause()
+    if ('pause' in this.provider) {
+      ;(this.provider as { pause: () => void }).pause()
     }
   }
 
@@ -200,8 +79,8 @@ export class TTSProviderManager {
    * Reprend la lecture en pause
    */
   resume(): void {
-    if (this.activeProvider && 'resume' in this.activeProvider) {
-      ;(this.activeProvider as { resume: () => void }).resume()
+    if ('resume' in this.provider) {
+      ;(this.provider as { resume: () => void }).resume()
     }
   }
 
@@ -209,14 +88,7 @@ export class TTSProviderManager {
    * Libère toutes les ressources
    */
   async dispose(): Promise<void> {
-    // Disposer tous les providers
-    const disposePromises = Array.from(this.providers.values()).map((provider) =>
-      provider.dispose()
-    )
-
-    await Promise.all(disposePromises)
-
-    this.activeProvider = null
+    await this.provider.dispose()
     this.initialized = false
   }
 }
