@@ -185,16 +185,56 @@ jobs:
           sudo apt-get install -y lftp
 
           echo "🚀 Déploiement via FTP vers ${{ secrets.O2SWITCH_FTP_HOST }}"
+          echo "📁 Destination: ${{ secrets.O2SWITCH_PATH_OFFLINE }}"
 
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 10;
-            set net:max-retries 3;
-            set net:reconnect-interval-base 5;
-            open -u ${{ secrets.O2SWITCH_FTP_USERNAME }},${{ secrets.O2SWITCH_FTP_PASSWORD }} ${{ secrets.O2SWITCH_FTP_HOST }};
-            mirror --reverse --delete --verbose --parallel=10 dist-offline/ ${{ secrets.O2SWITCH_PATH_OFFLINE }}/;
-            bye;
-          "
+          # Vérifier que les secrets sont définis
+          if [ -z "${{ secrets.O2SWITCH_FTP_HOST }}" ]; then
+            echo "❌ Erreur: O2SWITCH_FTP_HOST n'est pas défini"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.O2SWITCH_FTP_USERNAME }}" ]; then
+            echo "❌ Erreur: O2SWITCH_FTP_USERNAME n'est pas défini"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.O2SWITCH_FTP_PASSWORD }}" ]; then
+            echo "❌ Erreur: O2SWITCH_FTP_PASSWORD n'est pas défini"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.O2SWITCH_PATH_OFFLINE }}" ]; then
+            echo "❌ Erreur: O2SWITCH_PATH_OFFLINE n'est pas défini"
+            exit 1
+          fi
+
+          # Créer un script lftp temporaire pour meilleure gestion d'erreurs
+          cat > /tmp/lftp-script.txt << LFTPEOF
+          set ftp:ssl-allow no
+          set net:timeout 30
+          set net:max-retries 3
+          set net:reconnect-interval-base 5
+          set ftp:passive-mode on
+          set dns:fatal-timeout 10
+          debug 5
+          open -u ${{ secrets.O2SWITCH_FTP_USERNAME }},${{ secrets.O2SWITCH_FTP_PASSWORD }} ${{ secrets.O2SWITCH_FTP_HOST }}
+          cd ${{ secrets.O2SWITCH_PATH_OFFLINE }}
+          mirror --reverse --delete --verbose --parallel=5 dist-offline/ ./
+          bye
+          LFTPEOF
+
+          echo "📝 Script lftp créé, début du déploiement..."
+
+          # Exécuter lftp avec le script
+          lftp -f /tmp/lftp-script.txt
+
+          # Vérifier le code de sortie
+          if [ $? -eq 0 ]; then
+            echo "✅ Transfert FTP réussi"
+          else
+            echo "❌ Erreur lors du transfert FTP"
+            exit 1
+          fi
 
       - name: ✅ Deployment complete
         run: |
@@ -364,16 +404,56 @@ jobs:
           sudo apt-get install -y lftp
 
           echo "🚀 Déploiement via FTP vers ${{ secrets.O2SWITCH_FTP_HOST }}"
+          echo "📁 Destination: ${{ secrets.O2SWITCH_PATH_ONLINE }}"
 
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 10;
-            set net:max-retries 3;
-            set net:reconnect-interval-base 5;
-            open -u ${{ secrets.O2SWITCH_FTP_USERNAME }},${{ secrets.O2SWITCH_FTP_PASSWORD }} ${{ secrets.O2SWITCH_FTP_HOST }};
-            mirror --reverse --delete --verbose --parallel=10 dist-online/ ${{ secrets.O2SWITCH_PATH_ONLINE }}/;
-            bye;
-          "
+          # Vérifier que les secrets sont définis
+          if [ -z "${{ secrets.O2SWITCH_FTP_HOST }}" ]; then
+            echo "❌ Erreur: O2SWITCH_FTP_HOST n'est pas défini"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.O2SWITCH_FTP_USERNAME }}" ]; then
+            echo "❌ Erreur: O2SWITCH_FTP_USERNAME n'est pas défini"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.O2SWITCH_FTP_PASSWORD }}" ]; then
+            echo "❌ Erreur: O2SWITCH_FTP_PASSWORD n'est pas défini"
+            exit 1
+          fi
+
+          if [ -z "${{ secrets.O2SWITCH_PATH_ONLINE }}" ]; then
+            echo "❌ Erreur: O2SWITCH_PATH_ONLINE n'est pas défini"
+            exit 1
+          fi
+
+          # Créer un script lftp temporaire pour meilleure gestion d'erreurs
+          cat > /tmp/lftp-script.txt << LFTPEOF
+          set ftp:ssl-allow no
+          set net:timeout 30
+          set net:max-retries 3
+          set net:reconnect-interval-base 5
+          set ftp:passive-mode on
+          set dns:fatal-timeout 10
+          debug 5
+          open -u ${{ secrets.O2SWITCH_FTP_USERNAME }},${{ secrets.O2SWITCH_FTP_PASSWORD }} ${{ secrets.O2SWITCH_FTP_HOST }}
+          cd ${{ secrets.O2SWITCH_PATH_ONLINE }}
+          mirror --reverse --delete --verbose --parallel=5 dist-online/ ./
+          bye
+          LFTPEOF
+
+          echo "📝 Script lftp créé, début du déploiement..."
+
+          # Exécuter lftp avec le script
+          lftp -f /tmp/lftp-script.txt
+
+          # Vérifier le code de sortie
+          if [ $? -eq 0 ]; then
+            echo "✅ Transfert FTP réussi"
+          else
+            echo "❌ Erreur lors du transfert FTP"
+            exit 1
+          fi
 
       - name: ✅ Deployment complete
         run: |
