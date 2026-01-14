@@ -12,7 +12,7 @@ import type { Play } from '../core/models/Play'
 import { getPlayTitle, getPlayCharacters, getPlayAuthor } from '../core/models/playHelpers'
 import { TTSProviderSelector } from '../components/play/TTSProviderSelector'
 import { CharacterVoiceEditor } from '../components/play/CharacterVoiceEditor'
-import { AudioSettings } from '../components/play/AudioSettings'
+
 import { ItalianSettings } from '../components/play/ItalianSettings'
 import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
@@ -50,7 +50,6 @@ export function PlayDetailScreen() {
   const toggleHideUserLines = usePlaySettingsStore((state) => state.toggleHideUserLines)
   const toggleShowBefore = usePlaySettingsStore((state) => state.toggleShowBefore)
   const toggleShowAfter = usePlaySettingsStore((state) => state.toggleShowAfter)
-  const setUserSpeed = usePlaySettingsStore((state) => state.setUserSpeed)
   const setDefaultSpeed = usePlaySettingsStore((state) => state.setDefaultSpeed)
   const toggleVoiceOff = usePlaySettingsStore((state) => state.toggleVoiceOff)
   const deletePlaySettings = usePlaySettingsStore((state) => state.deletePlaySettings)
@@ -483,17 +482,51 @@ export function PlayDetailScreen() {
 
                 {/* Voix off / Narrateur */}
                 <div className="mt-4 rounded-lg border-2 border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="text-lg" aria-hidden="true">
-                      🎙️
-                    </span>
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">
-                      Voix off / Narrateur
-                    </span>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg" aria-hidden="true">
+                        🎙️
+                      </span>
+                      <span className="font-semibold text-gray-900 dark:text-gray-100">
+                        Voix off / Narrateur
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                  <p className="mb-3 text-xs text-gray-600 dark:text-gray-400">
                     Utilisée pour les didascalies, actes et scènes
                   </p>
+
+                  {/* Toggle Ne pas lire les didascalies */}
+                  <div className="mb-3 flex items-center justify-between rounded-md border border-blue-300 bg-white p-2 dark:border-blue-700 dark:bg-gray-800">
+                    <div className="flex-1">
+                      <label
+                        htmlFor="skip-stage-directions-toggle"
+                        className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                      >
+                        Ne pas lire les didascalies
+                      </label>
+                    </div>
+                    <button
+                      id="skip-stage-directions-toggle"
+                      type="button"
+                      role="switch"
+                      aria-checked={!settings.voiceOffEnabled}
+                      onClick={() => toggleVoiceOff(playId)}
+                      className={`
+                        relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out
+                        ${!settings.voiceOffEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
+                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
+                      `}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`
+                          inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                          ${!settings.voiceOffEnabled ? 'translate-x-5' : 'translate-x-0'}
+                        `}
+                      />
+                    </button>
+                  </div>
                   {(() => {
                     const assignmentMap =
                       settings.ttsProvider === 'piper-wasm'
@@ -530,19 +563,50 @@ export function PlayDetailScreen() {
                 Réglages
               </h2>
               <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Configurez la vitesse de lecture, la voix off et les options de masquage
+                Configurez la vitesse de lecture et les options de masquage
               </p>
 
               {/* Réglages audio de base */}
-              <AudioSettings
-                voiceOffEnabled={settings.voiceOffEnabled}
-                defaultSpeed={settings.defaultSpeed}
-                userSpeed={settings.userSpeed}
-                onVoiceOffToggle={() => toggleVoiceOff(playId)}
-                onDefaultSpeedChange={(speed) => setDefaultSpeed(playId, speed)}
-                onUserSpeedChange={(speed) => setUserSpeed(playId, speed)}
-                showItalianSettings={false}
-              />
+              <div className="space-y-6">
+                {/* Vitesse par défaut */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="default-speed"
+                      className="font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      Vitesse de lecture
+                    </label>
+                    <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                      {settings.defaultSpeed.toFixed(1)}x
+                    </span>
+                  </div>
+
+                  <input
+                    id="default-speed"
+                    type="range"
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    value={settings.defaultSpeed}
+                    onChange={(e) => setDefaultSpeed(playId, parseFloat(e.target.value))}
+                    className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 dark:bg-gray-700"
+                    style={{
+                      background: `linear-gradient(to right, rgb(59, 130, 246) 0%, rgb(59, 130, 246) ${
+                        ((settings.defaultSpeed - 0.5) / (2.0 - 0.5)) * 100
+                      }%, rgb(229, 231, 235) ${
+                        ((settings.defaultSpeed - 0.5) / (2.0 - 0.5)) * 100
+                      }%, rgb(229, 231, 235) 100%)`,
+                    }}
+                  />
+
+                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                    <span>0.5x</span>
+                    <span>Normal (1.0x)</span>
+                    <span>2.0x</span>
+                  </div>
+                </div>
+              </div>
 
               {/* Réglages italiennes */}
               <div className="mt-6">
