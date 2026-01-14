@@ -5,7 +5,7 @@
  */
 
 import { useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { PlayCard } from '../components/play/PlayCard'
@@ -17,6 +17,8 @@ import { validateFile, validateTextContent } from '../utils/validation'
 import type { Play } from '../core/models/Play'
 import { getPlayTitle, getPlayAuthor, getPlayCategory } from '../core/models/playHelpers'
 import { generateUUID } from '../utils/uuid'
+
+const PLAY_ORDER_STORAGE_KEY = 'repet_play_order'
 
 /**
  * Écran LibraryScreen
@@ -30,15 +32,62 @@ export function LibraryScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [isImporting, setIsImporting] = useState(false)
   const [playToDelete, setPlayToDelete] = useState<Play | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const longPressTimer = useRef<number | null>(null)
   const addError = useUIStore((state) => state.addError)
+
+  // Charger l'ordre personnalisé depuis le localStorage
+  const loadPlayOrder = (): string[] => {
+    try {
+      const stored = localStorage.getItem(PLAY_ORDER_STORAGE_KEY)
+      return stored ? JSON.parse(stored) : []
+    } catch {
+      return []
+    }
+  }
+
+  // Sauvegarder l'ordre personnalisé
+  const savePlayOrder = (playIds: string[]) => {
+    try {
+      localStorage.setItem(PLAY_ORDER_STORAGE_KEY, JSON.stringify(playIds))
+    } catch (error) {
+      console.error('Erreur sauvegarde ordre:', error)
+    }
+  }
+
+  // Appliquer l'ordre personnalisé aux pièces
+  const applyCustomOrder = useRef((allPlays: Play[]): Play[] => {
+    const customOrder = loadPlayOrder()
+    if (customOrder.length === 0) {
+      return allPlays.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    }
+
+    const orderedPlays: Play[] = []
+    const playMap = new Map(allPlays.map((p) => [p.id, p]))
+
+    // Ajouter les pièces selon l'ordre personnalisé
+    customOrder.forEach((id) => {
+      const play = playMap.get(id)
+      if (play) {
+        orderedPlays.push(play)
+        playMap.delete(id)
+      }
+    })
+
+    // Ajouter les nouvelles pièces (non présentes dans l'ordre personnalisé)
+    playMap.forEach((play) => orderedPlays.push(play))
+
+    return orderedPlays
+  }).current
 
   // Charger toutes les pièces
   useEffect(() => {
     const loadPlays = async () => {
       try {
         const allPlays = await playsRepository.getAll()
-        // Trier par date de création (plus récent en premier)
-        const sorted = allPlays.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        // Appliquer l'ordre personnalisé
+        const sorted = applyCustomOrder(allPlays)
         setPlays(sorted)
         setFilteredPlays(sorted)
       } catch {
@@ -49,7 +98,7 @@ export function LibraryScreen() {
     }
 
     loadPlays()
-  }, [addError])
+  }, [addError, applyCustomOrder])
 
   // Filtrer les pièces lors de la recherche
   useEffect(() => {
@@ -100,6 +149,78 @@ export function LibraryScreen() {
     setPlayToDelete(null)
   }
 
+  // Gestion du drag & drop
+  const handleLongPressStart = (index: number) => {
+    if (searchQuery.trim()) return // Pas de réorganisation en mode recherche
+
+    longPressTimer.current = window.setTimeout(() => {
+      setDraggingIndex(index)
+    }, 500)
+  }
+
+  const handleLongPressEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  const handleDragStart = (index: number) => {
+    if (searchQuery.trim()) return
+    setDraggingIndex(index)
+  }
+
+  const handleDragOver = (event: React.DragEvent, index: number) => {
+    event.preventDefault()
+    if (draggingIndex === null) return
+    setDragOverIndex(index)
+  }
+
+  const handleDragEnd = () => {
+    if (draggingIndex === null || dragOverIndex === null) {
+      setDraggingIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    if (draggingIndex === dragOverIndex) {
+      setDraggingIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    // Réorganiser les pièces
+    const newPlays = [...filteredPlays]
+    const [movedPlay] = newPlays.splice(draggingIndex, 1)
+    newPlays.splice(dragOverIndex, 0, movedPlay)
+
+    setPlays(newPlays)
+    setFilteredPlays(newPlays)
+
+    // Sauvegarder l'ordre
+    savePlayOrder(newPlays.map((p) => p.id))
+
+    setDraggingIndex(null)
+    setDragOverIndex(null)
+  }
+
+  const handleTouchStart = (_e: React.TouchEvent, index: number) => {
+    handleLongPressStart(index)
+  }
+
+  const handleTouchEnd = () => {
+    handleLongPressEnd()
+    handleDragEnd()
+  }
+
+  const handleMouseDown = (index: number) => {
+    handleLongPressStart(index)
+  }
+
+  const handleMouseUp = () => {
+    handleLongPressEnd()
+  }
+
   const handleFileImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -138,7 +259,7 @@ export function LibraryScreen() {
 
       // Mettre à jour la liste
       const allPlays = await playsRepository.getAll()
-      const sorted = allPlays.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      const sorted = applyCustomOrder(allPlays)
       setPlays(sorted)
       setFilteredPlays(sorted)
 
@@ -151,6 +272,15 @@ export function LibraryScreen() {
       event.target.value = ''
     }
   }
+
+  // Réinitialiser l'ordre lors de la recherche
+  useEffect(() => {
+    if (draggingIndex !== null) {
+      setDraggingIndex(null)
+      setDragOverIndex(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery])
 
   if (isLoading) {
     return (
@@ -260,27 +390,69 @@ export function LibraryScreen() {
 
       {/* Plays Grid */}
       {filteredPlays.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredPlays.map((play) => (
-            <div key={play.id} className="relative">
-              <PlayCard play={play} onClick={handlePlayClick} showConfigButton={true} />
-              <button
-                onClick={(e) => handleDeleteClick(play, e)}
-                className="absolute right-2 top-2 rounded-lg bg-white p-2 text-red-600 shadow-md opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 focus:opacity-100"
-                aria-label="Supprimer la pièce"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                  />
-                </svg>
-              </button>
+        <>
+          {!searchQuery.trim() && (
+            <div className="mb-2 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                />
+              </svg>
+              <span>Appui long pour réorganiser</span>
             </div>
-          ))}
-        </div>
+          )}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredPlays.map((play, index) => (
+              <div
+                key={play.id}
+                className={`relative transition-all ${
+                  draggingIndex === index
+                    ? 'opacity-50 scale-95'
+                    : dragOverIndex === index
+                      ? 'scale-105'
+                      : ''
+                }`}
+                draggable={!searchQuery.trim() && draggingIndex !== null}
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                onMouseDown={() => handleMouseDown(index)}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleLongPressEnd}
+                onTouchStart={(e) => handleTouchStart(e, index)}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleLongPressEnd}
+              >
+                {dragOverIndex === index && draggingIndex !== null && draggingIndex !== index && (
+                  <div
+                    className={`absolute inset-0 rounded-lg border-2 border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 ${
+                      draggingIndex < index ? 'border-r-4' : 'border-l-4'
+                    }`}
+                    style={{ zIndex: -1 }}
+                  />
+                )}
+                <PlayCard play={play} onClick={handlePlayClick} showConfigButton={true} />
+                <button
+                  onClick={(e) => handleDeleteClick(play, e)}
+                  className="absolute right-2 top-2 rounded-lg bg-white p-2 text-red-600 shadow-md opacity-0 transition-opacity hover:bg-red-50 group-hover:opacity-100 focus:opacity-100 dark:bg-gray-800"
+                  aria-label="Supprimer la pièce"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Delete Confirmation Modal */}
