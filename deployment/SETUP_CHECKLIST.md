@@ -15,35 +15,34 @@ Liste de vérification rapide pour configurer le déploiement automatique de Ré
 - [ ] Activer AutoSSL pour `ios.repet.ecanasso.org`
 - [ ] Vérifier que les certificats sont installés (icône verte)
 
-### SSH
-- [ ] Vérifier que l'accès SSH est activé dans cPanel
-- [ ] Noter l'hôte SSH : `________________`
-- [ ] Noter le port SSH : `________________`
-- [ ] Noter le nom d'utilisateur : `________________`
-- [ ] Tester la connexion SSH : `ssh user@host -p port`
+### FTP
+- [ ] Vérifier que l'accès FTP est activé dans cPanel
+- [ ] Noter l'hôte FTP : `________________` (ex: `ftp.ecanasso.org`)
+- [ ] Noter le nom d'utilisateur FTP : `________________` (format: `user@domain.com`)
+- [ ] Noter le mot de passe FTP : `________________`
+- [ ] Tester la connexion FTP : `lftp -u user@domain.com ftp.host.com`
 
 ---
 
-## 🔑 Phase 2 : Clés SSH pour GitHub Actions
+## 🔑 Phase 2 : Informations FTP pour GitHub Actions
 
-### Génération de la clé
-- [ ] Générer une paire de clés SSH :
+### Récupération des identifiants
+- [ ] Aller dans cPanel → Fichiers → Comptes FTP
+- [ ] Noter ou créer un compte FTP dédié pour le déploiement
+- [ ] Noter l'hôte FTP (ex: `ftp.ecanasso.org`)
+- [ ] Noter le nom d'utilisateur complet (format: `user@domain.com`)
+- [ ] Noter le mot de passe
+
+### Test de connexion
+- [ ] Installer lftp si nécessaire : `sudo apt install lftp` (Linux) ou `brew install lftp` (macOS)
+- [ ] Tester la connexion FTP :
   ```bash
-  ssh-keygen -t ed25519 -C "github-actions-deploy-repet" -f ~/.ssh/o2switch_deploy_repet
+  lftp -u user@domain.com ftp.host.com
+  # Entrer le mot de passe
+  # Taper 'ls' pour lister les fichiers
+  # Taper 'quit' pour quitter
   ```
-- [ ] Ne PAS mettre de passphrase (appuyer sur Entrée)
-
-### Installation sur O2switch
-- [ ] Copier le contenu de `~/.ssh/o2switch_deploy_repet.pub`
-- [ ] Ajouter la clé publique dans cPanel → Sécurité → Clés SSH
-- [ ] Cliquer sur "Autoriser" pour activer la clé
-
-### Test
-- [ ] Tester la connexion avec la clé :
-  ```bash
-  ssh -i ~/.ssh/o2switch_deploy_repet user@host -p port
-  ```
-- [ ] La connexion doit fonctionner SANS demander de mot de passe
+- [ ] La connexion doit fonctionner et afficher les fichiers
 
 ---
 
@@ -51,36 +50,25 @@ Liste de vérification rapide pour configurer le déploiement automatique de Ré
 
 Aller sur GitHub → Settings → Secrets and variables → Actions → Repository secrets
 
-### Créer les 6 secrets suivants :
+### Créer les 5 secrets suivants :
 
-- [ ] **O2SWITCH_HOST**
-  - Valeur : `ecanasso.org` (ou votre hôte SSH)
+- [ ] **O2SWITCH_FTP_HOST**
+  - Valeur : `ftp.ecanasso.org` (ou votre hôte FTP)
 
-- [ ] **O2SWITCH_PORT**
-  - Valeur : `2222` (ou votre port SSH)
+- [ ] **O2SWITCH_FTP_USERNAME**
+  - Valeur : `user@ecanasso.org` (format complet avec @domain)
 
-- [ ] **O2SWITCH_USERNAME**
-  - Valeur : votre nom d'utilisateur cPanel
-
-- [ ] **O2SWITCH_SSH_KEY**
-  - Valeur : Contenu COMPLET de `~/.ssh/o2switch_deploy_repet`
-  - ⚠️ Inclure `-----BEGIN OPENSSH PRIVATE KEY-----` et `-----END OPENSSH PRIVATE KEY-----`
-  - Commande pour copier :
-    ```bash
-    cat ~/.ssh/o2switch_deploy_repet
-    ```
+- [ ] **O2SWITCH_FTP_PASSWORD**
+  - Valeur : votre mot de passe FTP
+  - ⚠️ Utilisez de préférence un compte FTP dédié pour le déploiement
 
 - [ ] **O2SWITCH_PATH_OFFLINE**
-  - Valeur : `/home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org`
-  - Pour vérifier le chemin exact :
-    ```bash
-    ssh user@host -p port
-    pwd
-    # Résultat : /home/votreuser
-    ```
+  - Valeur : `/public_html/app.repet.ecanasso.org`
+  - ⚠️ Chemin relatif au home FTP (sans `/home/username`)
 
 - [ ] **O2SWITCH_PATH_ONLINE**
-  - Valeur : `/home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org`
+  - Valeur : `/public_html/ios.repet.ecanasso.org`
+  - ⚠️ Chemin relatif au home FTP (sans `/home/username`)
 
 ---
 
@@ -100,19 +88,23 @@ Aller sur GitHub → Settings → Secrets and variables → Actions → Reposito
 ### Test manuel de déploiement
 - [ ] Déployer manuellement la version offline :
   ```bash
-  rsync -avz --progress --delete \
-    -e "ssh -i ~/.ssh/o2switch_deploy_repet -p VOTRE_PORT" \
-    dist-offline/ \
-    VOTRE_USER@VOTRE_HOST:/chemin/vers/app.repet.ecanasso.org/
+  lftp -c "
+    set ftp:ssl-allow no;
+    open -u user@domain.com,PASSWORD ftp.host.com;
+    mirror --reverse --delete --verbose dist-offline/ /public_html/app.repet.ecanasso.org/;
+    bye;
+  "
   ```
 - [ ] Vérifier que https://app.repet.ecanasso.org fonctionne
 
 - [ ] Déployer manuellement la version online :
   ```bash
-  rsync -avz --progress --delete \
-    -e "ssh -i ~/.ssh/o2switch_deploy_repet -p VOTRE_PORT" \
-    dist-online/ \
-    VOTRE_USER@VOTRE_HOST:/chemin/vers/ios.repet.ecanasso.org/
+  lftp -c "
+    set ftp:ssl-allow no;
+    open -u user@domain.com,PASSWORD ftp.host.com;
+    mirror --reverse --delete --verbose dist-online/ /public_html/ios.repet.ecanasso.org/;
+    bye;
+  "
   ```
 - [ ] Vérifier que https://ios.repet.ecanasso.org fonctionne
 
@@ -176,9 +168,8 @@ Une fois le setup terminé, noter ces informations :
 
 ```
 Date du déploiement : ____________________
-Hôte SSH : ____________________
-Port SSH : ____________________
-Nom d'utilisateur : ____________________
+Hôte FTP : ____________________
+Nom d'utilisateur FTP : ____________________
 
 Chemin offline : ____________________
 Chemin online : ____________________
@@ -199,8 +190,14 @@ Temps de déploiement rsync : ______ minutes
 
 ### Le workflow GitHub Actions échoue
 1. Vérifier que tous les secrets sont correctement configurés
-2. Vérifier que la clé SSH est complète (BEGIN et END)
-3. Consulter les logs détaillés dans GitHub Actions
+2. Vérifier le format du nom d'utilisateur FTP (`user@domain.com`)
+3. Tester les identifiants FTP manuellement avec lftp
+4. Consulter les logs détaillés dans GitHub Actions
+
+### Erreur "Login incorrect" lors du déploiement
+1. Vérifier le format: `user@domain.com` (avec le @)
+2. Tester le mot de passe avec un client FTP
+3. Créer un compte FTP dédié si nécessaire
 
 ### Les headers COOP/COEP ne fonctionnent pas
 1. Vérifier que le `.htaccess` est présent dans le dossier

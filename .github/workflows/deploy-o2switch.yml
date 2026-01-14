@@ -178,58 +178,23 @@ jobs:
           DirectoryIndex index.html
           EOF
 
-      - name: 🔐 Setup SSH
+      - name: 📦 Sync files via lftp
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          # Installer lftp si nécessaire
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
 
-          # Créer la clé SSH
-          echo "${{ secrets.O2SWITCH_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          echo "🚀 Déploiement via FTP vers ${{ secrets.O2SWITCH_FTP_HOST }}"
 
-          # Vérifier que la clé est valide
-          echo "🔍 Vérification de la clé SSH..."
-          ssh-keygen -l -f ~/.ssh/deploy_key || {
-            echo "❌ Erreur: La clé SSH est invalide"
-            exit 1
-          }
-
-          # Scanner la clé de l'hôte (avec timeout et retry)
-          echo "🔍 Scan de l'hôte SSH: ${{ secrets.O2SWITCH_HOST }}:${{ secrets.O2SWITCH_PORT }}"
-
-          # Essayer avec timeout
-          timeout 30 ssh-keyscan -p ${{ secrets.O2SWITCH_PORT }} -H ${{ secrets.O2SWITCH_HOST }} >> ~/.ssh/known_hosts 2>&1 || {
-            echo "⚠️ ssh-keyscan a échoué, on continue avec StrictHostKeyChecking=no"
-            # Créer un fichier known_hosts vide
-            touch ~/.ssh/known_hosts
-          }
-
-          chmod 644 ~/.ssh/known_hosts
-
-          # Test de connexion SSH
-          echo "🧪 Test de connexion SSH..."
-          ssh -i ~/.ssh/deploy_key \
-              -p ${{ secrets.O2SWITCH_PORT }} \
-              -o StrictHostKeyChecking=no \
-              -o ConnectTimeout=10 \
-              -o BatchMode=yes \
-              ${{ secrets.O2SWITCH_USERNAME }}@${{ secrets.O2SWITCH_HOST }} \
-              "echo '✅ Connexion SSH réussie'" || {
-            echo "❌ Erreur: Impossible de se connecter en SSH"
-            echo "Vérifiez:"
-            echo "  - O2SWITCH_HOST: ${{ secrets.O2SWITCH_HOST }}"
-            echo "  - O2SWITCH_PORT: ${{ secrets.O2SWITCH_PORT }}"
-            echo "  - O2SWITCH_USERNAME: ${{ secrets.O2SWITCH_USERNAME }}"
-            echo "  - La clé SSH est autorisée sur le serveur"
-            exit 1
-          }
-
-      - name: 🚀 Deploy via rsync
-        run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.O2SWITCH_PORT }} -o StrictHostKeyChecking=no" \
-            dist-offline/ \
-            ${{ secrets.O2SWITCH_USERNAME }}@${{ secrets.O2SWITCH_HOST }}:${{ secrets.O2SWITCH_PATH_OFFLINE }}/
+          lftp -c "
+            set ftp:ssl-allow no;
+            set net:timeout 10;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+            open -u ${{ secrets.O2SWITCH_FTP_USERNAME }},${{ secrets.O2SWITCH_FTP_PASSWORD }} ${{ secrets.O2SWITCH_FTP_HOST }};
+            mirror --reverse --delete --verbose --parallel=10 dist-offline/ ${{ secrets.O2SWITCH_PATH_OFFLINE }}/;
+            bye;
+          "
 
       - name: ✅ Deployment complete
         run: |
@@ -392,58 +357,23 @@ jobs:
           DirectoryIndex index.html
           EOF
 
-      - name: 🔐 Setup SSH
+      - name: 📦 Sync files via lftp
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+          # Installer lftp si nécessaire
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
 
-          # Créer la clé SSH
-          echo "${{ secrets.O2SWITCH_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
+          echo "🚀 Déploiement via FTP vers ${{ secrets.O2SWITCH_FTP_HOST }}"
 
-          # Vérifier que la clé est valide
-          echo "🔍 Vérification de la clé SSH..."
-          ssh-keygen -l -f ~/.ssh/deploy_key || {
-            echo "❌ Erreur: La clé SSH est invalide"
-            exit 1
-          }
-
-          # Scanner la clé de l'hôte (avec timeout et retry)
-          echo "🔍 Scan de l'hôte SSH: ${{ secrets.O2SWITCH_HOST }}:${{ secrets.O2SWITCH_PORT }}"
-
-          # Essayer avec timeout
-          timeout 30 ssh-keyscan -p ${{ secrets.O2SWITCH_PORT }} -H ${{ secrets.O2SWITCH_HOST }} >> ~/.ssh/known_hosts 2>&1 || {
-            echo "⚠️ ssh-keyscan a échoué, on continue avec StrictHostKeyChecking=no"
-            # Créer un fichier known_hosts vide
-            touch ~/.ssh/known_hosts
-          }
-
-          chmod 644 ~/.ssh/known_hosts
-
-          # Test de connexion SSH
-          echo "🧪 Test de connexion SSH..."
-          ssh -i ~/.ssh/deploy_key \
-              -p ${{ secrets.O2SWITCH_PORT }} \
-              -o StrictHostKeyChecking=no \
-              -o ConnectTimeout=10 \
-              -o BatchMode=yes \
-              ${{ secrets.O2SWITCH_USERNAME }}@${{ secrets.O2SWITCH_HOST }} \
-              "echo '✅ Connexion SSH réussie'" || {
-            echo "❌ Erreur: Impossible de se connecter en SSH"
-            echo "Vérifiez:"
-            echo "  - O2SWITCH_HOST: ${{ secrets.O2SWITCH_HOST }}"
-            echo "  - O2SWITCH_PORT: ${{ secrets.O2SWITCH_PORT }}"
-            echo "  - O2SWITCH_USERNAME: ${{ secrets.O2SWITCH_USERNAME }}"
-            echo "  - La clé SSH est autorisée sur le serveur"
-            exit 1
-          }
-
-      - name: 🚀 Deploy via rsync
-        run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.O2SWITCH_PORT }} -o StrictHostKeyChecking=no" \
-            dist-online/ \
-            ${{ secrets.O2SWITCH_USERNAME }}@${{ secrets.O2SWITCH_HOST }}:${{ secrets.O2SWITCH_PATH_ONLINE }}/
+          lftp -c "
+            set ftp:ssl-allow no;
+            set net:timeout 10;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+            open -u ${{ secrets.O2SWITCH_FTP_USERNAME }},${{ secrets.O2SWITCH_FTP_PASSWORD }} ${{ secrets.O2SWITCH_FTP_HOST }};
+            mirror --reverse --delete --verbose --parallel=10 dist-online/ ${{ secrets.O2SWITCH_PATH_ONLINE }}/;
+            bye;
+          "
 
       - name: ✅ Deployment complete
         run: |

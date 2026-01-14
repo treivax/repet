@@ -71,12 +71,11 @@ Build Offline  Build Online   Tests
 
 | Secret | Description | Exemple |
 |--------|-------------|---------|
-| `O2SWITCH_HOST` | Hôte SSH | `ecanasso.org` |
-| `O2SWITCH_PORT` | Port SSH | `2222` |
-| `O2SWITCH_USERNAME` | Utilisateur cPanel | `ecanasso` |
-| `O2SWITCH_SSH_KEY` | Clé privée SSH | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
-| `O2SWITCH_PATH_OFFLINE` | Chemin build offline | `/home/user/public_html/app.repet.ecanasso.org` |
-| `O2SWITCH_PATH_ONLINE` | Chemin build online | `/home/user/public_html/ios.repet.ecanasso.org` |
+| `O2SWITCH_FTP_HOST` | Hôte FTP | `ftp.ecanasso.org` |
+| `O2SWITCH_FTP_USERNAME` | Utilisateur FTP | `user@ecanasso.org` |
+| `O2SWITCH_FTP_PASSWORD` | Mot de passe FTP | `votre_mot_de_passe` |
+| `O2SWITCH_PATH_OFFLINE` | Chemin build offline | `/public_html/app.repet.ecanasso.org` |
+| `O2SWITCH_PATH_ONLINE` | Chemin build online | `/public_html/ios.repet.ecanasso.org` |
 
 ## 🛠️ Workflow GitHub Actions
 
@@ -84,8 +83,12 @@ Le fichier `.github/workflows/deploy-o2switch.yml` gère :
 
 1. **Build** : Compilation des deux versions (offline + online)
 2. **Tests** : Type-check et lint
-3. **Deploy** : Upload via rsync/SSH vers O2switch
+3. **Deploy** : Upload via FTP (lftp) vers O2switch
 4. **Validation** : Vérification de la taille des builds
+
+### Pourquoi FTP au lieu de SSH ?
+
+O2switch nécessite d'autoriser spécifiquement les adresses IP pour l'accès SSH. Comme GitHub Actions utilise des runners avec IPs dynamiques, **le déploiement utilise FTP** qui est plus adapté à ce cas d'usage.
 
 ### Déclencher manuellement
 
@@ -111,9 +114,16 @@ Après chaque déploiement, vérifier :
 ### Le déploiement échoue
 
 1. Vérifier les secrets GitHub (Settings → Secrets)
-2. Vérifier les logs GitHub Actions
-3. Tester la connexion SSH manuellement
-4. Consulter [O2SWITCH_DEPLOYMENT.md](O2SWITCH_DEPLOYMENT.md#dépannage)
+2. Vérifier le format du nom d'utilisateur FTP (`user@domain.com`)
+3. Tester les identifiants FTP avec un client FTP
+4. Vérifier les logs GitHub Actions
+5. Consulter [O2SWITCH_DEPLOYMENT.md](O2SWITCH_DEPLOYMENT.md#dépannage)
+
+### Erreur "Login incorrect" 
+
+1. Vérifier le format du nom d'utilisateur : `user@domain.com` (avec @)
+2. Tester le mot de passe avec FileZilla ou un autre client FTP
+3. Créer un compte FTP dédié via cPanel si nécessaire
 
 ### Les headers ne fonctionnent pas
 

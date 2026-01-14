@@ -16,11 +16,15 @@ Répét utilise une architecture dual-build :
   - Dossier : `dist-online/`
   - Cible : iOS/Safari/macOS
 
+## ⚠️ Note importante sur le déploiement
+
+O2switch nécessite d'autoriser les adresses IP pour l'accès SSH, ce qui n'est pas compatible avec GitHub Actions (IPs dynamiques). **Le déploiement utilise donc FTP/FTPS** qui est plus adapté à ce cas d'usage.
+
 ## 🔧 Prérequis
 
 - [x] Compte O2switch avec accès cPanel
 - [x] Domaine `ecanasso.org` configuré sur O2switch
-- [x] Accès SSH activé (recommandé) ou accès FTP
+- [x] Accès FTP (utilisé pour le déploiement automatique)
 - [x] Git et Node.js installés localement
 - [x] Accès au repository GitHub
 
@@ -52,75 +56,27 @@ Répét utilise une architecture dual-build :
 
 Vérifier que les certificats sont bien installés (icône verte).
 
-### Étape 3 : Vérifier l'accès SSH
+### Étape 3 : Récupérer les informations FTP
 
-**Via cPanel → Sécurité → Accès SSH :**
+**Via cPanel → Fichiers → Comptes FTP :**
 
-1. Vérifier que SSH est activé
-2. Noter les informations de connexion :
-   - Hôte : généralement `ecanasso.org` ou `ssh.ecanasso.org`
-   - Port : généralement `2222` ou `22`
-   - Utilisateur : votre nom d'utilisateur cPanel
+1. Noter les informations de connexion FTP :
+   - Serveur FTP : généralement `ftp.ecanasso.org` ou `ecanasso.org`
+   - Nom d'utilisateur : `votreuser@ecanasso.org` (format complet)
+   - Mot de passe : votre mot de passe cPanel (ou créer un compte FTP dédié)
 
-**Test de connexion SSH :**
+2. Noter les chemins des dossiers :
+   - Offline : `/home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org`
+   - Online : `/home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org`
+
+**Test de connexion FTP (optionnel) :**
 ```bash
-ssh VOTRE_USERNAME@ecanasso.org -p 2222
+# Via lftp (à installer : sudo apt install lftp)
+lftp -u votreuser@ecanasso.org ftp.ecanasso.org
+# Entrer le mot de passe
+# Taper 'ls' pour lister les fichiers
+# Taper 'quit' pour quitter
 ```
-
-Si la connexion réussit, vous êtes prêt pour le déploiement automatique.
-
-## 🔑 Configuration des clés SSH pour GitHub Actions
-
-### Étape 1 : Générer une paire de clés SSH dédiée
-
-Sur votre machine locale :
-
-```bash
-# Générer une nouvelle paire de clés ED25519
-ssh-keygen -t ed25519 -C "github-actions-deploy-repet" -f ~/.ssh/o2switch_deploy_repet
-
-# Ne PAS mettre de passphrase (appuyer sur Entrée)
-```
-
-Cela crée deux fichiers :
-- `~/.ssh/o2switch_deploy_repet` (clé privée) ← Pour GitHub Secrets
-- `~/.ssh/o2switch_deploy_repet.pub` (clé publique) ← Pour O2switch
-
-### Étape 2 : Ajouter la clé publique sur O2switch
-
-**Option A : Via SSH**
-
-```bash
-# Se connecter au serveur
-ssh VOTRE_USERNAME@ecanasso.org -p 2222
-
-# Ajouter la clé publique aux clés autorisées
-nano ~/.ssh/authorized_keys
-# Coller le contenu de o2switch_deploy_repet.pub
-# Ctrl+O pour sauvegarder, Ctrl+X pour quitter
-
-# Vérifier les permissions
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/authorized_keys
-```
-
-**Option B : Via cPanel**
-
-1. Aller dans **cPanel → Sécurité → Clés SSH**
-2. Cliquer sur "Gérer" à côté de "Clés publiques"
-3. Cliquer sur "Importer une clé"
-4. Coller le contenu de `o2switch_deploy_repet.pub`
-5. Cliquer sur "Importer"
-6. Cliquer sur "Autoriser" pour activer la clé
-
-### Étape 3 : Tester la connexion
-
-```bash
-# Tester avec la clé privée
-ssh -i ~/.ssh/o2switch_deploy_repet VOTRE_USERNAME@ecanasso.org -p 2222
-```
-
-Si la connexion fonctionne sans demander de mot de passe, c'est bon !
 
 ## 🔐 Configuration des secrets GitHub
 
@@ -135,83 +91,54 @@ Si la connexion fonctionne sans demander de mot de passe, c'est bon !
 
 Cliquer sur **"New repository secret"** pour chaque secret :
 
-#### Secret 1 : O2SWITCH_HOST
+#### Secret 1 : O2SWITCH_FTP_HOST
 ```
-Name: O2SWITCH_HOST
-Value: ecanasso.org
+Name: O2SWITCH_FTP_HOST
+Value: ftp.ecanasso.org
 ```
+*(Ou simplement `ecanasso.org` si le FTP fonctionne sur ce domaine)*
 
-#### Secret 2 : O2SWITCH_PORT
+#### Secret 2 : O2SWITCH_FTP_USERNAME
 ```
-Name: O2SWITCH_PORT
-Value: 2222
+Name: O2SWITCH_FTP_USERNAME
+Value: votreuser@ecanasso.org
 ```
-*(Vérifier le port avec votre hébergeur, peut être 22)*
+*(Format complet avec @ecanasso.org)*
 
-#### Secret 3 : O2SWITCH_USERNAME
+#### Secret 3 : O2SWITCH_FTP_PASSWORD
 ```
-Name: O2SWITCH_USERNAME
-Value: VOTRE_USERNAME_CPANEL
+Name: O2SWITCH_FTP_PASSWORD
+Value: VOTRE_MOT_DE_PASSE
 ```
+⚠️ **Sécurité** : Utilisez de préférence un compte FTP dédié avec accès limité aux dossiers de déploiement uniquement.
 
-#### Secret 4 : O2SWITCH_SSH_KEY
-```
-Name: O2SWITCH_SSH_KEY
-Value: [Contenu complet de ~/.ssh/o2switch_deploy_repet]
-```
-
-**Comment copier la clé privée :**
-```bash
-# Sur Linux/Mac
-cat ~/.ssh/o2switch_deploy_repet | pbcopy   # Mac
-cat ~/.ssh/o2switch_deploy_repet | xclip    # Linux
-
-# Ou simplement afficher et copier manuellement
-cat ~/.ssh/o2switch_deploy_repet
-```
-
-⚠️ **Important** : Copier TOUT le contenu, y compris les lignes :
-```
------BEGIN OPENSSH PRIVATE KEY-----
-...
------END OPENSSH PRIVATE KEY-----
-```
-
-#### Secret 5 : O2SWITCH_PATH_OFFLINE
+#### Secret 4 : O2SWITCH_PATH_OFFLINE
 ```
 Name: O2SWITCH_PATH_OFFLINE
-Value: /home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org
+Value: /public_html/app.repet.ecanasso.org
 ```
+⚠️ **Important** : Le chemin est relatif au home FTP, sans `/home/username` au début.
 
-#### Secret 6 : O2SWITCH_PATH_ONLINE
+#### Secret 5 : O2SWITCH_PATH_ONLINE
 ```
 Name: O2SWITCH_PATH_ONLINE
-Value: /home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org
+Value: /public_html/ios.repet.ecanasso.org
 ```
 
 **Comment trouver le chemin exact :**
-```bash
-# Se connecter en SSH
-ssh VOTRE_USERNAME@ecanasso.org -p 2222
-
-# Afficher le chemin complet
-pwd
-# Résultat exemple : /home/votreuser
-
-# Le chemin sera donc :
-# /home/votreuser/public_html/app.repet.ecanasso.org
-```
+1. Se connecter en FTP avec un client (FileZilla, etc.)
+2. Noter le chemin affiché à partir du dossier home
+3. Généralement : `/public_html/nom_du_sous_domaine/`
 
 ### Résumé des secrets
 
 | Nom du secret | Exemple de valeur |
 |---------------|-------------------|
-| `O2SWITCH_HOST` | `ecanasso.org` |
-| `O2SWITCH_PORT` | `2222` |
-| `O2SWITCH_USERNAME` | `ecanasso` |
-| `O2SWITCH_SSH_KEY` | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` |
-| `O2SWITCH_PATH_OFFLINE` | `/home/ecanasso/public_html/app.repet.ecanasso.org` |
-| `O2SWITCH_PATH_ONLINE` | `/home/ecanasso/public_html/ios.repet.ecanasso.org` |
+| `O2SWITCH_FTP_HOST` | `ftp.ecanasso.org` |
+| `O2SWITCH_FTP_USERNAME` | `ecanasso@ecanasso.org` |
+| `O2SWITCH_FTP_PASSWORD` | `votre_mot_de_passe` |
+| `O2SWITCH_PATH_OFFLINE` | `/public_html/app.repet.ecanasso.org` |
+| `O2SWITCH_PATH_ONLINE` | `/public_html/ios.repet.ecanasso.org` |
 
 ## 🚀 Déploiement
 
@@ -224,9 +151,14 @@ Le déploiement se fait automatiquement à chaque push sur la branche `main`.
 2. GitHub Actions détecte le push
 3. Build des deux versions (offline + online)
 4. Vérification de la qualité (type-check + lint)
-5. Déploiement via rsync sur O2switch
+5. Déploiement via FTP (lftp) sur O2switch
 
 **Fichier de workflow :** `.github/workflows/deploy-o2switch.yml`
+
+**Méthode de déploiement :** `lftp` avec mirror
+- Synchronisation intelligente (seulement les fichiers modifiés)
+- Suppression des fichiers obsolètes (`--delete`)
+- Upload parallèle pour plus de rapidité
 
 **Voir le statut du déploiement :**
 - GitHub → Actions → Dernière exécution
@@ -235,29 +167,45 @@ Le déploiement se fait automatiquement à chaque push sur la branche `main`.
 
 Si vous devez déployer manuellement sans passer par GitHub Actions :
 
+**Option 1 : Via FTP avec lftp (recommandé)**
+
 ```bash
 # 1. Builder les deux versions
 npm run build
 
-# 2. Déployer la version OFFLINE
-rsync -avz --progress --delete \
-  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
-  dist-offline/ \
-  VOTRE_USERNAME@ecanasso.org:/home/VOTRE_USERNAME/public_html/app.repet.ecanasso.org/
+# 2. Installer lftp si nécessaire
+sudo apt install lftp  # Linux
+brew install lftp      # macOS
 
-# 3. Déployer la version ONLINE
-rsync -avz --progress --delete \
-  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
-  dist-online/ \
-  VOTRE_USERNAME@ecanasso.org:/home/VOTRE_USERNAME/public_html/ios.repet.ecanasso.org/
+# 3. Déployer la version OFFLINE
+lftp -c "
+  set ftp:ssl-allow no;
+  open -u votreuser@ecanasso.org,VOTRE_PASSWORD ftp.ecanasso.org;
+  mirror --reverse --delete --verbose dist-offline/ /public_html/app.repet.ecanasso.org/;
+  bye;
+"
+
+# 4. Déployer la version ONLINE
+lftp -c "
+  set ftp:ssl-allow no;
+  open -u votreuser@ecanasso.org,VOTRE_PASSWORD ftp.ecanasso.org;
+  mirror --reverse --delete --verbose dist-online/ /public_html/ios.repet.ecanasso.org/;
+  bye;
+"
 ```
 
-**Options rsync expliquées :**
-- `-a` : Archive mode (préserve permissions, timestamps, etc.)
-- `-v` : Verbose (affiche les fichiers transférés)
-- `-z` : Compression pendant le transfert
-- `--progress` : Affiche la progression
-- `--delete` : Supprime les fichiers qui n'existent plus localement
+**Option 2 : Via client FTP graphique (FileZilla, Cyberduck)**
+
+1. Connectez-vous en FTP
+2. Naviguez vers `/public_html/app.repet.ecanasso.org/`
+3. Uploadez le contenu de `dist-offline/`
+4. Répétez pour `dist-online/` vers `/public_html/ios.repet.ecanasso.org/`
+
+**Options lftp expliquées :**
+- `--reverse` : Upload (local → serveur)
+- `--delete` : Supprime les fichiers obsolètes sur le serveur
+- `--verbose` : Affiche les détails du transfert
+- `--parallel=10` : Upload en parallèle (plus rapide)
 
 ## ✅ Vérification post-déploiement
 
@@ -308,17 +256,14 @@ curl -I https://app.repet.ecanasso.org/wasm/ort-wasm-simd.wasm | grep -i "conten
 
 ## 🐛 Dépannage
 
-### Erreur : "Permission denied (publickey)"
+### Erreur : "Login incorrect" ou "530 Login authentication failed"
 
-**Cause :** La clé SSH n'est pas autorisée sur le serveur.
+**Cause :** Identifiants FTP incorrects.
 
 **Solution :**
-```bash
-# Vérifier que la clé publique est bien ajoutée
-ssh VOTRE_USERNAME@ecanasso.org -p 2222 'cat ~/.ssh/authorized_keys'
-
-# Si la clé n'y est pas, l'ajouter manuellement
-```
+1. Vérifier le format du nom d'utilisateur : `user@domain.com`
+2. Vérifier le mot de passe (tester avec un client FTP)
+3. Créer un compte FTP dédié si nécessaire via cPanel
 
 ### Erreur : "Cross-Origin-Embedder-Policy"
 
@@ -350,31 +295,42 @@ ssh VOTRE_USERNAME@ecanasso.org -p 2222 'cat ~/.ssh/authorized_keys'
 ### Le déploiement GitHub Actions échoue
 
 **Vérifier :**
-1. Les secrets GitHub sont bien configurés
-2. Le port SSH est correct (2222 ou 22)
-3. La clé SSH est complète (avec BEGIN et END)
-4. Les chemins de destination sont corrects
+1. Les secrets GitHub sont bien configurés (format FTP)
+2. Le nom d'utilisateur FTP est au format `user@domain.com`
+3. Le mot de passe FTP est correct
+4. Les chemins sont relatifs au home FTP (sans `/home/user`)
 
 **Consulter les logs :**
 - GitHub → Actions → Cliquer sur le workflow échoué
 - Lire les logs de l'étape qui a échoué
 
+### Erreur : "lftp: command not found"
+
+**Cause :** lftp n'est pas installé sur le runner (rare).
+
+**Solution :** Le workflow installe automatiquement lftp, mais si l'erreur persiste :
+1. Vérifier les logs de l'étape "Sync files via lftp"
+2. L'installation devrait se faire automatiquement avec `apt-get install`
+
 ## 📊 Monitoring
 
 ### Espace disque utilisé
 
+**Via cPanel → Fichiers → Gestionnaire de fichiers :**
+1. Naviguer vers le dossier du sous-domaine
+2. La taille est affichée en bas de l'interface
+
+**Ou via FTP :**
 ```bash
-# Se connecter en SSH
-ssh VOTRE_USERNAME@ecanasso.org -p 2222
-
-# Vérifier l'espace utilisé
-du -sh ~/public_html/app.repet.ecanasso.org
-du -sh ~/public_html/ios.repet.ecanasso.org
-
-# Résultat attendu :
-# ~675M pour app.repet (offline)
-# ~10M pour ios.repet (online)
+lftp -u votreuser@ecanasso.org ftp.ecanasso.org
+du -sh public_html/app.repet.ecanasso.org
+du -sh public_html/ios.repet.ecanasso.org
+quit
 ```
+
+**Résultat attendu :**
+- ~675M pour app.repet (offline)
+- ~10M pour ios.repet (online)
 
 ### Bande passante
 
