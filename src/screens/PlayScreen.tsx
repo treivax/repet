@@ -14,6 +14,7 @@ import { globalLineIndexToPosition } from '../core/models/playHelpers'
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts/engine'
 import { ttsProviderManager } from '../core/tts/providers'
+import type { VoiceGender } from '../core/tts/types'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
@@ -156,12 +157,10 @@ export function PlayScreen() {
           console.warn('Génération automatique des assignations de voix...')
 
           // Créer la liste des personnages avec leurs genres depuis l'AST
-          const charactersWithGender = currentPlay.ast.characters
-            .filter((char) => char.gender) // Filtrer ceux qui ont un genre défini
-            .map((char) => ({
-              id: char.id,
-              gender: char.gender, // Utiliser directement le genre de l'AST
-            }))
+          const charactersWithGender = currentPlay.ast.characters.map((char) => ({
+            id: char.id,
+            gender: (settings.characterVoices[char.id] || char.gender || 'male') as VoiceGender,
+          }))
 
           console.warn(
             `${charactersWithGender.length} personnages trouvés avec genres:`,
