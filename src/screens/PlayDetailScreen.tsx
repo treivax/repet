@@ -121,6 +121,16 @@ export function PlayDetailScreen() {
 
             console.warn('🎤 Nouvelles assignations générées:', newAssignments)
 
+            // Vérifier les genres détectés et logger les différences
+            charactersWithGender.forEach((char) => {
+              const existingGender = settings.characterVoices[char.id]
+              const astGender = characters.find((c) => c.id === char.id)?.gender
+              const detectedGender = char.gender
+              console.warn(
+                `  ${characters.find((c) => c.id === char.id)?.name}: AST=${astGender}, Existing=${existingGender}, Used=${detectedGender}`
+              )
+            })
+
             // Sauvegarder les genres détectés dans characterVoices
             const updatedCharacterVoices = { ...settings.characterVoices }
             charactersWithGender.forEach((char) => {
@@ -236,7 +246,8 @@ export function PlayDetailScreen() {
 
     console.warn('🔄 RÉGÉNÉRATION MANUELLE DES VOIX')
 
-    // Générer les assignations automatiquement
+    // Générer les assignations automatiquement en utilisant les genres EXISTANTS
+    // Ne pas modifier les genres, seulement réassigner les voix
     const charactersWithGender = characters.map((char) => ({
       id: char.id,
       gender: (settings.characterVoices[char.id] || char.gender || 'male') as VoiceGender,
@@ -258,21 +269,13 @@ export function PlayDetailScreen() {
         console.warn(`  ${char?.name} (${gender}) → ${voice?.displayName} (${voice?.gender})`)
       })
 
-      // Sauvegarder les genres détectés dans characterVoices
-      const updatedCharacterVoices = { ...settings.characterVoices }
-      charactersWithGender.forEach((char) => {
-        if (!updatedCharacterVoices[char.id]) {
-          updatedCharacterVoices[char.id] = char.gender
-        }
-      })
-
-      // Sauvegarder
+      // Sauvegarder UNIQUEMENT les nouvelles assignations de voix
+      // Ne PAS modifier characterVoices (les genres restent inchangés)
       usePlaySettingsStore.getState().updatePlaySettings(playId, {
         characterVoicesPiper: newAssignments,
-        characterVoices: updatedCharacterVoices,
       })
 
-      console.warn('✅ Voix régénérées et sauvegardées')
+      console.warn('✅ Voix régénérées (genres conservés)')
     }
   }
 
@@ -558,10 +561,10 @@ export function PlayDetailScreen() {
                 </h2>
                 <button
                   onClick={handleRegenerateVoices}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  className="rounded-md bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
                   title="Régénérer automatiquement toutes les voix"
                 >
-                  🔄 Régénérer
+                  Régénérer
                 </button>
               </div>
 

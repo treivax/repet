@@ -173,9 +173,12 @@ export function PlayScreen() {
             const newAssignments = activeProvider.generateVoiceAssignments(charactersWithGender, {})
 
             // Sauvegarder les genres dans characterVoices (pour compatibilité UI)
+            // Ne pas écraser les genres existants
             const updatedCharacterVoices = { ...settings.characterVoices }
             charactersWithGender.forEach((char) => {
-              updatedCharacterVoices[char.id] = char.gender
+              if (!updatedCharacterVoices[char.id]) {
+                updatedCharacterVoices[char.id] = char.gender
+              }
             })
 
             // Sauvegarder les assignations ET les genres
@@ -183,6 +186,16 @@ export function PlayScreen() {
             updatePlaySettings(playId, {
               characterVoicesPiper: newAssignments,
               characterVoices: updatedCharacterVoices,
+            })
+
+            // Logger les genres détectés et utilisés
+            charactersWithGender.forEach((char) => {
+              const character = currentPlay.ast.characters.find((c) => c.id === char.id)
+              const existingGender = settings.characterVoices[char.id]
+              const astGender = character?.gender
+              console.warn(
+                `  ${character?.name}: AST=${astGender}, Existing=${existingGender}, Used=${char.gender}`
+              )
             })
 
             console.warn('Assignations de voix générées:', newAssignments)
