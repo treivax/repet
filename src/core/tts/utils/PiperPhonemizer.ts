@@ -1,155 +1,247 @@
 /**
- * Copyright (c) 2025 Répét Contributors
- * Licensed under the MIT License
- * See LICENSE file in the project root for full license text
+ * Wrapper pour le phonemizer Piper (espeak-ng WASM)
+ *
+ * Ce module charge et utilise piper_phonemize.wasm pour convertir du texte en phonèmes.
+ *
+ * IMPORTANT: piper_phonemize est un programme CLI compilé avec Emscripten qui:
+ * - Lit le texte depuis STDIN (pas de --input)
+ * - Écrit le JSON sur STDOUT (pas de --output)
+ * - callMain() ne peut être appelé qu'une seule fois par instance
+ * Solution: créer une nouvelle instance pour chaque phonemization.
  */
 
-/**
- * Emscripten File System API
- */
-interface EmscriptenFS {
-  writeFile(path: string, data: string | ArrayBufferView, opts?: { encoding?: string }): void
-  readFile(path: string, opts?: { encoding?: string }): string | Uint8Array
-  unlink(path: string): void
-  mkdir(path: string): void
-  rmdir(path: string): void
+import type { PiperPhonemizeModule } from '../../../types/emscripten'
+
+interface PhonemizeResult {
+  phonemes: number[]
+  phoneme_ids?: number[]
+  text?: string
 }
 
-/**
- * Interface pour le module Piper Phonemize WASM
- */
-interface PiperPhonemizeModule {
-  FS: EmscriptenFS
-  callMain: (args: string[]) => number
-  locateFile?: (path: string, scriptDirectory?: string) => string
-}
-
-/**
- * Wrapper pour le module piper_phonemize.wasm
- * Convertit du texte en phonèmes IPA pour les modèles Piper
- */
 export class PiperPhonemizer {
-  private module: PiperPhonemizeModule | null = null
-  private initialized = false
-  private initPromise: Promise<void> | null = null
+  private scriptLoaded = false
+  private scriptLoadPromise: Promise<void> | null = null
 
   /**
-   * Initialise le phonemizer WASM
+   * Charge le script piper_phonemize.js (une seule fois)
    */
-  async initialize(): Promise<void> {
-    if (this.initialized) {
+  private async loadScript(): Promise<void> {
+    if (this.scriptLoaded) {
       return
     }
 
-    if (this.initPromise) {
-      return this.initPromise
+    if (this.scriptLoadPromise) {
+      return this.scriptLoadPromise
     }
 
-    this.initPromise = this._doInitialize()
-    return this.initPromise
+    this.scriptLoadPromise = this._doLoadScript()
+    await this.scriptLoadPromise
+    this.scriptLoaded = true
   }
 
-  private async _doInitialize(): Promise<void> {
-    console.log('[PiperPhonemizer] Initialisation...')
+  private async _doLoadScript(): Promise<void> {
+    // Vérifier si déjà chargé
+    if (window.createPiperPhonemize) {
+      return
+    }
 
-    try {
-      // Charger le script piper_phonemize.js qui créera le module
-      const script = document.createElement('script')
-      script.src = '/wasm/piper_phonemize.js'
+    const script = document.createElement('script')
+    script.src = '/wasm/piper_phonemize.js'
 
-      await new Promise<void>((resolve, reject) => {
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error('Échec du chargement de piper_phonemize.js'))
-        document.head.appendChild(script)
-      })
+    await new Promise<void>((resolve, reject) => {
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('Échec du chargement de piper_phonemize.js'))
+      document.head.appendChild(script)
+    })
+  }
 
-      // Le script devrait avoir créé une fonction createPiperPhonemize globale
-      const createModule = (
-        window as {
-          createPiperPhonemize?: (
-            opts: Partial<PiperPhonemizeModule>
-          ) => Promise<PiperPhonemizeModule>
+  /**
+   * Crée une nouvelle instance du module WASM configurée pour stdin/stdout
+   */
+  private async createModule(
+    text: string,
+    stdoutCharCallback: (charCode: number) => void,
+    stderrCharCallback: (charCode: number) => void
+  ): Promise<PiperPhonemizeModule> {
+    await this.loadScript()
+
+    const createModuleFn = window.createPiperPhonemize
+    if (!createModuleFn) {
+      throw new Error('createPiperPhonemize non trouvé après chargement du script')
+    }
+
+    // Préparer stdin avec le texte à phonemizer
+    const stdinContent = text + '\n'
+    let stdinPos = 0
+
+    // Créer le module avec stdin/stdout configurés
+    const module = await createModuleFn({
+      locateFile: (path: string) => {
+        if (path.endsWith('.wasm')) {
+          return '/wasm/piper_phonemize.wasm'
         }
-      ).createPiperPhonemize
-      if (!createModule) {
-        throw new Error('createPiperPhonemize non trouvé')
+        if (path.endsWith('.data')) {
+          return '/wasm/piper_phonemize.data'
+        }
+        return path
+      },
+      stdin: () => {
+        // Fournir le texte caractère par caractère
+        if (stdinPos < stdinContent.length) {
+          return stdinContent.charCodeAt(stdinPos++)
+        }
+        return null // EOF
+      },
+      stdout: stdoutCharCallback,
+      stderr: stderrCharCallback,
+      noInitialRun: true, // Ne pas appeler main() automatiquement
+    })
+
+    // Attendre que le système de fichiers soit prêt
+    await this.waitForFilesystem(module)
+
+    return module
+  }
+
+  /**
+   * Attend que le fichier .data soit chargé et que le FS soit prêt
+   */
+  private async waitForFilesystem(module: PiperPhonemizeModule): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      let attempts = 0
+      const maxAttempts = 200 // 10 secondes max
+
+      const check = () => {
+        attempts++
+
+        try {
+          if (!module.FS) {
+            if (attempts >= maxAttempts) {
+              reject(new Error('Timeout: FS non disponible'))
+              return
+            }
+            setTimeout(check, 50)
+            return
+          }
+
+          // Vérifier que espeak-ng-data est monté
+          const espeakPath = module.FS.analyzePath('/espeak-ng-data')
+          if (!espeakPath.exists) {
+            if (attempts >= maxAttempts) {
+              reject(new Error('Timeout: /espeak-ng-data non monté'))
+              return
+            }
+            setTimeout(check, 50)
+            return
+          }
+
+          // Vérifier que le contenu est là
+          const langPath = module.FS.analyzePath('/espeak-ng-data/lang')
+          if (!langPath.exists) {
+            if (attempts >= maxAttempts) {
+              reject(new Error('espeak-ng-data incomplet: lang/ manquant'))
+              return
+            }
+            setTimeout(check, 50)
+            return
+          }
+
+          resolve()
+        } catch (error) {
+          if (attempts >= maxAttempts) {
+            reject(error)
+            return
+          }
+          setTimeout(check, 50)
+        }
       }
 
-      // Créer l'instance du module WASM
-      this.module = await createModule({
-        locateFile: (path: string) => {
-          if (path.endsWith('.wasm')) {
-            return '/wasm/piper_phonemize.wasm'
-          }
-          if (path.endsWith('.data')) {
-            return '/wasm/piper_phonemize.data'
-          }
-          return path
-        },
-      })
-
-      this.initialized = true
-      console.log('[PiperPhonemizer] Initialisé avec succès')
-    } catch (error) {
-      this.initPromise = null
-      console.error("[PiperPhonemizer] Erreur lors de l'initialisation:", error)
-      throw new Error(`Échec de l'initialisation du phonemizer: ${error}`)
-    }
+      check()
+    })
   }
 
   /**
    * Convertit du texte en phonèmes IPA
+   *
+   * Note: Crée une nouvelle instance du module pour chaque appel
+   * car callMain() ne peut être appelé qu'une fois.
+   *
+   * piper_phonemize lit depuis stdin et écrit du JSON sur stdout.
    */
   async textToPhonemes(text: string, voice: string = 'fr'): Promise<string> {
-    if (!this.initialized) {
-      await this.initialize()
-    }
+    // Buffers pour capturer stdout/stderr au niveau caractère
+    const stdoutCharBuffer: number[] = []
+    const stderrCharBuffer: number[] = []
 
-    if (!this.module) {
-      throw new Error('Module non initialisé')
-    }
+    // Créer un module avec stdin configuré et callbacks stdout/stderr
+    const module = await this.createModule(
+      text,
+      (charCode) => {
+        if (charCode !== null && charCode !== 0) {
+          stdoutCharBuffer.push(charCode)
+        }
+      },
+      (charCode) => {
+        if (charCode !== null && charCode !== 0) {
+          stderrCharBuffer.push(charCode)
+        }
+      }
+    )
 
     try {
-      // Créer un fichier temporaire dans le système de fichiers WASM
-      const inputPath = '/tmp/input.txt'
-      const outputPath = '/tmp/output.txt'
-
-      // Écrire le texte dans le fichier d'entrée
-      this.module.FS.writeFile(inputPath, text)
-
-      // Exécuter piper_phonemize
+      // Préparer les arguments pour piper_phonemize
+      // Le programme lit depuis stdin et écrit sur stdout
+      // On ne passe PAS --input ou --output
       const args = [
+        'piper_phonemize', // argv[0]
+        '--language',
+        voice,
         '--espeak_data',
         '/espeak-ng-data',
-        '--voice',
-        voice,
-        '--input',
-        inputPath,
-        '--output',
-        outputPath,
       ]
 
-      const exitCode = this.module.callMain(args)
-
-      if (exitCode !== 0) {
-        throw new Error(`piper_phonemize a échoué avec le code ${exitCode}`)
-      }
-
-      // Lire le résultat
-      const phonemes = this.module.FS.readFile(outputPath, { encoding: 'utf8' })
-
-      // Nettoyer les fichiers temporaires
+      // Appeler le programme
+      // Note: callMain peut lancer une exception C++ (pointeur mémoire comme 404048)
+      // mais stdout sera quand même capturé avant l'exception
       try {
-        this.module.FS.unlink(inputPath)
-        this.module.FS.unlink(outputPath)
-      } catch {
-        // Ignorer les erreurs de nettoyage
+        module.callMain(args)
+      } catch (error) {
+        // Exception attendue avec piper_phonemize - le programme peut fonctionner
+        // correctement mais lancer une exception au lieu d'un code de sortie propre
+        console.warn(`[PiperPhonemizer] callMain exception (peut-être normal): ${error}`)
       }
 
-      return phonemes as string
+      // Vérifier si on a capturé du stdout
+      if (stdoutCharBuffer.length === 0) {
+        const stderrOutput = String.fromCharCode(...stderrCharBuffer)
+        throw new Error(
+          `piper_phonemize n'a rien retourné sur stdout. Stderr: ${stderrOutput || '(vide)'}`
+        )
+      }
+
+      // Convertir le buffer de caractères en string
+      const outputJson = String.fromCharCode(...stdoutCharBuffer)
+
+      try {
+        const result = JSON.parse(outputJson) as PhonemizeResult
+
+        if (!result.phonemes || result.phonemes.length === 0) {
+          throw new Error('Le résultat JSON ne contient pas de phonèmes')
+        }
+
+        // Les phonèmes sont retournés comme un array d'entiers (codes IPA)
+        // Convertir en string
+        const phonemesString = result.phonemes.map((code) => String.fromCharCode(code)).join('')
+
+        return phonemesString
+      } catch (parseError) {
+        throw new Error(
+          `Erreur de parsing du JSON de piper_phonemize: ${parseError}. JSON brut: ${outputJson.substring(0, 200)}`
+        )
+      }
     } catch (error) {
       console.error('[PiperPhonemizer] Erreur lors de la phonemization:', error)
-      throw new Error(`Échec de la phonemization: ${error}`)
+      throw error
     }
   }
 
@@ -158,14 +250,26 @@ export class PiperPhonemizer {
    */
   phonemesToIds(phonemes: string, phonemeIdMap: Record<string, number[]>): number[] {
     const ids: number[] = []
+    let i = 0
 
-    for (const char of phonemes) {
-      const mapping = phonemeIdMap[char]
-      if (mapping && mapping.length > 0) {
-        ids.push(mapping[0])
-      } else {
-        // Caractère inconnu, utiliser un padding ou ignorer
-        console.warn(`[PiperPhonemizer] Phonème inconnu: "${char}" (code: ${char.charCodeAt(0)})`)
+    while (i < phonemes.length) {
+      let matched = false
+
+      // Essayer de matcher les phonèmes les plus longs en premier
+      for (let len = Math.min(4, phonemes.length - i); len > 0; len--) {
+        const substr = phonemes.substring(i, i + len)
+        if (phonemeIdMap[substr]) {
+          ids.push(...phonemeIdMap[substr])
+          i += len
+          matched = true
+          break
+        }
+      }
+
+      if (!matched) {
+        // Phonème inconnu, ignorer
+        console.warn(`[PiperPhonemizer] Phonème inconnu: "${phonemes[i]}"`)
+        i++
       }
     }
 
@@ -183,19 +287,7 @@ export class PiperPhonemizer {
     const phonemes = await this.textToPhonemes(text, voice)
     return this.phonemesToIds(phonemes, phonemeIdMap)
   }
-
-  /**
-   * Libère les ressources
-   */
-  dispose(): void {
-    this.module = null
-    this.initialized = false
-    this.initPromise = null
-    console.log('[PiperPhonemizer] Ressources libérées')
-  }
 }
 
-/**
- * Instance singleton du phonemizer
- */
+// Export d'une instance singleton
 export const piperPhonemizer = new PiperPhonemizer()

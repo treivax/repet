@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Piper Phonemize</title>
+    <style>
+      body {
+        font-family: monospace;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+      }
+      #log {
+        background: #f5f5f5;
+        padding: 20px;
+        border: 1px solid #ccc;
+        height: 400px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        font-size: 12px;
+      }
+      button {
+        padding: 10px 20px;
+        margin: 10px 5px;
+        font-size: 14px;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+      .info {
+        color: blue;
+      }
+      .warn {
+        color: orange;
+      }
+      input {
+        width: 400px;
+        padding: 5px;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Test Piper Phonemize WASM</h1>
+
+    <div>
+      <button onclick="testInit()">1. Initialize Module</button>
+      <button onclick="testFS()">2. Check Filesystem</button>
+      <button onclick="testHelp()">2b. Test --help</button>
+      <button onclick="testPhonemize()">3. Test Phonemize</button>
+      <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div>
+      <label>Text to phonemize:</label><br />
+      <input type="text" id="testText" value="Bonjour le monde" />
+      <label>Voice:</label>
+      <input type="text" id="testVoice" value="fr" style="width: 50px" />
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+      let module = null
+
+      function log(message, type = 'info') {
+        const logDiv = document.getElementById('log')
+        const timestamp = new Date().toLocaleTimeString()
+        const className = type
+        logDiv.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`
+        logDiv.scrollTop = logDiv.scrollHeight
+      }
+
+      function clearLog() {
+        document.getElementById('log').innerHTML = ''
+      }
+
+      async function testInit() {
+        log('=== INITIALISATION DU MODULE ===', 'info')
+
+        try {
+          // Charger le script
+          log('Chargement de piper_phonemize.js...', 'info')
+          const script = document.createElement('script')
+          script.src = '/wasm/piper_phonemize.js'
+
+          await new Promise((resolve, reject) => {
+            script.onload = () => {
+              log('✓ Script chargé', 'success')
+              resolve()
+            }
+            script.onerror = () => {
+              log('✗ Erreur de chargement du script', 'error')
+              reject(new Error('Échec du chargement'))
+            }
+            document.head.appendChild(script)
+          })
+
+          // Vérifier que la fonction est disponible
+          if (!window.createPiperPhonemize) {
+            log('✗ createPiperPhonemize non trouvé dans window', 'error')
+            return
+          }
+          log('✓ createPiperPhonemize disponible', 'success')
+
+          // Créer le module
+          log('Création du module WASM...', 'info')
+          // Capturer stdout et stderr dans des variables
+          let stdoutBuffer = []
+          let stderrBuffer = []
+
+          module = await window.createPiperPhonemize({
+            locateFile: (path) => {
+              log(`locateFile: ${path}`, 'info')
+              if (path.endsWith('.wasm')) {
+                return '/wasm/piper_phonemize.wasm'
+              }
+              if (path.endsWith('.data')) {
+                return '/wasm/piper_phonemize.data'
+              }
+              return path
+            },
+            print: (text) => {
+              stdoutBuffer.push(text)
+              log(`[stdout] ${text}`, 'info')
+            },
+            printErr: (text) => {
+              stderrBuffer.push(text)
+              log(`[stderr] ${text}`, 'error')
+            },
+            onRuntimeInitialized: () => {
+              log('✓ Runtime WASM initialisé', 'success')
+            },
+            noInitialRun: true, // Ne pas appeler main() automatiquement
+          })
+
+          // Exposer les buffers pour debug
+          window.lastStdout = stdoutBuffer
+          window.lastStderr = stderrBuffer
+
+          log('✓ Module créé', 'success')
+
+          // Attendre que le .data soit chargé
+          log('Attente du chargement du .data...', 'info')
+          await new Promise((resolve) => {
+            let attempts = 0
+            const check = () => {
+              attempts++
+              if (module.FS) {
+                log(`✓ FS disponible après ${attempts} tentatives`, 'success')
+                resolve()
+              } else {
+                if (attempts < 100) {
+                  setTimeout(check, 50)
+                } else {
+                  log('✗ Timeout: FS non disponible', 'error')
+                  resolve()
+                }
+              }
+            }
+            check()
+          })
+        } catch (error) {
+          log(`✗ Erreur: ${error.message}`, 'error')
+          console.error(error)
+        }
+      }
+
+      async function testHelp() {
+        log('=== TEST --help ===', 'info')
+
+        try {
+          // Créer un nouveau module pour ce test
+          log("Création d'un module de test...", 'info')
+
+          const stdoutBuffer = []
+          const stderrBuffer = []
+          const stdoutCharBuffer = []
+          const stderrCharBuffer = []
+
+          const testModule = await window.createPiperPhonemize({
+            locateFile: (path) => {
+              if (path.endsWith('.wasm')) return '/wasm/piper_phonemize.wasm'
+              if (path.endsWith('.data')) return '/wasm/piper_phonemize.data'
+              return path
+            },
+            print: (text) => {
+              stdoutBuffer.push(text)
+              log(`[print] ${text}`, 'info')
+            },
+            printErr: (text) => {
+              stderrBuffer.push(text)
+              log(`[printErr] ${text}`, 'warn')
+            },
+            stdout: (charCode) => {
+              if (charCode !== null && charCode !== 0) {
+                stdoutCharBuffer.push(charCode)
+                log(`[stdout] ${charCode} = '${String.fromCharCode(charCode)}'`, 'info')
+              }
+            },
+            stderr: (charCode) => {
+              if (charCode !== null && charCode !== 0) {
+                stderrCharBuffer.push(charCode)
+                log(`[stderr] ${charCode} = '${String.fromCharCode(charCode)}'`, 'warn')
+              }
+            },
+            noInitialRun: true,
+          })
+
+          log('✓ Module créé', 'success')
+
+          // Attendre le FS
+          await new Promise((resolve) => {
+            let attempts = 0
+            const check = () => {
+              attempts++
+              if (attempts > 100) {
+                log('✗ Timeout FS', 'error')
+                resolve()
+                return
+              }
+              if (testModule.FS && testModule.FS.analyzePath('/espeak-ng-data').exists) {
+                log('✓ FS prêt', 'success')
+                resolve()
+              } else {
+                setTimeout(check, 50)
+              }
+            }
+            check()
+          })
+
+          // Appeler avec --help
+          const args = ['piper_phonemize', '--help']
+          log(`Appel de callMain avec: ${args.join(' ')}`, 'info')
+
+          try {
+            const result = testModule.callMain(args)
+            log(`callMain retourné: ${result}`, 'success')
+          } catch (e) {
+            log(`Exception: ${e}`, 'warn')
+          }
+
+          // Afficher les résultats
+          log('=== RÉSULTATS ===', 'info')
+          log(`print buffer: ${stdoutBuffer.length} lignes`, 'info')
+          log(`printErr buffer: ${stderrBuffer.length} lignes`, 'info')
+          log(`stdout char buffer: ${stdoutCharBuffer.length} chars`, 'info')
+          log(`stderr char buffer: ${stderrCharBuffer.length} chars`, 'info')
+
+          if (stdoutBuffer.length > 0) {
+            log('Contenu print:', 'info')
+            stdoutBuffer.forEach((line) => log(`  ${line}`, 'info'))
+          }
+
+          if (stderrBuffer.length > 0) {
+            log('Contenu printErr:', 'info')
+            stderrBuffer.forEach((line) => log(`  ${line}`, 'warn'))
+          }
+
+          if (stdoutCharBuffer.length > 0) {
+            const text = String.fromCharCode(...stdoutCharBuffer)
+            log(`Contenu stdout: ${text}`, 'info')
+          }
+
+          if (stderrCharBuffer.length > 0) {
+            const text = String.fromCharCode(...stderrCharBuffer)
+            log(`Contenu stderr: ${text}`, 'warn')
+          }
+        } catch (error) {
+          log(`✗ Erreur: ${error.message}`, 'error')
+          console.error(error)
+        }
+      }
+
+      async function testFS() {
+        log('=== VÉRIFICATION DU SYSTÈME DE FICHIERS ===', 'info')
+
+        if (!module) {
+          log('✗ Module non initialisé', 'error')
+          return
+        }
+
+        if (!module.FS) {
+          log('✗ FS non disponible', 'error')
+          return
+        }
+
+        log('✓ FS disponible', 'success')
+
+        // Vérifier /espeak-ng-data
+        try {
+          const espeakPath = module.FS.analyzePath('/espeak-ng-data')
+          log(
+            `/espeak-ng-data exists: ${espeakPath.exists}`,
+            espeakPath.exists ? 'success' : 'error'
+          )
+
+          if (espeakPath.exists) {
+            const contents = module.FS.readdir('/espeak-ng-data')
+            log(`Contenu de /espeak-ng-data (${contents.length} items):`, 'info')
+            contents.slice(0, 20).forEach((item) => {
+              log(`  - ${item}`, 'info')
+            })
+            if (contents.length > 20) {
+              log(`  ... et ${contents.length - 20} autres`, 'info')
+            }
+
+            // Vérifier lang
+            const langPath = module.FS.analyzePath('/espeak-ng-data/lang')
+            log(
+              `/espeak-ng-data/lang exists: ${langPath.exists}`,
+              langPath.exists ? 'success' : 'error'
+            )
+
+            // Vérifier fr_dict
+            const frDictPath = module.FS.analyzePath('/espeak-ng-data/fr_dict')
+            log(
+              `/espeak-ng-data/fr_dict exists: ${frDictPath.exists}`,
+              frDictPath.exists ? 'success' : 'error'
+            )
+          }
+        } catch (error) {
+          log(`✗ Erreur lors de la vérification: ${error.message}`, 'error')
+          console.error(error)
+        }
+
+        // Créer /tmp si nécessaire
+        try {
+          module.FS.mkdir('/tmp')
+          log('✓ /tmp créé', 'success')
+        } catch (error) {
+          log(`/tmp existe déjà ou erreur: ${error.message}`, 'warn')
+        }
+      }
+
+      async function testPhonemize() {
+        log('=== TEST DE PHONEMIZATION ===', 'info')
+
+        const text = document.getElementById('testText').value
+        const voice = document.getElementById('testVoice').value
+
+        log(`Texte: "${text}"`, 'info')
+        log(`Voix: "${voice}"`, 'info')
+
+        try {
+          // Créer un nouveau module pour chaque test
+          // car callMain ne peut être appelé qu'une fois
+          log("Création d'un nouveau module pour ce test...", 'info')
+
+          // Buffers pour capturer stdout/stderr
+          const stdoutBuffer = []
+          const stderrBuffer = []
+
+          // Créer le module
+          const testModule = await window.createPiperPhonemize({
+            locateFile: (path) => {
+              if (path.endsWith('.wasm')) return '/wasm/piper_phonemize.wasm'
+              if (path.endsWith('.data')) return '/wasm/piper_phonemize.data'
+              return path
+            },
+            print: (text) => {
+              stdoutBuffer.push(text)
+              log(`[print] ${text}`, 'info')
+            },
+            printErr: (text) => {
+              stderrBuffer.push(text)
+              log(`[printErr] ${text}`, 'warn')
+            },
+            noInitialRun: true,
+          })
+
+          log('✓ Module de test créé', 'success')
+
+          // Attendre que le FS soit prêt
+          await new Promise((resolve) => {
+            let attempts = 0
+            const check = () => {
+              attempts++
+              if (attempts > 100) {
+                log('✗ Timeout FS', 'error')
+                resolve()
+                return
+              }
+              if (testModule.FS && testModule.FS.analyzePath('/espeak-ng-data').exists) {
+                log('✓ FS prêt pour le test', 'success')
+                resolve()
+              } else {
+                setTimeout(check, 50)
+              }
+            }
+            check()
+          })
+
+          log('✓ Module créé', 'success')
+
+          // DIAGNOSTIC: Inspecter les exports du module WASM
+          log('=== INSPECTION DES EXPORTS WASM ===', 'info')
+
+          // Lister tous les exports disponibles
+          if (testModule.asm) {
+            log('Exports via module.asm:', 'info')
+            const asmKeys = Object.keys(testModule.asm)
+            log(`  ${asmKeys.length} exports trouvés`, 'info')
+            asmKeys.slice(0, 20).forEach((key) => {
+              const value = testModule.asm[key]
+              const type = typeof value
+              log(`  - ${key}: ${type}`, 'info')
+            })
+            if (asmKeys.length > 20) {
+              log(`  ... et ${asmKeys.length - 20} autres`, 'info')
+            }
+          }
+
+          // Chercher des fonctions phonemize
+          log('Recherche de fonctions phonemize...', 'info')
+          const phonemizeFuncs = []
+          for (const key in testModule) {
+            if (key.toLowerCase().includes('phonem') || key.toLowerCase().includes('espeak')) {
+              phonemizeFuncs.push(key)
+              log(`  Trouvé: ${key} (${typeof testModule[key]})`, 'success')
+            }
+          }
+          if (phonemizeFuncs.length === 0) {
+            log('  Aucune fonction phonemize trouvée dans module', 'warn')
+          }
+
+          // Vérifier cwrap/ccall
+          if (testModule.cwrap) {
+            log('✓ cwrap disponible', 'success')
+          } else {
+            log('✗ cwrap non disponible', 'warn')
+          }
+
+          if (testModule.ccall) {
+            log('✓ ccall disponible', 'success')
+          } else {
+            log('✗ ccall non disponible', 'warn')
+          }
+
+          // Afficher les fonctions commençant par _
+          log('Fonctions exportées (commençant par _):', 'info')
+          const underscoreFuncs = []
+          for (const key in testModule) {
+            if (key.startsWith('_') && typeof testModule[key] === 'function') {
+              underscoreFuncs.push(key)
+            }
+          }
+          underscoreFuncs.slice(0, 30).forEach((name) => log(`  ${name}`, 'info'))
+          if (underscoreFuncs.length > 30) {
+            log(`  ... et ${underscoreFuncs.length - 30} autres`, 'info')
+          }
+
+          log('=== FIN INSPECTION ===', 'info')
+          log('', 'info')
+          log('CONCLUSION: piper_phonemize est un CLI, pas une bibliothèque.', 'warn')
+          log('Il nécessite stdin/stdout qui ne sont pas disponibles dans cette build.', 'warn')
+          log('Solution: Recompiler piper_phonemize avec EMSCRIPTEN en mode bibliothèque', 'warn')
+          log('ou utiliser un provider différent (mintplex avec limitation speakerId=0).', 'warn')
+
+          // Analyser ce qui a été capturé
+          log('=== ANALYSE ===', 'info')
+          log(`print buffer: ${stdoutBuffer.length} lignes`, 'info')
+          log(`printErr buffer: ${stderrBuffer.length} lignes`, 'info')
+
+          if (stdoutBuffer.length > 0) {
+            log('Contenu print:', 'success')
+            stdoutBuffer.forEach((line) => log(`  ${line}`, 'info'))
+          }
+
+          if (stderrBuffer.length > 0) {
+            log('Contenu printErr:', 'warn')
+            stderrBuffer.forEach((line) => log(`  ${line}`, 'warn'))
+          }
+
+          // Essayer de parser comme JSON
+          const outputJson = stdoutBuffer.join('\n')
+
+          if (!outputJson || outputJson.trim().length === 0) {
+            log('✗ Aucune sortie - stdin non disponible', 'error')
+            throw new Error(
+              'piper_phonemize nécessite stdin mais nous ne pouvons pas le fournir dans cette compilation Emscripten'
+            )
+          }
+
+          try {
+            const result = JSON.parse(outputJson)
+            log(`✓ JSON parsé avec succès`, 'success')
+            log(`Clés du résultat: ${Object.keys(result).join(', ')}`, 'info')
+
+            if (result.phonemes) {
+              if (Array.isArray(result.phonemes)) {
+                const phonemesStr = result.phonemes.map((c) => String.fromCharCode(c)).join('')
+                log(
+                  `✓ Phonèmes (array): "${phonemesStr}" (${result.phonemes.length} éléments)`,
+                  'success'
+                )
+              } else {
+                log(`✓ Phonèmes (string): "${result.phonemes}"`, 'success')
+              }
+              log(`✓ Texte traité: "${result.processed_text || result.text || 'N/A'}"`, 'success')
+            } else {
+              log(`✗ Pas de champ 'phonemes' dans le résultat`, 'error')
+            }
+          } catch (e) {
+            log(`✗ Erreur parsing JSON: ${e.message}`, 'error')
+            log(`Contenu brut complet: ${outputJson}`, 'error')
+          }
+        } catch (error) {
+          log(`✗ Erreur: ${error.message}`, 'error')
+          console.error(error)
+        }
+      }
+
+      // Auto-log
+      log('Page chargée. Commencez par cliquer sur "1. Initialize Module"', 'info')
+    </script>
+  </body>
+</html>

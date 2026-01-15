@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Intégration** : `PiperWASMProvider.ts`
   - Import du fork : `@/lib/piper-tts-web-patched`
   - Passage du `speakerId` lors de la création de sessions
+
+- **Provider par défaut** : Basculement vers `PiperWASMProvider`
+  - `TTSProviderManager` utilise désormais `PiperWASMProvider` au lieu de `PiperNativeProvider`
+  - Phonemization gérée automatiquement par le fork (pas besoin de `piper_phonemize.wasm`)
+  - Support multi-speaker immédiat via le paramètre `speakerId`
+  - Compatible avec tous les modèles Piper (mono et multi-speaker)
   - Configuration Pierre : `{ speakerId: 1, piperVoiceId: 'fr_FR-upmc-medium' }`
   
 - **Configuration Vite/TypeScript**

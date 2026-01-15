@@ -1,0 +1,3 @@
+repet@0.1.0 /home/resinsec/dev/repet
+└── @mintplex-labs/piper-tts-web@1.0.4
+

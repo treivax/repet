@@ -43,9 +43,23 @@ interface EmscriptenFS {
   stat(path: string): { size: number; mtime: Date; isDir: boolean }
 
   /**
+   * Analyze a path (more detailed than stat)
+   */
+  analyzePath(path: string): { exists: boolean; isRoot: boolean; error?: string }
+
+  /**
    * List directory contents
    */
   readdir(path: string): string[]
+
+  /**
+   * Initialize stdin/stdout/stderr streams
+   */
+  init(
+    stdin: (() => number | null) | null,
+    stdout: ((char: number) => void) | null,
+    stderr: ((char: number) => void) | null
+  ): void
 }
 
 /**
@@ -83,6 +97,26 @@ interface EmscriptenModule {
   onRuntimeInitialized?: () => void
 
   /**
+   * Don't call main() automatically
+   */
+  noInitialRun?: boolean
+
+  /**
+   * Stdin callback - return char code or null for EOF
+   */
+  stdin?: () => number | null
+
+  /**
+   * Stdout callback - called for each character written to stdout
+   */
+  stdout?: (charCode: number) => void
+
+  /**
+   * Stderr callback - called for each character written to stderr
+   */
+  stderr?: (charCode: number) => void
+
+  /**
    * Memory view
    */
   HEAP8?: Int8Array
@@ -98,12 +132,22 @@ interface EmscriptenModule {
 /**
  * Window extension for Emscripten modules
  */
+/**
+ * Piper Phonemize specific module interface
+ */
+export interface PiperPhonemizeModule extends EmscriptenModule {
+  FS: EmscriptenFS
+  callMain(args: string[]): number
+}
+
 declare global {
   interface Window {
     /**
      * Piper Phonemize module factory
      */
-    createPiperPhonemize?: (moduleOverrides?: Partial<EmscriptenModule>) => Promise<EmscriptenModule>
+    createPiperPhonemize?: (
+      moduleOverrides?: Partial<PiperPhonemizeModule>
+    ) => Promise<PiperPhonemizeModule>
   }
 }
 

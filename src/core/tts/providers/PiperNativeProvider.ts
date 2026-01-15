@@ -165,9 +165,8 @@ export class PiperNativeProvider implements TTSProvider {
 
       console.log('[PiperNativeProvider] ONNX Runtime configuré')
 
-      // Initialiser le phonemizer
-      await piperPhonemizer.initialize()
-      console.log('[PiperNativeProvider] Phonemizer initialisé')
+      // Le phonemizer s'initialise automatiquement lors du premier appel
+      console.log('[PiperNativeProvider] Phonemizer prêt (initialisation lazy)')
 
       this.initialized = true
       console.log('[PiperNativeProvider] Initialisé avec succès')
@@ -600,11 +599,9 @@ export class PiperNativeProvider implements TTSProvider {
       this.sessionCache.delete(key)
     }
 
-    // Libérer le phonemizer
-    piperPhonemizer.dispose()
+    // Le phonemizer n'a pas besoin d'être libéré (instances créées à la demande)
 
     this.initialized = false
-    console.log('[PiperNativeProvider] Ressources libérées')
   }
 
   /**
