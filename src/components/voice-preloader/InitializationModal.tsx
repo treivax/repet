@@ -7,6 +7,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { ttsProviderManager } from '../../core/tts/providers/TTSProviderManager'
 import type { PiperWASMProvider } from '../../core/tts/providers/PiperWASMProvider'
+import type { PiperNativeProvider } from '../../core/tts/providers/PiperNativeProvider'
 
 interface InitializationModalProps {
   /** Callback appelé lorsque toutes les voix sont chargées */
@@ -24,14 +25,19 @@ export function InitializationModal({ onComplete }: InitializationModalProps) {
 
   const preloadAllVoices = useCallback(async () => {
     try {
-      const provider = ttsProviderManager.getActiveProvider() as PiperWASMProvider
+      const provider = ttsProviderManager.getActiveProvider() as
+        | PiperWASMProvider
+        | PiperNativeProvider
 
-      if (!provider || provider.type !== 'piper-wasm') {
-        throw new Error('Provider Piper WASM non disponible')
+      if (!provider || (provider.type !== 'piper-wasm' && provider.type !== 'piper-native')) {
+        throw new Error('Provider Piper non disponible')
       }
 
-      // Récupérer UNIQUEMENT les modèles de base (3 voix), PAS les profils (15)
-      const availableVoices = provider.getBaseModels()
+      // Récupérer UNIQUEMENT les modèles de base (4 voix pour native, 3 pour wasm), PAS les profils
+      const availableVoices =
+        provider.type === 'piper-native'
+          ? (provider as PiperNativeProvider).getBaseModels()
+          : (provider as PiperWASMProvider).getBaseModels()
       const totalVoices = availableVoices.length
 
       console.warn(`[InitializationModal] 🚀 Préchargement de ${totalVoices} voix de base...`)
@@ -58,12 +64,19 @@ export function InitializationModal({ onComplete }: InitializationModalProps) {
           const initialGlobal = (voicesCompleted / totalVoices) * 100
           setProgress(Math.round(initialGlobal))
 
-          await provider.preloadModel(voice.id, (percent) => {
-            // Calculer la progression globale
-            const currentVoiceProgress = percent / 100
-            const global = ((voicesCompleted + currentVoiceProgress) / totalVoices) * 100
+          // PiperNativeProvider n'a pas de méthode preloadModel, on peut skip
+          if (provider.type === 'piper-wasm') {
+            await (provider as PiperWASMProvider).preloadModel(voice.id, (percent) => {
+              // Calculer la progression globale
+              const currentVoiceProgress = percent / 100
+              const global = ((voicesCompleted + currentVoiceProgress) / totalVoices) * 100
+              setProgress(Math.round(global))
+            })
+          } else {
+            // Pour PiperNativeProvider, simuler le chargement
+            const global = ((i + 1) / totalVoices) * 100
             setProgress(Math.round(global))
-          })
+          }
 
           console.warn(`[InitializationModal] ✅ ${voice.displayName} chargée avec succès`)
         } catch (err) {

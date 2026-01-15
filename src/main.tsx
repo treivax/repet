@@ -34,7 +34,10 @@ async function initializeApp() {
 
     // Exposer les utilitaires de debug Piper
     const piperProvider = ttsProviderManager.getActiveProvider()
-    if (piperProvider && piperProvider.type === 'piper-wasm') {
+    if (
+      piperProvider &&
+      (piperProvider.type === 'piper-wasm' || piperProvider.type === 'piper-native')
+    ) {
       exposePiperDebugToWindow(
         piperProvider as {
           getSessionCacheStats?: () => { voiceCount: number; voices: string[] }
