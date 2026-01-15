@@ -25,7 +25,7 @@ import type { Character } from '../core/models/Character'
 import { pdfExportService } from '../core/export/pdfExportService'
 import { downloadPlayAsText } from '../core/export/textExportService'
 import { buildPlaybackSequence } from '../utils/playbackSequence'
-import type { PlaybackItem, LinePlaybackItem } from '../core/models/types'
+import type { PlaybackItem, LinePlaybackItem, StructurePlaybackItem } from '../core/models/types'
 
 /**
  * Écran de lecture focalisée (mode lecteur)
@@ -39,7 +39,6 @@ export function ReaderScreen() {
   const {
     currentPlay,
     userCharacter,
-    currentLineIndex,
     currentActIndex,
     currentSceneIndex,
     loadPlay,
@@ -128,22 +127,55 @@ export function ReaderScreen() {
     setPlaybackSequence(sequence)
   }, [currentPlay, playSettings])
 
-  // Calculer currentPlaybackIndex basé sur currentLineIndex
+  // Calculer currentPlaybackIndex basé sur currentActIndex et currentSceneIndex
   useEffect(() => {
-    if (playbackSequence.length === 0 || currentLineIndex === undefined) {
+    if (playbackSequence.length === 0 || !currentPlay) {
+      console.warn('[ReaderScreen] ⚠️ Pas de playbackSequence ou currentPlay')
       setCurrentPlaybackIndex(undefined)
       return
     }
 
-    // Trouver l'item de playback correspondant à la ligne courante
-    const playbackItem = playbackSequence.find(
-      (item) => item.type === 'line' && (item as LinePlaybackItem).lineIndex === currentLineIndex
+    console.warn(
+      `[ReaderScreen] 🔍 Recherche item pour Acte ${currentActIndex + 1}, Scène ${currentSceneIndex + 1}`
     )
 
-    if (playbackItem) {
-      setCurrentPlaybackIndex(playbackItem.index)
+    // Trouver le premier item de playback de la scène actuelle
+    // Rechercher d'abord une ligne de cette scène
+    const firstLineItem = playbackSequence.find((item) => {
+      if (item.type === 'line') {
+        const lineItem = item as LinePlaybackItem
+        const line = currentPlay.ast.flatLines[lineItem.lineIndex]
+        return line && line.actIndex === currentActIndex && line.sceneIndex === currentSceneIndex
+      }
+      return false
+    })
+
+    if (firstLineItem) {
+      console.warn(`[ReaderScreen] ✅ Ligne trouvée, playbackIndex=${firstLineItem.index}`)
+      setCurrentPlaybackIndex(firstLineItem.index)
+    } else {
+      console.warn('[ReaderScreen] ⚠️ Aucune ligne trouvée, recherche structure...')
+      // Si aucune ligne n'est trouvée, chercher un élément de structure (titre de scène)
+      const structureItem = playbackSequence.find((item) => {
+        if (item.type === 'structure') {
+          const struct = item as StructurePlaybackItem
+          return (
+            struct.actIndex === currentActIndex &&
+            (struct.structureType === 'scene' || struct.structureType === 'act')
+          )
+        }
+        return false
+      })
+
+      if (structureItem) {
+        console.warn(`[ReaderScreen] ✅ Structure trouvée, playbackIndex=${structureItem.index}`)
+        setCurrentPlaybackIndex(structureItem.index)
+      } else {
+        console.warn('[ReaderScreen] ❌ Aucun item trouvé pour cette scène!')
+        setCurrentPlaybackIndex(undefined)
+      }
     }
-  }, [currentLineIndex, playbackSequence])
+  }, [currentActIndex, currentSceneIndex, playbackSequence, currentPlay])
 
   // IntersectionObserver pour détecter l'acte/scène visible pendant le scroll
   const handleIntersection = useCallback(
@@ -261,6 +293,10 @@ export function ReaderScreen() {
   }
 
   const handleGoToScene = (actIndex: number, sceneIndex: number) => {
+    console.warn(
+      `[ReaderScreen] 🎯 handleGoToScene appelé: Acte ${actIndex + 1}, Scène ${sceneIndex + 1}`
+    )
+
     if (isPlaying) {
       handleStop()
     }
@@ -271,9 +307,12 @@ export function ReaderScreen() {
     goToScene(actIndex, sceneIndex)
     setShowSummary(false)
 
+    console.warn('[ReaderScreen] 📜 goToScene appelé, scroll programmatique activé')
+
     // Réactiver la détection après le scroll
     setTimeout(() => {
       isScrollingProgrammaticallyRef.current = false
+      console.warn('[ReaderScreen] 📜 Scroll programmatique désactivé')
     }, 1000)
   }
 
