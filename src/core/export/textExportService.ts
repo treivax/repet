@@ -148,28 +148,18 @@ export function exportPlayToText(play: PlayAST, options: TextExportOptions = {})
           }
 
           // Construire la ligne de réplique
-          let replicLine = characterName + ':'
+          // Format canonique: nom du personnage sur une ligne, texte sur la/les suivante(s)
+          const replicLine = characterName + ':'
+          lines.push(replicLine)
 
-          // Ajouter le texte
+          // Ajouter le texte sur la/les ligne(s) suivante(s)
           if (line.text) {
-            // Si le texte est court, le mettre sur la même ligne
-            if (line.text.length <= 60) {
-              replicLine += ` ${line.text}`
-              lines.push(replicLine)
+            if (maxLineWidth > 0) {
+              const wrappedText = wrapText(line.text, maxLineWidth)
+              lines.push(...wrappedText)
             } else {
-              // Texte long : ligne du personnage séparée
-              lines.push(replicLine)
-
-              // Texte sur ligne(s) suivante(s)
-              if (maxLineWidth > 0) {
-                const wrappedText = wrapText(line.text, maxLineWidth)
-                lines.push(...wrappedText)
-              } else {
-                lines.push(line.text)
-              }
+              lines.push(line.text)
             }
-          } else {
-            lines.push(replicLine)
           }
         } else if (line.type === 'stage-direction') {
           // Didascalie standalone : (texte)
