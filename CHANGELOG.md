@@ -1,9 +1,76 @@
 # Changelog
 
-All notable changes to Répét will be documented in this file.
+All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.4.1] - 2025-01-XX
+
+### Added
+- **Multi-speaker TTS support** with forked piper-tts-web package
+  - Added local fork of `@mintplex-labs/piper-tts-web` with `speakerId` parameter support
+  - Enabled Jessica (speakerId=0) and Pierre (speakerId=1) voice selection
+  - Multi-speaker models now fully functional in browser
+- **Build optimizations (Phase 1)**
+  - Migrated to `@vitejs/plugin-react-swc` for faster compilation
+  - Manual chunks configuration for better code splitting
+  - Bundle analyzer with `rollup-plugin-visualizer`
+  - Build cache configuration for faster rebuilds
+- **Comprehensive documentation**
+  - `OPTIMIZATION_ANALYSIS.md`: Detailed optimization analysis and roadmap
+  - `OPTIMIZATION_RESULTS.md`: Phase 1 results and metrics
+  - `DEPLOYMENT_CHECKLIST.md`: Complete deployment guide
+  - `DEPLOYMENT_SUMMARY.md`: Executive deployment summary
+  - `TEST_CHECKLIST.md`: Comprehensive test checklist
+  - `SOLUTION_SUMMARY.md`: Audio playback fix summary
+  - `FEATURE_SUMMARY.md`: Feature overview
+  - `QUICK_DEPLOY.md`: Quick deployment guide
+
+### Changed
+- **Switched to PiperWASMProvider** as default TTS provider
+  - Replaced PiperNativeProvider which used broken CLI-compiled phonemizer
+  - Uses session-based API with internal phonemization
+  - Improved browser compatibility and reliability
+- **Optimized bundle sizes**
+  - Main bundle reduced from 260 kB to 73 kB gzipped (-72%)
+  - Separated vendor chunks for better browser caching
+  - React + Router: 64 kB (separate chunk)
+  - ONNX Runtime: 106 kB (separate chunk)
+  - Zustand: 0.4 kB (separate chunk)
+- **Enhanced minification**
+  - Enabled Terser with advanced options
+  - Removed all console.log statements in production
+  - Stripped comments and debug code
+
+### Fixed
+- **Audio playback failures** caused by phonemizer incompatibility
+  - Root cause: CLI-compiled phonemizer expected stdin/stdout, didn't work in browser
+  - Solution: Fork piper-tts-web with speakerId support + use PiperWASMProvider
+- **Multi-speaker voice selection** now works correctly
+  - Previously hardcoded to speakerId=0 in upstream package
+  - Fork allows dynamic speaker selection
+
+### Removed
+- **PiperNativeProvider** and related code (~18 MB, 355 files)
+  - Removed broken phonemizer-based implementation
+  - Cleaned up obsolete test scripts and documentation
+  - Removed unused espeak-ng data files
+  - Removed deprecated documentation files
+
+### Performance
+- **Build time**: 2.60s → 5.63s (offline), 3.87s → 5.04s (online)
+  - Trade-off: +2-3s for better minification and code splitting
+  - Acceptable for production builds with significant size gains
+- **Bundle size**: -72% main bundle, -6.6% total JavaScript
+- **Estimated improvements**:
+  - First Contentful Paint: -300-500ms
+  - Time to Interactive: -400-600ms
+  - Better browser caching with separated vendor chunks
+
+### Security
+- Production builds now strip all debugging information
+- Console statements removed to prevent information leakage
 
 ## [Unreleased]
 
