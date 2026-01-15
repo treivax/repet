@@ -5,10 +5,13 @@
  */
 
 import type { TTSProvider, VoiceDescriptor, SynthesisOptions, SynthesisResult } from '../types'
+// import { PiperWASMProvider } from './PiperWASMProvider'
 import { PiperNativeProvider } from './PiperNativeProvider'
 
 /**
  * Gestionnaire centralisé du provider TTS Piper Native
+ *
+ * Note: piper_phonemize.js est maintenant disponible (copié depuis piper-wasm NPM).
  */
 export class TTSProviderManager {
   private provider: TTSProvider
@@ -46,7 +49,7 @@ export class TTSProviderManager {
   }
 
   /**
-   * Récupère le provider actif (Piper Native)
+   * Récupère le provider actif
    */
   getActiveProvider(): TTSProvider {
     return this.provider
