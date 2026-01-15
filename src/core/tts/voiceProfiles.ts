@@ -213,7 +213,7 @@ export const UPMC_VOICE_PROFILES: VoiceProfile[] = [
 
 /**
  * Profils vocaux pour Pierre (UPMC speaker #1)
- * Activé avec le nouveau PiperNativeProvider qui supporte le multi-speaker
+ * Utilise le fork piper-tts-web-patched pour le support multi-speaker
  */
 export const PIERRE_VOICE_PROFILES: VoiceProfile[] = [
   {

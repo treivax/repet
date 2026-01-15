@@ -6,7 +6,6 @@
 
 import type { TTSProvider, VoiceDescriptor, SynthesisOptions, SynthesisResult } from '../types'
 import { PiperWASMProvider } from './PiperWASMProvider'
-// import { PiperNativeProvider } from './PiperNativeProvider'
 
 /**
  * Gestionnaire centralisé du provider TTS

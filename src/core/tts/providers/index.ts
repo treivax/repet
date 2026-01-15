@@ -5,5 +5,4 @@
  */
 
 export { PiperWASMProvider } from './PiperWASMProvider'
-export { PiperNativeProvider } from './PiperNativeProvider'
 export { TTSProviderManager, ttsProviderManager } from './TTSProviderManager'

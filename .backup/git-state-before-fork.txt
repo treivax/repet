@@ -1,5 +1,0 @@
-3d66302 fix: Update InitializationModal and main.tsx to support piper-native provider
-af15bd0 fix: Add missing piper_phonemize.js and espeak-ng-data
-c0bf545 docs: Add comprehensive TTS alternatives comparison
-8b01cfd docs: Add feature summary for PiperNativeProvider branch
-28ac23d docs: Add quick start guide for PiperNativeProvider
