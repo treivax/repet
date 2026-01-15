@@ -4,6 +4,9 @@
  * See LICENSE file in the project root for full license text
  */
 
+// IMPORTANT: Importer la config ONNX AVANT onnxruntime-web
+import '../onnx-config'
+
 import type {
   TTSProvider,
   TTSProviderAvailability,
@@ -172,7 +175,9 @@ export class PiperWASMProvider implements TTSProvider {
     }
 
     ort.env.wasm.simd = true
-    ort.env.wasm.wasmPaths = '/wasm/'
+    // Utiliser une URL absolue pour wasmPaths (nécessaire pour que ONNX Runtime trouve les fichiers)
+    const wasmBaseUrl = `${window.location.origin}/wasm/`
+    ort.env.wasm.wasmPaths = wasmBaseUrl
     ort.env.wasm.proxy = false
 
     // Limiter aux backends WASM uniquement (pas de WebGPU, WebNN, etc.)
@@ -180,15 +185,16 @@ export class PiperWASMProvider implements TTSProvider {
     ort.env.wasm.numThreads = BUILD_MODE === 'online' ? 1 : ort.env.wasm.numThreads
 
     console.warn('[PiperWASM] ✅ ONNX Runtime configuré')
-    console.warn('[PiperWASM]    - WASM Path: /wasm/')
+    console.warn(`[PiperWASM]    - WASM Path: ${wasmBaseUrl} (URL absolue)`)
     console.warn('[PiperWASM]    - SIMD: enabled')
     console.warn('[PiperWASM]    - Proxy: disabled')
 
     // Configurer les chemins WASM pour TtsSession (utilisés par predict())
+    // Utiliser des URLs absolues pour éviter les problèmes de résolution de chemin
     TtsSession.WASM_LOCATIONS = {
-      onnxWasm: '/wasm/',
-      piperData: '/wasm/piper_phonemize.data',
-      piperWasm: '/wasm/piper_phonemize.wasm',
+      onnxWasm: wasmBaseUrl,
+      piperData: `${wasmBaseUrl}piper_phonemize.data`,
+      piperWasm: `${wasmBaseUrl}piper_phonemize.wasm`,
     }
     console.warn('[PiperWASM] ✅ Chemins WASM configurés pour TtsSession')
 

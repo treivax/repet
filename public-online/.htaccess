@@ -53,6 +53,12 @@
     RewriteEngine On
     RewriteBase /
 
+    # Ne JAMAIS réécrire les fichiers WASM et MJS (critiques pour ONNX Runtime)
+    RewriteCond %{REQUEST_URI} !\.(wasm|mjs|data)$ [NC]
+
+    # Ne JAMAIS réécrire les fichiers dans le dossier /wasm/
+    RewriteCond %{REQUEST_URI} !^/wasm/ [NC]
+
     # Ne pas réécrire les fichiers existants
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
