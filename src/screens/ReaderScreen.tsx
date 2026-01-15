@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
@@ -25,7 +25,7 @@ import type { Character } from '../core/models/Character'
 import { pdfExportService } from '../core/export/pdfExportService'
 import { downloadPlayAsText } from '../core/export/textExportService'
 import { buildPlaybackSequence } from '../utils/playbackSequence'
-import type { PlaybackItem, LinePlaybackItem, StructurePlaybackItem } from '../core/models/types'
+import type { PlaybackItem } from '../core/models/types'
 
 /**
  * Écran de lecture focalisée (mode lecteur)
@@ -39,6 +39,7 @@ export function ReaderScreen() {
   const {
     currentPlay,
     userCharacter,
+    currentLineIndex: _currentLineIndex,
     currentActIndex,
     currentSceneIndex,
     loadPlay,
@@ -57,13 +58,8 @@ export function ReaderScreen() {
   const [playingLineIndex, setPlayingLineIndex] = useState<number | undefined>()
   const [showSummary, setShowSummary] = useState(false)
   const [playbackSequence, setPlaybackSequence] = useState<PlaybackItem[]>([])
-  const [currentPlaybackIndex, setCurrentPlaybackIndex] = useState<number | undefined>()
   const readLinesSet = new Set<number>()
   const playedItems = new Set<number>()
-
-  // Ref pour l'IntersectionObserver
-  const observerRef = useRef<IntersectionObserver | null>(null)
-  const isScrollingProgrammaticallyRef = useRef(false)
 
   // Charger la pièce au montage
   useEffect(() => {
@@ -127,144 +123,6 @@ export function ReaderScreen() {
     setPlaybackSequence(sequence)
   }, [currentPlay, playSettings])
 
-  // Calculer currentPlaybackIndex basé sur currentActIndex et currentSceneIndex
-  useEffect(() => {
-    if (playbackSequence.length === 0 || !currentPlay) {
-      console.warn('[ReaderScreen] ⚠️ Pas de playbackSequence ou currentPlay')
-      setCurrentPlaybackIndex(undefined)
-      return
-    }
-
-    console.warn(
-      `[ReaderScreen] 🔍 Recherche item pour Acte ${currentActIndex + 1}, Scène ${currentSceneIndex + 1}`
-    )
-
-    // Trouver le premier item de playback de la scène actuelle
-    // Rechercher d'abord une ligne de cette scène
-    const firstLineItem = playbackSequence.find((item) => {
-      if (item.type === 'line') {
-        const lineItem = item as LinePlaybackItem
-        const line = currentPlay.ast.flatLines[lineItem.lineIndex]
-        return line && line.actIndex === currentActIndex && line.sceneIndex === currentSceneIndex
-      }
-      return false
-    })
-
-    if (firstLineItem) {
-      console.warn(`[ReaderScreen] ✅ Ligne trouvée, playbackIndex=${firstLineItem.index}`)
-      setCurrentPlaybackIndex(firstLineItem.index)
-    } else {
-      console.warn('[ReaderScreen] ⚠️ Aucune ligne trouvée, recherche structure...')
-      // Si aucune ligne n'est trouvée, chercher un élément de structure (titre de scène)
-      const structureItem = playbackSequence.find((item) => {
-        if (item.type === 'structure') {
-          const struct = item as StructurePlaybackItem
-          return (
-            struct.actIndex === currentActIndex &&
-            (struct.structureType === 'scene' || struct.structureType === 'act')
-          )
-        }
-        return false
-      })
-
-      if (structureItem) {
-        console.warn(`[ReaderScreen] ✅ Structure trouvée, playbackIndex=${structureItem.index}`)
-        setCurrentPlaybackIndex(structureItem.index)
-      } else {
-        console.warn('[ReaderScreen] ❌ Aucun item trouvé pour cette scène!')
-        setCurrentPlaybackIndex(undefined)
-      }
-    }
-  }, [currentActIndex, currentSceneIndex, playbackSequence, currentPlay])
-
-  // IntersectionObserver pour détecter l'acte/scène visible pendant le scroll
-  const handleIntersection = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      // Ne pas mettre à jour pendant un scroll programmatique
-      if (isScrollingProgrammaticallyRef.current) {
-        return
-      }
-
-      // Trouver l'élément le plus visible (plus grande intersection ratio)
-      let mostVisibleEntry: IntersectionObserverEntry | null = null
-      let maxRatio = 0
-
-      for (const entry of entries) {
-        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
-          maxRatio = entry.intersectionRatio
-          mostVisibleEntry = entry
-        }
-      }
-
-      if (!mostVisibleEntry) {
-        return
-      }
-
-      const element = mostVisibleEntry.target
-      if (!(element instanceof HTMLElement)) {
-        return
-      }
-
-      const lineIndex = element.getAttribute('data-line-index')
-      if (!lineIndex) {
-        return
-      }
-
-      const index = parseInt(lineIndex, 10)
-      if (isNaN(index)) {
-        return
-      }
-
-      const line = currentPlay?.ast.flatLines[index]
-      if (!line) {
-        return
-      }
-
-      if (line.actIndex !== currentActIndex || line.sceneIndex !== currentSceneIndex) {
-        // Mettre à jour silencieusement l'acte/scène dans le store
-        const { goToScene } = usePlayStore.getState()
-        goToScene(line.actIndex, line.sceneIndex)
-      }
-    },
-    [currentPlay, currentActIndex, currentSceneIndex]
-  )
-
-  // Initialiser l'IntersectionObserver
-  useEffect(() => {
-    observerRef.current = new IntersectionObserver(handleIntersection, {
-      root: null,
-      rootMargin: '-20% 0px -20% 0px', // Zone centrale de la vue
-      threshold: [0, 0.25, 0.5, 0.75, 1.0],
-    })
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-      }
-    }
-  }, [handleIntersection])
-
-  // Observer les éléments ligne lorsque playbackSequence change
-  useEffect(() => {
-    if (!observerRef.current || playbackSequence.length === 0) return
-
-    // Attendre un peu pour que le DOM soit rendu
-    const timeoutId = setTimeout(() => {
-      const lineElements = document.querySelectorAll('[data-playback-type="line"]')
-
-      lineElements.forEach((element) => {
-        observerRef.current?.observe(element)
-      })
-    }, 100)
-
-    return () => {
-      clearTimeout(timeoutId)
-      if (observerRef.current) {
-        observerRef.current.disconnect()
-      }
-    }
-  }, [playbackSequence])
-
   // Nettoyer TTS au démontage et arrêter la lecture audio
   useEffect(() => {
     return () => {
@@ -293,27 +151,11 @@ export function ReaderScreen() {
   }
 
   const handleGoToScene = (actIndex: number, sceneIndex: number) => {
-    console.warn(
-      `[ReaderScreen] 🎯 handleGoToScene appelé: Acte ${actIndex + 1}, Scène ${sceneIndex + 1}`
-    )
-
     if (isPlaying) {
       handleStop()
     }
-
-    // Marquer qu'on fait un scroll programmatique
-    isScrollingProgrammaticallyRef.current = true
-
     goToScene(actIndex, sceneIndex)
     setShowSummary(false)
-
-    console.warn('[ReaderScreen] 📜 goToScene appelé, scroll programmatique activé')
-
-    // Réactiver la détection après le scroll
-    setTimeout(() => {
-      isScrollingProgrammaticallyRef.current = false
-      console.warn('[ReaderScreen] 📜 Scroll programmatique désactivé')
-    }, 1000)
   }
 
   const handleClose = () => {
@@ -543,7 +385,7 @@ export function ReaderScreen() {
             hideUserLines={playSettings.hideUserLines}
             showBefore={playSettings.showBefore}
             showAfter={playSettings.showAfter}
-            currentPlaybackIndex={currentPlaybackIndex}
+            currentPlaybackIndex={undefined}
             playingLineIndex={playingLineIndex}
             playedItems={playedItems}
             readLinesSet={readLinesSet}

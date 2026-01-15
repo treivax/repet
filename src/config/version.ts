@@ -21,7 +21,7 @@
  * Version de l'application (format semver)
  * À bumper à chaque déploiement pour déclencher l'auto-update PWA
  */
-export const APP_VERSION = '0.2.1'
+export const APP_VERSION = '0.2.0'
 
 /**
  * Version des modèles vocaux

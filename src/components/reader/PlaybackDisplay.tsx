@@ -115,18 +115,10 @@ export function PlaybackDisplay({
 
   // Auto-scroll vers l'item courant
   useEffect(() => {
-    console.warn('[PlaybackDisplay] 🔄 currentPlaybackIndex changed:', currentPlaybackIndex)
-
     if (currentItemRef.current && containerRef.current) {
-      console.warn('[PlaybackDisplay] ✅ Scrolling to item:', currentPlaybackIndex)
       currentItemRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
-      })
-    } else {
-      console.warn('[PlaybackDisplay] ⚠️ Cannot scroll - ref not found:', {
-        hasCurrentItemRef: !!currentItemRef.current,
-        hasContainerRef: !!containerRef.current,
       })
     }
   }, [currentPlaybackIndex])
@@ -161,14 +153,6 @@ export function PlaybackDisplay({
 
           // Wrapper avec ref pour l'item courant
           const wrapperRef = isCurrentItem ? currentItemRef : undefined
-
-          // Log pour debug
-          if (isCurrentItem) {
-            console.warn('[PlaybackDisplay] 🎯 Current item assigned ref:', {
-              index: item.index,
-              type: item.type,
-            })
-          }
 
           switch (item.type) {
             case 'presentation': {
