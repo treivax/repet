@@ -53,7 +53,7 @@ export class SilentMode implements ReadingModeConfig {
  * Configuration pour le mode audio
  */
 export class AudioMode implements ReadingModeConfig {
-  constructor(private voiceOffEnabled: boolean = false) {}
+  constructor(private readStageDirections: boolean = true) {}
 
   shouldRead(line: Line): boolean {
     // Lire les dialogues toujours
@@ -61,9 +61,9 @@ export class AudioMode implements ReadingModeConfig {
       return true
     }
 
-    // Lire les didascalies seulement si voix off activée
+    // Lire les didascalies selon le réglage
     if (line.type === 'stage-direction') {
-      return this.voiceOffEnabled
+      return this.readStageDirections
     }
 
     return false
@@ -88,7 +88,7 @@ export class AudioMode implements ReadingModeConfig {
  */
 export class ItalianMode implements ReadingModeConfig {
   constructor(
-    private voiceOffEnabled: boolean = false,
+    private readStageDirections: boolean = true,
     private hideUserLinesOption: boolean = false,
     private showBefore: boolean = false,
     private showAfter: boolean = true
@@ -100,9 +100,9 @@ export class ItalianMode implements ReadingModeConfig {
       return true
     }
 
-    // Lire les didascalies seulement si voix off activée
+    // Lire les didascalies selon le réglage
     if (line.type === 'stage-direction') {
-      return this.voiceOffEnabled
+      return this.readStageDirections
     }
 
     return false
@@ -110,8 +110,21 @@ export class ItalianMode implements ReadingModeConfig {
 
   getVolume(line: Line, userCharacterId?: string): number {
     // Les répliques de l'utilisateur sont lues à volume 0
-    if (line.type === 'dialogue' && line.characterId === userCharacterId) {
-      return 0
+    if (line.type === 'dialogue' && userCharacterId) {
+      // Cas TOUS en mode italienne
+      if (line.isAllCharacters) {
+        return 0
+      }
+
+      // Cas multi-personnages : vérifier si l'utilisateur est dans la liste
+      if (line.characterIds && line.characterIds.length > 0) {
+        if (line.characterIds.includes(userCharacterId)) {
+          return 0
+        }
+      } else if (line.characterId === userCharacterId) {
+        // Cas simple (compatibilité)
+        return 0
+      }
     }
 
     return 1.0
@@ -129,7 +142,13 @@ export class ItalianMode implements ReadingModeConfig {
     }
 
     // Ne cacher que les répliques de l'utilisateur
-    if (line.type !== 'dialogue' || line.characterId !== userCharacterId) {
+    if (line.type !== 'dialogue' || !userCharacterId) {
+      return false
+    }
+
+    // Vérifier si c'est une réplique utilisateur (avec support multi-personnages)
+    const isUserLineEffective = isUserLine(line, userCharacterId)
+    if (!isUserLineEffective) {
       return false
     }
 
@@ -161,14 +180,18 @@ export class ItalianMode implements ReadingModeConfig {
 export function createReadingModeConfig(
   mode: ReadingMode,
   options?: {
-    voiceOffEnabled?: boolean
+    readStageDirections?: boolean
+    readStructure?: boolean
+    readPresentation?: boolean
     hideUserLines?: boolean
     showBefore?: boolean
     showAfter?: boolean
   }
 ): ReadingModeConfig {
   const {
-    voiceOffEnabled = false,
+    readStageDirections = true,
+    readStructure: _readStructure = false,
+    readPresentation: _readPresentation = false,
     hideUserLines = false,
     showBefore = false,
     showAfter = true,
@@ -178,9 +201,9 @@ export function createReadingModeConfig(
     case 'silent':
       return new SilentMode()
     case 'audio':
-      return new AudioMode(voiceOffEnabled)
+      return new AudioMode(readStageDirections)
     case 'italian':
-      return new ItalianMode(voiceOffEnabled, hideUserLines, showBefore, showAfter)
+      return new ItalianMode(readStageDirections, hideUserLines, showBefore, showAfter)
     default:
       return new SilentMode()
   }
@@ -193,9 +216,9 @@ export function shouldReadLine(
   line: Line,
   mode: ReadingMode,
   userCharacterId?: string,
-  voiceOffEnabled: boolean = false
+  readStageDirections: boolean = true
 ): boolean {
-  const config = createReadingModeConfig(mode, { voiceOffEnabled })
+  const config = createReadingModeConfig(mode, { readStageDirections })
   return config.shouldRead(line, userCharacterId)
 }
 
@@ -209,7 +232,23 @@ export function getLineVolume(line: Line, mode: ReadingMode, userCharacterId?: s
 
 /**
  * Vérifie si une ligne est celle de l'utilisateur
+ * Supporte les répliques multi-personnages et le mot-clé TOUS
  */
 export function isUserLine(line: Line, userCharacterId?: string): boolean {
-  return line.type === 'dialogue' && line.characterId === userCharacterId
+  if (line.type !== 'dialogue' || !userCharacterId) {
+    return false
+  }
+
+  // Cas TOUS : toujours considéré comme réplique utilisateur en mode italienne
+  if (line.isAllCharacters) {
+    return true
+  }
+
+  // Cas multi-personnages : vérifier si l'utilisateur est dans la liste
+  if (line.characterIds && line.characterIds.length > 0) {
+    return line.characterIds.includes(userCharacterId)
+  }
+
+  // Cas simple (compatibilité)
+  return line.characterId === userCharacterId
 }

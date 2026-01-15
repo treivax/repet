@@ -277,7 +277,7 @@ interface PlaySettings {
   // Voix TTS
   userSpeed: number          // Vitesse utilisateur en italien
   defaultSpeed: number       // Vitesse autres personnages
-  voiceOffEnabled: boolean   // Didascalies par voix off
+  voiceOffMode: VoiceOffMode // Mode voix off ('nothing' | 'stage-directions' | 'everything')
   
   // Assignation voix par personnage
   characterVoices: Record<string, {
@@ -609,13 +609,16 @@ if (line.characterId === userCharacter.id) {
 }
 
 // Didascalies : voix off si activée
-if (line.type === 'stage-direction' && playSettings.voiceOffEnabled) {
-  const voiceOffVoice = voiceManager.selectVoiceForGender('neutral')
-  ttsEngine.speak({
-    text: line.text,
-    voiceURI: voiceOffVoice?.voiceURI,
-    rate: playSettings.defaultSpeed * 0.9,  // Légèrement plus lent
-  })
+if (line.type === 'stage-direction') {
+  const voiceOffMode = playSettings.voiceOffMode || 'stage-directions'
+  if (voiceOffMode !== 'nothing') {
+    const voiceOffVoice = voiceManager.selectVoiceForGender('neutral')
+    ttsEngine.speak({
+      text: line.text,
+      voiceURI: voiceOffVoice?.voiceURI,
+      rate: playSettings.defaultSpeed * 0.9,  // Légèrement plus lent
+    })
+  }
 }
 ```
 

@@ -75,8 +75,14 @@ export interface PlaySettings {
   /** Vitesse de lecture utilisateur (italiennes) */
   userSpeed: number
 
-  /** Voix off activée */
-  voiceOffEnabled: boolean
+  /** Lire les didascalies (dans et hors répliques) */
+  readStageDirections: boolean
+
+  /** Lire la structure (titres, actes, scènes) */
+  readStructure: boolean
+
+  /** Lire la section de présentation (Cast) */
+  readPresentation: boolean
 
   /** Vitesse de lecture par défaut */
   defaultSpeed: number
@@ -103,7 +109,9 @@ export function createDefaultPlaySettings(playId: string): PlaySettings {
     showBefore: false,
     showAfter: true,
     userSpeed: 1.0,
-    voiceOffEnabled: true,
+    readStageDirections: true,
+    readStructure: false,
+    readPresentation: false,
     defaultSpeed: 1.0,
     characterVoices: {},
     characterVoicesPiper: {},

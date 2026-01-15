@@ -183,12 +183,15 @@ export function HelpScreen() {
                     </span>
                   </h4>
                   <p className="text-gray-700 dark:text-gray-300 mb-2">
-                    Lecture audio de toutes les répliques avec synthèse vocale.
+                    Lecture audio de toutes les répliques avec synthèse vocale (mode carte).
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                    <li>Écoute automatique de toutes les répliques</li>
+                    <li>Affichage en cartes cliquables (titre, actes, scènes, répliques)</li>
+                    <li>Écoute automatique de toutes les répliques avec voix assignées</li>
                     <li>Suivi visuel du texte en cours de lecture</li>
                     <li>Contrôles : lecture, pause, ligne suivante/précédente</li>
+                    <li>Section de présentation des personnages lue avec voix off (si activée)</li>
+                    <li>Réglage de la voix off (rien, didascalies, structure, tout)</li>
                     <li>Utile pour mémoriser le rythme et l'enchaînement des répliques</li>
                   </ul>
                 </div>
@@ -202,9 +205,10 @@ export function HelpScreen() {
                   </h4>
                   <p className="text-gray-700 dark:text-gray-300 mb-2">
                     Mode de répétition avancé : les répliques de votre personnage sont masquées pour
-                    tester votre mémoire.
+                    tester votre mémoire (mode carte).
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                    <li>Affichage en cartes cliquables comme le mode Audio</li>
                     <li>Vos répliques sont cachées (••••••) pendant la lecture</li>
                     <li>Les répliques des autres personnages sont lues à voix haute</li>
                     <li>Vous devez dire vos répliques de mémoire</li>
@@ -212,6 +216,7 @@ export function HelpScreen() {
                       Cliquez sur une ligne masquée pour révéler temporairement le texte si besoin
                     </li>
                     <li>Paramètres : afficher vos lignes avant/après la lecture</li>
+                    <li>Réglage de la voix off pour la structure et les didascalies</li>
                   </ul>
                 </div>
               </div>
@@ -230,12 +235,25 @@ export function HelpScreen() {
                   <strong>Votre personnage :</strong> Sélectionnez le rôle que vous jouez
                 </li>
                 <li>
-                  <strong>Voix de synthèse :</strong> Choisissez la voix utilisée pour la lecture
-                  audio
+                  <strong>Voix par personnage :</strong> Assignez une voix de synthèse spécifique à
+                  chaque personnage
+                </li>
+                <li>
+                  <strong>Voix narrateur :</strong> Voix utilisée pour la voix off (structure,
+                  didascalies, présentation)
                 </li>
                 <li>
                   <strong>Vitesse de lecture :</strong> Ajustez la vitesse de la synthèse vocale
                   (0.5x à 2x)
+                </li>
+                <li>
+                  <strong>Voix off :</strong> Choisissez ce qui est lu en voix off
+                  <ul className="list-circle list-inside ml-6 mt-1 space-y-1 text-sm">
+                    <li>Rien : Uniquement les dialogues</li>
+                    <li>Didascalies : Dialogues + didascalies</li>
+                    <li>Structure : Dialogues + didascalies + structure (actes/scènes)</li>
+                    <li>Tout : Dialogues + didascalies + structure + section de présentation</li>
+                  </ul>
                 </li>
                 <li>
                   <strong>Options mode Italien :</strong>
@@ -302,7 +320,8 @@ export function HelpScreen() {
                 Format des fichiers
               </h3>
               <p className="text-gray-700 dark:text-gray-300 mb-2">
-                Répét accepte les fichiers texte (.txt) avec le format suivant :
+                Répét accepte les fichiers texte (.txt) avec le format suivant. Le format est
+                flexible et supporte de nombreuses variantes :
               </p>
               <div className="bg-gray-100 dark:bg-gray-900 rounded-lg p-4 font-mono text-sm mb-3">
                 <div className="text-xs text-gray-600 dark:text-gray-400 mb-2">
@@ -362,7 +381,24 @@ Je compte mes dépenses.`}
                   <strong>Auteur</strong> : Ligne commençant par "Auteur:" juste après le titre
                 </li>
                 <li>
-                  <strong>Année</strong> : Ligne commençant par "Annee:" après le titre ou l'auteur
+                  <strong>Année</strong> : Ligne commençant par "Annee:" ou "Année:" après le titre
+                  ou l'auteur
+                </li>
+                <li>
+                  <strong>Section de présentation</strong> : Section optionnelle pour présenter les
+                  personnages
+                  <ul className="list-circle list-inside ml-6 mt-1 space-y-1">
+                    <li>
+                      Titres possibles : "Personnages:", "Comédiens:", "Rôles:", "Présentation:",
+                      "Introduction:"
+                    </li>
+                    <li>
+                      Peut contenir du texte libre (affiché en italique) et/ou des présentations de
+                      personnages
+                    </li>
+                    <li>Format des présentations : NOM_PERSONNAGE suivi de la description</li>
+                    <li>Cette section DOIT être suivie d'un ACTE ou d'une Scène explicite</li>
+                  </ul>
                 </li>
                 <li>
                   <strong>Actes</strong> : Ligne commençant par "ACTE" ou "Acte" suivi du numéro (I,
@@ -373,7 +409,7 @@ Je compte mes dépenses.`}
                   et optionnellement d'un titre
                 </li>
                 <li>
-                  <strong>Répliques</strong> : Deux formats acceptés :
+                  <strong>Répliques</strong> : Trois formats acceptés :
                   <ul className="list-circle list-inside ml-6 mt-1 space-y-1">
                     <li>
                       <strong>Format avec deux-points :</strong> Nom EN MAJUSCULES suivi de ":" puis
@@ -391,7 +427,19 @@ Je compte mes dépenses.`}
                       </code>
                       )
                     </li>
-                    <li>Les deux formats peuvent être mélangés dans le même fichier</li>
+                    <li>
+                      <strong>Répliques multi-personnages :</strong> Plusieurs noms séparés par +,
+                      &, virgule ou "et" (ex:{' '}
+                      <code className="text-xs bg-gray-200 dark:bg-gray-700 px-1 rounded">
+                        MARC + SOPHIE
+                      </code>{' '}
+                      ou{' '}
+                      <code className="text-xs bg-gray-200 dark:bg-gray-700 px-1 rounded">
+                        TOUS
+                      </code>
+                      )
+                    </li>
+                    <li>Les formats peuvent être mélangés dans le même fichier</li>
                     <li>Support des noms composés : JEAN-PIERRE, MARIE LOUISE LEGRANCHU</li>
                   </ul>
                 </li>
@@ -443,9 +491,21 @@ Je compte mes dépenses.`}
                 Pour toute question, suggestion ou signalement de bug, consultez la documentation
                 complète du projet ou contactez l'équipe de développement.
               </p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                 Répét est un projet open-source développé avec ❤️ pour les passionnés de théâtre.
               </p>
+              <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
+                  <strong>Auteur :</strong> Xavier Talon
+                </p>
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  Ce logiciel open-source est fourni gracieusement par l'association{' '}
+                  <strong>"En Compagnie des Alliés Nés"</strong>
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-3">
+                  Licence MIT - Code source disponible sur GitHub
+                </p>
+              </div>
             </section>
           </div>
         </div>

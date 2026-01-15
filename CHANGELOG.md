@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Features
+
+#### Modes de Voix Off - Implémentation Complète (2025-01-XX)
+
+- **Trois modes de lecture en voix off** - Contrôle granulaire de ce qui est lu par le narrateur
+  - **Mode "Rien"** (`nothing`) : Aucun texte en voix off, dialogues uniquement
+  - **Mode "Didascalies"** (`stage-directions`) : Didascalies + annonces de structure (actes/scènes)
+  - **Mode "Tout"** (`everything`) : Didascalies + structure + section Cast (présentations personnages)
+  
+- **Annonce automatique de la structure** ✅
+  - Détection des changements d'acte/scène via `useEffect` sur `currentActIndex` et `currentSceneIndex`
+  - Annonce du titre complet si disponible (ex: "ACTE PREMIER. SCÈNE 3")
+  - Génération automatique sinon (ex: "Acte 2. Scène 1")
+  - Lecture avec la voix narrateur à vitesse réduite (90% de la vitesse normale)
+  - Actif en modes "Didascalies" et "Tout"
+
+- **Lecture de la section Cast** ✅
+  - Lecture complète de la section de présentation des personnages au début
+  - Blocs de texte libre lus intégralement
+  - Présentations de personnages : nom + description (ex: "MARC. Un jeune homme de 25 ans")
+  - Lecture séquentielle avec la voix narrateur
+  - Actif uniquement en mode "Tout"
+  - Déclenchement automatique au clic sur la première ligne
+
+- **Interface utilisateur améliorée**
+  - Sélecteur dans PlayDetailScreen avec 3 options : "Rien" / "Didascalies" / "Tout"
+  - Texte descriptif expliquant le comportement de chaque mode
+  - Valeur par défaut : "Didascalies" (comportement standard)
+
+- **Migration automatique des données**
+  - Conversion de l'ancien booléen `voiceOffEnabled` vers `voiceOffMode`
+  - `true` → `'stage-directions'`, `false` → `'nothing'`
+  - Migration transparente au chargement des paramètres
+
+- **Implémentation technique**
+  - Type `VoiceOffMode` : `'nothing' | 'stage-directions' | 'everything'`
+  - Fonction `getNarratorVoiceId()` : Sélection automatique de la voix narrateur (neutre ou fallback)
+  - Fonction `speakCastSection()` : Lecture séquentielle de la section Cast
+  - Logique inline dans `useEffect` pour annonces de structure (évite problème de dépendances)
+  - Utilisation de `ttsEngine.speak()` avec `voiceURI` et `setEvents()` pour callbacks
+
+- **Documentation complète**
+  - `docs/features/voice-off-modes.md` : Spécification détaillée des modes
+  - Exemples de code et cas d'usage
+  - Description de l'implémentation et des tests
+
 ### 🐛 Bug Fixes
 
 #### Corrections Audio - Superposition et Volume en Mode Italienne (2025-01-XX)
@@ -167,7 +213,7 @@ Cette version majeure réécrit les composants clés pour respecter strictement 
   - `hideUserLines`, `showBefore`, `showAfter` : options masquage
   - `userSpeed` : vitesse utilisateur (italiennes)
   - `defaultSpeed` : vitesse par défaut (audio)
-  - `voiceOffEnabled` : lecture didascalies
+  - `voiceOffMode` : mode voix off ('nothing' | 'stage-directions' | 'everything')
   - `characterVoices` : assignation sexe par personnage (male/female/neutral)
   - Persistance dans `playSettingsStore`
 

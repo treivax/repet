@@ -46,7 +46,9 @@ export function PlayDetailScreen() {
   const toggleShowBefore = usePlaySettingsStore((state) => state.toggleShowBefore)
   const toggleShowAfter = usePlaySettingsStore((state) => state.toggleShowAfter)
   const setDefaultSpeed = usePlaySettingsStore((state) => state.setDefaultSpeed)
-  const toggleVoiceOff = usePlaySettingsStore((state) => state.toggleVoiceOff)
+  const toggleReadStageDirections = usePlaySettingsStore((state) => state.toggleReadStageDirections)
+  const toggleReadStructure = usePlaySettingsStore((state) => state.toggleReadStructure)
+  const toggleReadPresentation = usePlaySettingsStore((state) => state.toggleReadPresentation)
   const deletePlaySettings = usePlaySettingsStore((state) => state.deletePlaySettings)
   const setCharacterVoiceAssignment = usePlaySettingsStore(
     (state) => state.setCharacterVoiceAssignment
@@ -496,36 +498,97 @@ export function PlayDetailScreen() {
                 Utilisée pour les didascalies, actes et scènes
               </p>
 
-              {/* Toggle Lire les didascalies */}
-              <div className="mb-4 flex items-center justify-between rounded-lg border-2 border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-700">
-                <div className="flex-1">
-                  <label
-                    htmlFor="read-stage-directions-toggle"
-                    className="text-sm font-medium text-gray-900 dark:text-gray-100"
+              {/* Trois toggles indépendants pour la lecture en voix off */}
+              <div className="mb-4 space-y-3 rounded-lg border-2 border-gray-300 bg-white p-4 dark:border-gray-600 dark:bg-gray-700">
+                {/* Toggle Didascalies */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label
+                      htmlFor="read-stage-directions-toggle"
+                      className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      Didascalies
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Lit toutes les didascalies (dans et hors répliques)
+                    </p>
+                  </div>
+                  <button
+                    id="read-stage-directions-toggle"
+                    role="switch"
+                    aria-checked={settings.readStageDirections}
+                    onClick={() => toggleReadStageDirections(playId)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      settings.readStageDirections ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
                   >
-                    Lire les didascalies
-                  </label>
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.readStageDirections ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
                 </div>
-                <button
-                  id="read-stage-directions-toggle"
-                  type="button"
-                  role="switch"
-                  aria-checked={settings.voiceOffEnabled}
-                  onClick={() => toggleVoiceOff(playId)}
-                  className={`
-                    relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out
-                    ${settings.voiceOffEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                  `}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`
-                      inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
-                      ${settings.voiceOffEnabled ? 'translate-x-5' : 'translate-x-0'}
-                    `}
-                  />
-                </button>
+
+                {/* Toggle Structure */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label
+                      htmlFor="read-structure-toggle"
+                      className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      Structure
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Lit les titres, actes et scènes
+                    </p>
+                  </div>
+                  <button
+                    id="read-structure-toggle"
+                    role="switch"
+                    aria-checked={settings.readStructure}
+                    onClick={() => toggleReadStructure(playId)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      settings.readStructure ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.readStructure ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Toggle Présentation */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label
+                      htmlFor="read-presentation-toggle"
+                      className="text-sm font-medium text-gray-900 dark:text-gray-100"
+                    >
+                      Présentation
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Lit la section de présentation (Cast)
+                    </p>
+                  </div>
+                  <button
+                    id="read-presentation-toggle"
+                    role="switch"
+                    aria-checked={settings.readPresentation}
+                    onClick={() => toggleReadPresentation(playId)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                      settings.readPresentation ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        settings.readPresentation ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               {(() => {

@@ -18,13 +18,23 @@ import type { VoiceGender } from '../core/tts/types'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
+import { PlaybackDisplay } from '../components/reader/PlaybackDisplay'
 import { ReadingHeader } from '../components/reader/ReadingHeader'
 import { SceneBadge } from '../components/reader/SceneBadge'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
 import type { Line } from '../core/models/Line'
+
 import { parseTextWithStageDirections, type TextSegment } from '../utils/textParser'
+import { buildPlaybackSequence } from '../utils/playbackSequence'
+import type {
+  PlaybackItem,
+  LinePlaybackItem,
+  StageDirectionPlaybackItem,
+  StructurePlaybackItem,
+  PresentationPlaybackItem,
+} from '../core/models/types'
 
 /**
  * Écran de lecture audio
@@ -66,6 +76,11 @@ export function PlayScreen() {
   const [estimatedDuration, setEstimatedDuration] = useState<number>(0) // en secondes
   const [elapsedTime, setElapsedTime] = useState<number>(0) // en secondes
   const [progressPercentage, setProgressPercentage] = useState<number>(0)
+
+  // États pour la séquence de lecture (cartes + répliques)
+  const [playbackSequence, setPlaybackSequence] = useState<PlaybackItem[]>([])
+  const [currentPlaybackIndex, setCurrentPlaybackIndex] = useState<number | undefined>()
+  const [playedItems, setPlayedItems] = useState<Set<number>>(new Set())
 
   // Refs pour gérer la lecture audio
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
@@ -136,6 +151,22 @@ export function PlayScreen() {
     getPlaySettings,
     setUserCharacter,
   ])
+
+  // Construire la séquence de lecture quand le play ou les settings changent
+  useEffect(() => {
+    if (!currentPlay || !playSettings) {
+      setPlaybackSequence([])
+      return
+    }
+
+    const sequence = buildPlaybackSequence(currentPlay.ast, {
+      includeStageDirections: playSettings.readStageDirections,
+      includeStructure: playSettings.readStructure,
+      includePresentation: playSettings.readPresentation,
+    })
+
+    setPlaybackSequence(sequence)
+  }, [currentPlay, playSettings])
 
   // Initialiser le TTS provider avec le bon provider au montage
   useEffect(() => {
@@ -256,6 +287,71 @@ export function PlayScreen() {
       document.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
     }
   }, [playSettings, playingLineIndex, isPaused, pausePlayback])
+
+  // NOTE: L'annonce automatique de structure est maintenant gérée par les cartes cliquables
+  // dans le système de playback. Ce useEffect est désactivé pour éviter les lectures automatiques.
+  // Les structures (titre, acte, scène) doivent être lues uniquement quand l'utilisateur clique dessus.
+  /*
+  useEffect(() => {
+    if (!currentPlay || !playSettings) return
+    if (!playSettings.readStructure) return
+
+    const act = currentPlay.ast.acts[currentActIndex]
+    const scene = act?.scenes[currentSceneIndex]
+
+    if (act && scene) {
+      const announce = () => {
+        let announcement = ''
+
+        if (act.title) {
+          announcement = act.title
+        } else {
+          announcement = `Acte ${act.actNumber}`
+        }
+
+        if (scene.title) {
+          announcement += `. ${scene.title}`
+        } else {
+          announcement += `. Scène ${scene.sceneNumber}`
+        }
+
+        const assignmentMap = playSettings.characterVoicesPiper
+        let narratorVoiceId = assignmentMap['__narrator__'] || ''
+
+        if (!narratorVoiceId) {
+          const voices = ttsProviderManager.getVoices()
+          const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
+          if (neutralVoice) {
+            narratorVoiceId = neutralVoice.id
+          }
+        }
+
+        if (narratorVoiceId) {
+          const rate = playSettings.defaultSpeed * 0.9
+
+          ttsEngine.setEvents({
+            onEnd: () => {
+              console.warn(`[PlayScreen] 📢 Structure annoncée: "${announcement}"`)
+            },
+            onError: (error: Error) => {
+              console.error("[PlayScreen] ❌ Erreur lors de l'annonce de structure:", error)
+            },
+          })
+
+          ttsEngine.speak({
+            text: announcement,
+            voiceURI: narratorVoiceId,
+            rate,
+            pitch: 1.0,
+            volume: 1.0,
+          })
+        }
+      }
+
+      announce()
+    }
+  }, [currentActIndex, currentSceneIndex, currentPlay, playSettings])
+  */
 
   // Créer la map des personnages
   const charactersMap: Record<string, Character> = {}
@@ -453,7 +549,28 @@ export function PlayScreen() {
   }
 
   /**
-   * Lit un segment de texte avec la voix appropriée
+   * Obtient l'ID de la voix narrateur/voix off
+   */
+  const getNarratorVoiceId = (): string => {
+    if (!playSettings) return ''
+
+    const assignmentMap = playSettings.characterVoicesPiper
+    let narratorVoiceId = assignmentMap['__narrator__'] || ''
+
+    // Si pas de voix narrateur assignée, utiliser une voix neutre
+    if (!narratorVoiceId) {
+      const voices = ttsProviderManager.getVoices()
+      const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
+      if (neutralVoice) {
+        narratorVoiceId = neutralVoice.id
+      }
+    }
+
+    return narratorVoiceId
+  }
+
+  /**
+   * Lire un segment de texte avec une voix donnée
    */
   const speakSegment = (
     segment: TextSegment,
@@ -472,15 +589,6 @@ export function PlayScreen() {
     console.warn(
       `[PlayScreen] 📖 Lecture segment ${segment.type}: "${segment.content.substring(0, 30)}..." avec voiceId="${voiceId}"`
     )
-
-    ttsEngine.speak({
-      text: segment.content,
-      voiceURI: voiceId,
-      rate,
-      pitch: 1.0,
-      volume,
-      lineId: globalLineIndex.toString(),
-    })
 
     ttsEngine.setEvents({
       onStart: () => {
@@ -509,6 +617,15 @@ export function PlayScreen() {
         wordsSpokenRef.current = wordsBefore + wordsInSegment
       },
     })
+
+    ttsEngine.speak({
+      text: segment.content,
+      voiceURI: voiceId,
+      rate,
+      pitch: 1.0,
+      volume,
+      lineId: globalLineIndex.toString(),
+    })
   }
 
   /**
@@ -516,11 +633,12 @@ export function PlayScreen() {
    */
   const speakLineSegments = (
     segments: TextSegment[],
-    characterVoiceId: string,
+    voiceId: string,
     narratorVoiceId: string,
     rate: number,
     volume: number,
-    globalLineIndex: number
+    globalLineIndex: number,
+    onComplete?: () => void
   ) => {
     segmentsRef.current = segments
     currentSegmentIndexRef.current = 0
@@ -530,20 +648,26 @@ export function PlayScreen() {
 
       const segmentIndex = currentSegmentIndexRef.current
       if (segmentIndex >= segments.length) {
-        // Tous les segments ont été lus, passer à la ligne suivante
+        // Tous les segments ont été lus
         stopProgressTracking()
         setIsGenerating(false)
 
-        if (!currentPlay) return
-
-        const nextGlobalIndex = globalLineIndex + 1
-        const totalLines = getTotalLines()
-
-        if (nextGlobalIndex < totalLines) {
-          speakLine(nextGlobalIndex)
+        // Appeler le callback si fourni, sinon comportement par défaut (ligne suivante)
+        if (onComplete) {
+          onComplete()
         } else {
-          // Fin de la pièce
-          stopPlayback()
+          // Comportement par défaut : passer à la ligne suivante
+          if (!currentPlay) return
+
+          const nextGlobalIndex = globalLineIndex + 1
+          const totalLines = getTotalLines()
+
+          if (nextGlobalIndex < totalLines) {
+            speakLine(nextGlobalIndex)
+          } else {
+            // Fin de la pièce
+            stopPlayback()
+          }
         }
         return
       }
@@ -551,28 +675,196 @@ export function PlayScreen() {
       const segment = segments[segmentIndex]
 
       // Déterminer la voix à utiliser pour ce segment
-      let voiceId = characterVoiceId
+      let segmentVoiceId = voiceId
       let segmentRate = rate
 
       if (segment.type === 'stage-direction') {
-        // Didascalie : utiliser la voix off si activée, sinon ne pas lire
-        if (!playSettings?.voiceOffEnabled) {
-          // Passer au segment suivant sans lire
+        // Didascalie : utiliser la voix off selon le réglage
+        if (!playSettings?.readStageDirections) {
+          // Ne pas lire les didascalies si désactivé
           currentSegmentIndexRef.current++
           speakNextSegment()
           return
         }
-        voiceId = narratorVoiceId
+        // Lire les didascalies avec la voix du narrateur
+        segmentVoiceId = narratorVoiceId
         // Les didascalies sont lues légèrement plus lentement
         segmentRate = rate * 0.9
       }
 
       currentSegmentIndexRef.current++
-      speakSegment(segment, voiceId, segmentRate, volume, globalLineIndex, speakNextSegment)
+      speakSegment(segment, segmentVoiceId, segmentRate, volume, globalLineIndex, speakNextSegment)
     }
 
     // Commencer la lecture du premier segment
     speakNextSegment()
+  }
+
+  /**
+   * Lit une carte de didascalie hors réplique
+   */
+  const playStageDirection = (item: StageDirectionPlaybackItem) => {
+    if (!playSettings) return
+
+    setCurrentPlaybackIndex(item.index)
+    setPlayedItems((prev) => new Set(prev).add(item.index))
+
+    // Si shouldRead est false, passer directement au suivant sans lire
+    if (item.shouldRead === false) {
+      console.warn(`[PlayScreen] ⏭️  Didascalie non lue (toggle désactivé): "${item.text}"`)
+      playNextPlaybackItem(item.index)
+      return
+    }
+
+    const narratorVoiceId = getNarratorVoiceId()
+    if (!narratorVoiceId) return
+
+    const rate = playSettings.defaultSpeed * 0.9 // Didascalies légèrement plus lentes
+
+    ttsEngine.setEvents({
+      onEnd: () => {
+        console.warn(`[PlayScreen] 📢 Didascalie lue: "${item.text}"`)
+        // Passer automatiquement à l'élément suivant
+        playNextPlaybackItem(item.index)
+      },
+      onError: (error: Error) => {
+        console.error('[PlayScreen] ❌ Erreur lecture didascalie:', error)
+        setCurrentPlaybackIndex(undefined)
+      },
+    })
+
+    ttsEngine.speak({
+      text: item.text,
+      voiceURI: narratorVoiceId,
+      rate,
+      pitch: 1.0,
+      volume: 1.0,
+    })
+  }
+
+  /**
+   * Lit une carte de structure (titre/acte/scène)
+   */
+  const playStructure = (item: StructurePlaybackItem) => {
+    if (!playSettings) return
+
+    setCurrentPlaybackIndex(item.index)
+    setPlayedItems((prev) => new Set(prev).add(item.index))
+
+    // Si shouldRead est false, passer directement au suivant sans lire
+    if (item.shouldRead === false) {
+      console.warn(`[PlayScreen] ⏭️  Structure non lue (toggle désactivé): "${item.text}"`)
+      playNextPlaybackItem(item.index)
+      return
+    }
+
+    const narratorVoiceId = getNarratorVoiceId()
+    if (!narratorVoiceId) return
+
+    const rate = playSettings.defaultSpeed * 0.9
+
+    ttsEngine.setEvents({
+      onEnd: () => {
+        console.warn(`[PlayScreen] 📢 Structure lue: "${item.text}"`)
+        // Passer automatiquement à l'élément suivant
+        playNextPlaybackItem(item.index)
+      },
+      onError: (error: Error) => {
+        console.error('[PlayScreen] ❌ Erreur lecture structure:', error)
+        setCurrentPlaybackIndex(undefined)
+      },
+    })
+
+    ttsEngine.speak({
+      text: item.text,
+      voiceURI: narratorVoiceId,
+      rate,
+      pitch: 1.0,
+      volume: 1.0,
+    })
+  }
+
+  /**
+   * Lit la carte de présentation (Cast)
+   */
+  const playPresentation = (item: PresentationPlaybackItem) => {
+    if (!playSettings) return
+
+    setCurrentPlaybackIndex(item.index)
+    setPlayedItems((prev) => new Set(prev).add(item.index))
+
+    // Si shouldRead est false, passer directement au suivant sans lire
+    if (item.shouldRead === false) {
+      console.warn('[PlayScreen] ⏭️  Présentation non lue (toggle désactivé)')
+      playNextPlaybackItem(item.index)
+      return
+    }
+
+    const narratorVoiceId = getNarratorVoiceId()
+    if (!narratorVoiceId) return
+
+    const rate = playSettings.defaultSpeed
+
+    ttsEngine.setEvents({
+      onEnd: () => {
+        console.warn('[PlayScreen] 📢 Présentation lue')
+        // Passer automatiquement à l'élément suivant
+        playNextPlaybackItem(item.index)
+      },
+      onError: (error: Error) => {
+        console.error('[PlayScreen] ❌ Erreur lecture présentation:', error)
+        setCurrentPlaybackIndex(undefined)
+      },
+    })
+
+    ttsEngine.speak({
+      text: item.text,
+      voiceURI: narratorVoiceId,
+      rate,
+      pitch: 1.0,
+      volume: 1.0,
+    })
+  }
+
+  /**
+   * Lit l'élément suivant dans la séquence de lecture
+   */
+  const playNextPlaybackItem = (currentIndex: number) => {
+    const nextItem = playbackSequence.find((item) => item.index === currentIndex + 1)
+    if (nextItem) {
+      playPlaybackItem(nextItem)
+    } else {
+      // Fin de la séquence
+      setCurrentPlaybackIndex(undefined)
+      setPlayingLineIndex(undefined)
+      setIsPaused(false)
+      isPlayingRef.current = false
+      console.warn('[PlayScreen] ✅ Fin de la séquence de lecture')
+    }
+  }
+
+  /**
+   * Dispatcher pour lire n'importe quel type d'élément de lecture
+   */
+  const playPlaybackItem = (item: PlaybackItem) => {
+    // Arrêter toute lecture en cours
+    ttsEngine.stop()
+    stopProgressTracking()
+
+    switch (item.type) {
+      case 'line':
+        speakLine((item as LinePlaybackItem).lineIndex)
+        break
+      case 'stage-direction':
+        playStageDirection(item as StageDirectionPlaybackItem)
+        break
+      case 'structure':
+        playStructure(item as StructurePlaybackItem)
+        break
+      case 'presentation':
+        playPresentation(item as PresentationPlaybackItem)
+        break
+    }
   }
 
   // Fonction pour lire une ligne (avec index global)
@@ -592,30 +884,95 @@ export function PlayScreen() {
       utteranceRef.current = null
     }
 
+    // Trouver l'item de playback correspondant et mettre à jour currentPlaybackIndex
+    const currentItem = playbackSequence.find(
+      (item) => item.type === 'line' && (item as LinePlaybackItem).lineIndex === globalLineIndex
+    )
+    if (currentItem) {
+      setCurrentPlaybackIndex(currentItem.index)
+    }
+
     setPlayingLineIndex(globalLineIndex)
     setIsPaused(false)
     setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
     setIsGenerating(true) // Indiquer qu'on génère l'audio
 
-    // Sélection de la voix via le système d'assignation
+    // === Gestion des répliques multi-personnages ===
+
+    // Déterminer le personnage effectif selon les règles
+    let effectiveCharacterId = line.characterId
+    let isUserLineEffective = false
+
+    if (line.characterIds && line.characterIds.length > 0) {
+      // Réplique multi-personnages ou TOUS
+      console.warn(`[PlayScreen] 🎭 Réplique multi-personnages: ${line.characterIds.join(', ')}`)
+
+      if (line.isAllCharacters) {
+        // Cas spécial: TOUS
+        if (playSettings.readingMode === 'italian') {
+          // En mode italienne, TOUS est traité comme réplique utilisateur
+          isUserLineEffective = true
+          effectiveCharacterId = userCharacter?.id || line.characterIds[0]
+          console.warn(`[PlayScreen] 🎭 TOUS en mode italienne → réplique utilisateur`)
+        } else {
+          // En mode lecture (audio), utiliser le premier personnage de la pièce
+          effectiveCharacterId = currentPlay.ast.characters[0]?.id || line.characterIds[0]
+          console.warn(
+            `[PlayScreen] 🎭 TOUS en mode audio → premier personnage: ${effectiveCharacterId}`
+          )
+        }
+      } else {
+        // Plusieurs personnages listés
+        if (playSettings.readingMode === 'italian' && userCharacter) {
+          // Vérifier si l'utilisateur fait partie de la liste
+          const userIsInList = line.characterIds.includes(userCharacter.id)
+          if (userIsInList) {
+            // L'utilisateur fait partie de la liste → réplique utilisateur
+            isUserLineEffective = true
+            effectiveCharacterId = userCharacter.id
+            console.warn(`[PlayScreen] 🎭 Utilisateur dans la liste → réplique utilisateur`)
+          } else {
+            // L'utilisateur n'est pas dans la liste → utiliser le premier personnage
+            effectiveCharacterId = line.characterIds[0]
+            console.warn(
+              `[PlayScreen] 🎭 Utilisateur absent de la liste → premier personnage: ${effectiveCharacterId}`
+            )
+          }
+        } else {
+          // Mode audio ou pas d'utilisateur défini → utiliser le premier personnage
+          effectiveCharacterId = line.characterIds[0]
+          console.warn(
+            `[PlayScreen] 🎭 Multi-personnages → premier personnage: ${effectiveCharacterId}`
+          )
+        }
+      }
+    } else if (line.characterId) {
+      // Réplique simple (compatibilité)
+      effectiveCharacterId = line.characterId
+      if (playSettings.readingMode === 'italian' && userCharacter) {
+        isUserLineEffective = line.characterId === userCharacter.id
+      }
+    }
+
+    // === Sélection de la voix via le système d'assignation ===
     let voiceId = ''
 
-    if (line.characterId) {
+    if (effectiveCharacterId) {
       // Obtenir l'assignation de voix pour ce personnage
       const assignmentMap = playSettings.characterVoicesPiper
 
-      voiceId = assignmentMap[line.characterId] || ''
+      voiceId = assignmentMap[effectiveCharacterId] || ''
 
       console.warn(
-        `[PlayScreen] 🎭 Personnage: ${line.characterId}, voiceId assignée: "${voiceId}"`
+        `[PlayScreen] 🎭 Personnage effectif: ${effectiveCharacterId}, voiceId assignée: "${voiceId}"`
       )
       console.warn(`[PlayScreen] 📋 Assignment map:`, assignmentMap)
 
       // Si pas d'assignation, utiliser la première voix du bon genre (fallback)
       if (!voiceId) {
-        const character = charactersMap[line.characterId]
-        const gender = character?.gender || playSettings.characterVoices[line.characterId]
+        const character = charactersMap[effectiveCharacterId]
+        const gender = character?.gender || playSettings.characterVoices[effectiveCharacterId]
 
         if (gender) {
           const voices = ttsProviderManager.getVoices()
@@ -623,19 +980,22 @@ export function PlayScreen() {
           if (matchingVoice) {
             voiceId = matchingVoice.id
             console.warn(
-              `Utilisation voix fallback pour ${line.characterId}: ${matchingVoice.displayName}`
+              `Utilisation voix fallback pour ${effectiveCharacterId}: ${matchingVoice.displayName}`
             )
           }
         }
       }
     }
 
-    // Didascalies : voix off si activée
-    if (line.type === 'stage-direction' && playSettings.voiceOffEnabled) {
-      const voices = ttsProviderManager.getVoices()
-      const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
-      if (neutralVoice) {
-        voiceId = neutralVoice.id
+    // Didascalies : voix off selon le mode
+    if (line.type === 'stage-direction') {
+      if (playSettings.readStageDirections) {
+        // Lire les didascalies hors répliques avec la voix du narrateur
+        const voices = ttsProviderManager.getVoices()
+        const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
+        if (neutralVoice) {
+          voiceId = neutralVoice.id
+        }
       }
     }
 
@@ -649,27 +1009,25 @@ export function PlayScreen() {
 
     // Mode italiennes : répliques utilisateur à volume 0
     console.warn('[PlayScreen] 🔍 DEBUG - Vérification ligne:')
-    console.warn(`  - line.characterId: "${line.characterId}"`)
+    console.warn(`  - effectiveCharacterId: "${effectiveCharacterId}"`)
+    console.warn(`  - isUserLineEffective: ${isUserLineEffective}`)
     console.warn(
       `  - userCharacter: ${userCharacter ? JSON.stringify({ id: userCharacter.id, name: userCharacter.name }) : 'null'}`
     )
     console.warn(`  - playSettings.readingMode: "${playSettings.readingMode}"`)
 
-    const isUserLine = userCharacter && line.characterId === userCharacter.id
-    console.warn(`  - isUserLine: ${isUserLine}`)
-
-    const volume = playSettings.readingMode === 'italian' && isUserLine ? 0 : 1
-    const rate = isUserLine ? playSettings.userSpeed : playSettings.defaultSpeed
+    const volume = playSettings.readingMode === 'italian' && isUserLineEffective ? 0 : 1
+    const rate = isUserLineEffective ? playSettings.userSpeed : playSettings.defaultSpeed
 
     console.warn(`  - volume calculé: ${volume}`)
     console.warn(`  - rate calculé: ${rate}`)
 
     // Log pour le mode italiennes
-    if (playSettings.readingMode === 'italian' && isUserLine) {
+    if (playSettings.readingMode === 'italian' && isUserLineEffective) {
       console.warn(
         `[PlayScreen] 🎭 Mode italiennes - Ligne utilisateur détectée: volume=${volume}, rate=${rate}`
       )
-    } else if (playSettings.readingMode === 'italian' && !isUserLine) {
+    } else if (playSettings.readingMode === 'italian' && !isUserLineEffective) {
       console.warn(
         `[PlayScreen] 🎭 Mode italiennes - Ligne autre personnage: volume=${volume}, rate=${rate}`
       )
@@ -687,30 +1045,43 @@ export function PlayScreen() {
     utteranceRef.current = { text: line.text } as SpeechSynthesisUtterance
 
     // Obtenir la voix du narrateur pour les didascalies
-    let narratorVoiceId = ''
-    const assignmentMap = playSettings.characterVoicesPiper
-
-    narratorVoiceId = assignmentMap['__narrator__'] || ''
-
-    // Si pas de voix narrateur assignée, utiliser une voix neutre
-    if (!narratorVoiceId) {
-      const voices = ttsProviderManager.getVoices()
-      const neutralVoice = voices.find((v) => v.gender === 'neutral') || voices[0]
-      if (neutralVoice) {
-        narratorVoiceId = neutralVoice.id
-      }
-    }
+    const narratorVoiceId = getNarratorVoiceId()
 
     // Log pour debug
     console.warn(
-      `[PlayScreen] ▶️ LECTURE ligne ${globalLineIndex} (${line.characterId}): voiceId="${voiceId}", narratorVoiceId="${narratorVoiceId}", volume=${volume}, rate=${rate}, segments=${segments.length}`
+      `[PlayScreen] ▶️ LECTURE ligne ${globalLineIndex} (effectif: ${effectiveCharacterId}, original: ${line.characterId}${line.characterIds ? `, multi: ${line.characterIds.join('+')}` : ''}): voiceId="${voiceId}", narratorVoiceId="${narratorVoiceId}", volume=${volume}, rate=${rate}, segments=${segments.length}`
     )
 
-    // Lire les segments séquentiellement
-    speakLineSegments(segments, voiceId, narratorVoiceId, rate, volume, globalLineIndex)
+    // Lire les segments séquentiellement avec callback pour passer à l'élément suivant
+    speakLineSegments(segments, voiceId, narratorVoiceId, rate, volume, globalLineIndex, () => {
+      // Une fois la ligne terminée, passer à l'élément suivant de la séquence
+      const currentItem = playbackSequence.find(
+        (item) => item.type === 'line' && (item as LinePlaybackItem).lineIndex === globalLineIndex
+      )
+      if (currentItem) {
+        playNextPlaybackItem(currentItem.index)
+      }
+    })
 
     // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
     scrollToLine(globalLineIndex)
+  }
+
+  /**
+   * Handler pour le clic sur une carte (didascalie, structure, présentation)
+   */
+  const handleCardClick = (playbackIndex: number) => {
+    const item = playbackSequence.find((item) => item.index === playbackIndex)
+    if (!item) return
+
+    // Si c'est l'élément en cours de lecture
+    if (currentPlaybackIndex === playbackIndex) {
+      // Toggle pause/resume
+      pausePlayback()
+    } else {
+      // Démarrer la lecture de cet élément
+      playPlaybackItem(item)
+    }
   }
 
   // Handler pour le clic sur une ligne (reçoit l'index global)
@@ -890,36 +1261,75 @@ export function PlayScreen() {
       {/* Main content */}
       <div className="flex-1 overflow-hidden" data-testid="text-display-container">
         {currentPlay && playSettings ? (
-          <FullPlayDisplay
-            acts={currentPlay.ast.acts}
-            currentActIndex={currentActIndex}
-            currentSceneIndex={currentSceneIndex}
-            currentLineIndex={0}
-            readingMode={playSettings.readingMode}
-            userCharacterId={userCharacter?.id}
-            hideUserLines={playSettings.hideUserLines}
-            showBefore={playSettings.showBefore}
-            showAfter={playSettings.showAfter}
-            playingLineIndex={playingLineIndex}
-            readLinesSet={readLinesSet}
-            charactersMap={charactersMap}
-            playTitle={getPlayTitle(currentPlay)}
-            onLineClick={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleLineClick
-                : undefined
-            }
-            onLongPress={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleLongPress
-                : undefined
-            }
-            isPaused={isPaused}
-            isGenerating={isGenerating}
-            progressPercentage={progressPercentage}
-            elapsedTime={elapsedTime}
-            estimatedDuration={estimatedDuration}
-          />
+          playbackSequence.length > 0 &&
+          (playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian') ? (
+            <PlaybackDisplay
+              playbackSequence={playbackSequence}
+              flatLines={currentPlay.ast.flatLines}
+              readingMode={playSettings.readingMode}
+              userCharacterId={userCharacter?.id}
+              hideUserLines={playSettings.hideUserLines}
+              showBefore={playSettings.showBefore}
+              showAfter={playSettings.showAfter}
+              currentPlaybackIndex={currentPlaybackIndex}
+              playingLineIndex={playingLineIndex}
+              playedItems={playedItems}
+              readLinesSet={readLinesSet}
+              charactersMap={charactersMap}
+              playTitle={getPlayTitle(currentPlay)}
+              onLineClick={
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                  ? handleLineClick
+                  : undefined
+              }
+              onCardClick={
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                  ? handleCardClick
+                  : undefined
+              }
+              onLongPress={
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                  ? handleLongPress
+                  : undefined
+              }
+              isPaused={isPaused}
+              isGenerating={isGenerating}
+              progressPercentage={progressPercentage}
+              elapsedTime={elapsedTime}
+              estimatedDuration={estimatedDuration}
+            />
+          ) : (
+            <FullPlayDisplay
+              acts={currentPlay.ast.acts}
+              currentActIndex={currentActIndex}
+              currentSceneIndex={currentSceneIndex}
+              currentLineIndex={0}
+              readingMode={playSettings.readingMode}
+              userCharacterId={userCharacter?.id}
+              hideUserLines={playSettings.hideUserLines}
+              showBefore={playSettings.showBefore}
+              showAfter={playSettings.showAfter}
+              playingLineIndex={playingLineIndex}
+              readLinesSet={readLinesSet}
+              charactersMap={charactersMap}
+              playTitle={getPlayTitle(currentPlay)}
+              onLineClick={
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                  ? handleLineClick
+                  : undefined
+              }
+              onLongPress={
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                  ? handleLongPress
+                  : undefined
+              }
+              isPaused={isPaused}
+              isGenerating={isGenerating}
+              progressPercentage={progressPercentage}
+              elapsedTime={elapsedTime}
+              estimatedDuration={estimatedDuration}
+            />
+          )
         ) : (
           <div className="flex items-center justify-center h-full">
             <Spinner size="lg" />

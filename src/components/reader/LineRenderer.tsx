@@ -83,9 +83,13 @@ export function LineRenderer({
   estimatedDuration = 0,
   isGenerating = false,
 }: Props) {
-  // Déterminer si c'est une réplique utilisateur
+  // Déterminer si c'est une réplique utilisateur (avec support multi-personnages)
   const isUserLine =
-    readingMode === 'italian' && userCharacterId && line.characterId === userCharacterId
+    readingMode === 'italian' &&
+    userCharacterId &&
+    (line.isAllCharacters ||
+      (line.characterIds && line.characterIds.includes(userCharacterId)) ||
+      line.characterId === userCharacterId)
 
   // Déterminer si la ligne doit être masquée
   // Logique pour le mode italiennes avec hideUserLines activé :
@@ -120,10 +124,22 @@ export function LineRenderer({
   }
 
   if (line.type === 'dialogue') {
-    // Récupérer le nom du personnage
-    const characterName = line.characterId
-      ? charactersMap[line.characterId]?.name || 'INCONNU'
-      : 'INCONNU'
+    // Récupérer le(s) nom(s) du/des personnage(s)
+    let characterDisplay = 'INCONNU'
+
+    if (line.isAllCharacters) {
+      characterDisplay = 'TOUS'
+    } else if (line.characterIds && line.characterIds.length > 1) {
+      // Réplique multi-personnages : afficher tous les noms séparés par " + "
+      characterDisplay = line.characterIds
+        .map((charId) => charactersMap[charId]?.name || charId)
+        .join(' + ')
+    } else if (line.characterId) {
+      characterDisplay = charactersMap[line.characterId]?.name || line.characterId
+    }
+
+    // Pour la couleur, utiliser le premier personnage (ou l'ID unique)
+    const primaryCharacterId = line.characterIds?.[0] || line.characterId || 'UNKNOWN'
 
     // Ligne masquée (mode italiennes, avant lecture)
     if (shouldHide) {
@@ -138,6 +154,13 @@ export function LineRenderer({
             : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
         }
       `.trim()
+
+      // Couleur du nom du personnage pour ligne masquée
+      const allCharacterNames = Object.values(charactersMap).map((char) => char.name)
+      const characterColor = generateCharacterColor(
+        charactersMap[primaryCharacterId]?.name || primaryCharacterId,
+        allCharacterNames
+      )
 
       const handleHiddenClick = () => {
         if (onClick) {
@@ -190,8 +213,8 @@ export function LineRenderer({
           data-testid="hidden-line"
         >
           <div className="flex items-center justify-between">
-            <div className="font-bold uppercase text-gray-900 dark:text-gray-100">
-              {characterName}
+            <div className="font-bold uppercase" style={{ color: characterColor }}>
+              {characterDisplay}
             </div>
             {isPlaying && (
               <div className="flex items-center gap-2">
@@ -268,12 +291,10 @@ export function LineRenderer({
 
     // Couleur du nom du personnage
     const allCharacterNames = Object.values(charactersMap).map((char) => char.name)
-    const characterColor = line.characterId
-      ? generateCharacterColor(
-          charactersMap[line.characterId]?.name || line.characterId,
-          allCharacterNames
-        )
-      : undefined
+    const characterColor = generateCharacterColor(
+      charactersMap[primaryCharacterId]?.name || primaryCharacterId,
+      allCharacterNames
+    )
 
     // Parser le texte pour extraire les didascalies
     const textSegments = parseTextWithStageDirections(line.text)
@@ -381,7 +402,7 @@ export function LineRenderer({
             className="font-bold uppercase"
             style={characterColor ? { color: characterColor } : undefined}
           >
-            {characterName}
+            {characterDisplay}
           </div>
           {isPlaying && (
             <div className="flex items-center gap-2">

@@ -3,6 +3,21 @@ Alegria
 Auteur : Gilles Bellami
 
 
+Comédiens
+
+PASCAL
+sait parler aux chats
+
+AMANDINE
+sait parler à Pascal
+
+XAVIER
+sait pas parler
+
+
+
+
+
 ACTE 1 - Alegria
 
 Scène 1 - Présentation
@@ -20,7 +35,7 @@ Bah, nous aussi on les voit ahahhahaah !
 CHANTAL:
 Et nous aussi on les entend ahahhahahah !
 
-ALAIN:
+ALAIN, XAVIER:
  Qu’est-ce que tu dis ? Ahahahahhahahaha !!!
 (Tous deux se marrent, fiers de leurs blagues.)
 
@@ -30,14 +45,14 @@ C'est vrai quoi, pour une fois, pourquoi ce ne serait pas nous d'abord qui les �
 XAVIER:
 Mais parce que ce sont eux qui ont cassé leur tirelire pour venir nous applaudir !
 
-CATHERINE:
+CATHERINE+ALAIN:
 (syndicaliste, se levant tout à coup, poing fermé)
 C'est quoi ces règles du jeu totalement rétrogrades ?!! Camarades ! Dans une révolution, on doit triompher ou mourir ! Il est grand temps d'instaurer aujourd'hui le R.I.C. : rôles d'initiatives comédiennes !!!
 (Tous applaudissent.)
 
 Scène 2
 
-XAVIER:
+TOUS:
 Camarades ! Rôle d'initia... Nan mais écoutez-la, la Ché Guévara des bords de Marne ! Vous êtes devenus fous ou quoi ? (sourire de circonstance aux spectateurs) Au théâtre, c'est chacun son rôle : vous, les comédiens, et eux (tout à coup flagornerie excessive) les gentils spectateurs très compréhensifs et patients. (Aux spectateurs, faussement rassurant : Ne vous inquiétez pas, c'est le trac, mais on va revenir à la norm...
 
 SABRINA:

@@ -21,8 +21,14 @@ export interface Line {
   /** Index de la scène dans l'acte (0-based) */
   sceneIndex: number
 
-  /** ID du personnage (undefined pour didascalies) */
+  /** ID du personnage (undefined pour didascalies) - conservé pour compatibilité */
   characterId?: string
+
+  /** Liste des IDs de personnages pour répliques multi-personnages */
+  characterIds?: string[]
+
+  /** Indique si la réplique utilise le mot-clé TOUS (tous les personnages) */
+  isAllCharacters?: boolean
 
   /** Texte de la ligne */
   text: string

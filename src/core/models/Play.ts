@@ -8,6 +8,29 @@ import { Character } from './Character'
 import { Line } from './Line'
 
 /**
+ * Présentation d'un personnage dans la section Cast
+ */
+export interface CastPresentation {
+  /** Nom du personnage (en MAJUSCULES) */
+  characterName: string
+
+  /** Description du personnage */
+  description: string
+}
+
+/**
+ * Section Cast (Personnages/Comédiens/Rôles/Présentation)
+ * Cette section n'est pas lue en mode audio/italienne
+ */
+export interface CastSection {
+  /** Blocs de texte libre (didascalies) */
+  textBlocks: string[]
+
+  /** Présentations de personnages (format réplique mais non-jouable) */
+  presentations: CastPresentation[]
+}
+
+/**
  * Métadonnées d'une pièce de théâtre
  */
 export interface PlayMetadata {
@@ -22,6 +45,9 @@ export interface PlayMetadata {
 
   /** Catégorie (comédie, drame, etc.) */
   category?: string
+
+  /** Section Cast (personnages/rôles) - optionnelle */
+  castSection?: CastSection
 }
 
 /**

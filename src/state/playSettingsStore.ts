@@ -52,8 +52,14 @@ interface PlaySettingsState {
   /** Change la vitesse par défaut */
   setDefaultSpeed: (playId: string, speed: number) => void
 
-  /** Toggle voix off */
-  toggleVoiceOff: (playId: string) => void
+  /** Toggle lire les didascalies */
+  toggleReadStageDirections: (playId: string) => void
+
+  /** Toggle lire la structure (titres, actes, scènes) */
+  toggleReadStructure: (playId: string) => void
+
+  /** Toggle lire la section de présentation (Cast) */
+  toggleReadPresentation: (playId: string) => void
 
   /** Supprime les paramètres d'une pièce */
   deletePlaySettings: (playId: string) => void
@@ -82,7 +88,38 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
         const existing = get().playSettings[playId]
         if (existing) {
           // Appliquer les migrations de voix si nécessaire
-          const migrated = migratePlaySettingsVoices(existing)
+          let migrated = migratePlaySettingsVoices(existing)
+
+          // Migration 1: voiceOffEnabled (boolean) → voiceOffMode (intermediate)
+          let migratedAny = migrated as unknown as Record<string, unknown>
+          if (migratedAny.voiceOffEnabled !== undefined && !migratedAny.voiceOffMode) {
+            const enabled = migratedAny.voiceOffEnabled as boolean
+            migratedAny.voiceOffMode = enabled ? 'stage-directions' : 'nothing'
+            delete migratedAny.voiceOffEnabled
+            migrated = migratedAny as unknown as PlaySettings
+            console.warn(
+              `[PlaySettings] 🔄 Migration voiceOffEnabled → voiceOffMode pour ${playId}: ${enabled} → ${migratedAny.voiceOffMode}`
+            )
+          }
+
+          // Migration 2: voiceOffMode (VoiceOffMode) → trois booléens distincts
+          migratedAny = migrated as unknown as Record<string, unknown>
+          if (
+            migratedAny.voiceOffMode !== undefined &&
+            migrated.readStageDirections === undefined
+          ) {
+            const mode = migratedAny.voiceOffMode as string
+            migrated = {
+              ...migrated,
+              readStageDirections: mode === 'stage-directions' || mode === 'everything',
+              readStructure: mode === 'everything',
+              readPresentation: mode === 'everything',
+            }
+            delete (migrated as unknown as Record<string, unknown>).voiceOffMode
+            console.warn(
+              `[PlaySettings] 🔄 Migration voiceOffMode → trois booléens pour ${playId}: ${mode} → {stage:${migrated.readStageDirections}, struct:${migrated.readStructure}, pres:${migrated.readPresentation}}`
+            )
+          }
 
           // Si des migrations ont eu lieu, sauvegarder les changements
           if (migrated !== existing) {
@@ -167,9 +204,19 @@ export const usePlaySettingsStore = create<PlaySettingsState>()(
         get().updatePlaySettings(playId, { defaultSpeed: clamped })
       },
 
-      toggleVoiceOff: (playId: string) => {
+      toggleReadStageDirections: (playId: string) => {
         const settings = get().getPlaySettings(playId)
-        get().updatePlaySettings(playId, { voiceOffEnabled: !settings.voiceOffEnabled })
+        get().updatePlaySettings(playId, { readStageDirections: !settings.readStageDirections })
+      },
+
+      toggleReadStructure: (playId: string) => {
+        const settings = get().getPlaySettings(playId)
+        get().updatePlaySettings(playId, { readStructure: !settings.readStructure })
+      },
+
+      toggleReadPresentation: (playId: string) => {
+        const settings = get().getPlaySettings(playId)
+        get().updatePlaySettings(playId, { readPresentation: !settings.readPresentation })
       },
 
       deletePlaySettings: (playId: string) => {
