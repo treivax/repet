@@ -15,6 +15,15 @@ import { UpdateManager } from './core/pwa/UpdateManager'
 import { logVersionInfo, APP_VERSION } from './config/version'
 
 /**
+ * Extension de l'interface Window pour inclure les fonctions debug
+ */
+declare global {
+  interface Window {
+    forceReloadVoices: () => void
+  }
+}
+
+/**
  * Clés localStorage pour la persistence du chargement des voix
  *
  * Le chargement des voix est persisté pour éviter de recharger à chaque démarrage.
@@ -78,7 +87,7 @@ function App() {
 
   // Exposer la fonction de rechargement globalement pour faciliter le debug
   useEffect(() => {
-    ;(window as any).forceReloadVoices = forceReloadVoices
+    window.forceReloadVoices = forceReloadVoices
     console.warn('[App] 🔧 Fonction debug exposée: window.forceReloadVoices()')
   }, [])
 
