@@ -72,14 +72,23 @@ export default defineConfig({
     }),
     viteStaticCopy({
       targets: [
-        // ✅ OPTIMISÉ : Ne copier QUE les fichiers WASM nécessaires (30 MB au lieu de 106 MB)
-        // ONNX Runtime - fichier WASM principal (configuré en single-thread pour iOS)
+        // ✅ OPTIMISÉ : Copier les fichiers WASM nécessaires incluant .jsep
+        // ONNX Runtime - fichiers WASM principaux
         {
           src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
           dest: 'wasm',
         },
         {
           src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
+          dest: 'wasm',
+        },
+        // Fichiers .jsep (JavaScript Execution Provider) - nécessaires pour éviter 404
+        {
+          src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm',
+          dest: 'wasm',
+        },
+        {
+          src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs',
           dest: 'wasm',
         },
         // Fichiers WASM de Piper (phonemize)

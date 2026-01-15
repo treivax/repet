@@ -173,10 +173,16 @@ export class PiperWASMProvider implements TTSProvider {
 
     ort.env.wasm.simd = true
     ort.env.wasm.wasmPaths = '/wasm/'
+    ort.env.wasm.proxy = false
+
+    // Limiter aux backends WASM uniquement (pas de WebGPU, WebNN, etc.)
+    // Cela évite les tentatives de chargement de fichiers .jsep non copiés
+    ort.env.wasm.numThreads = BUILD_MODE === 'online' ? 1 : ort.env.wasm.numThreads
 
     console.warn('[PiperWASM] ✅ ONNX Runtime configuré')
     console.warn('[PiperWASM]    - WASM Path: /wasm/')
     console.warn('[PiperWASM]    - SIMD: enabled')
+    console.warn('[PiperWASM]    - Proxy: disabled')
 
     // Configurer les chemins WASM pour TtsSession (utilisés par predict())
     TtsSession.WASM_LOCATIONS = {
