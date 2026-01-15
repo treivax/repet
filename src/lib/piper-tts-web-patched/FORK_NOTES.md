@@ -228,6 +228,46 @@ Le fichier a été reformaté avec Prettier lors des modifications. Cela n'affec
 - [x] Paramètre optionnel (valeur par défaut = 0)
 - [x] Documentation complète
 - [x] Prêt pour utilisation en production
+- [x] Provider activé par défaut dans `TTSProviderManager`
+
+## 🚀 Intégration dans Répét
+
+### Provider par défaut
+
+Le fork est maintenant utilisé par défaut dans l'application :
+
+```typescript
+// src/core/tts/providers/TTSProviderManager.ts
+import { PiperWASMProvider } from './PiperWASMProvider'
+
+export class TTSProviderManager {
+  constructor() {
+    this.provider = new PiperWASMProvider()  // ✅ Utilise le fork
+  }
+}
+```
+
+**Avantages** :
+- ✅ Phonemization gérée automatiquement par le fork (pas besoin de `piper_phonemize.wasm`)
+- ✅ Support multi-speaker immédiat via `speakerId`
+- ✅ Compatible avec tous les modèles Piper (mono et multi-speaker)
+- ✅ Pas de problème stdin/stdout avec le phonemizer
+- ✅ Audio fonctionne directement sans configuration supplémentaire
+
+**Alternative non utilisée** : `PiperNativeProvider`
+- Nécessite `piper_phonemize.wasm` (problème stdin en WebAssembly)
+- Phonemization manuelle avec ONNX Runtime
+- Plus complexe à maintenir
+- Gardé dans le code pour référence future
+
+### Voix disponibles
+
+Les 4 voix françaises sont maintenant fonctionnelles :
+
+1. **Siwis** (F) - `fr_FR-siwis-medium` - Modèle mono-speaker
+2. **Tom** (H) - `fr_FR-tom-medium` - Modèle mono-speaker
+3. **Jessica** (F) - `fr_FR-upmc-medium` (speakerId: 0) - Multi-speaker
+4. **Pierre** (H) - `fr_FR-upmc-pierre-medium` (speakerId: 1) - Multi-speaker
 
 ---
 
