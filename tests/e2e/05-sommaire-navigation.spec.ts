@@ -69,7 +69,6 @@ test.describe('Navigation de Sommaire', () => {
       if (sceneCount > 2) {
         // Sélectionner la 3ème scène (index 2)
         const targetSceneButton = sceneButtons.nth(2)
-        const targetSceneText = await targetSceneButton.textContent()
 
         await targetSceneButton.click()
         await page.waitForTimeout(1500) // Attendre l'animation de scroll
@@ -103,7 +102,6 @@ test.describe('Navigation de Sommaire', () => {
       // Récupérer le badge initial
       const sceneBadge = page.getByTestId('scene-badge')
       await expect(sceneBadge).toBeVisible()
-      const initialBadgeText = await sceneBadge.textContent()
 
       // Récupérer le conteneur de scroll
       const playbackDisplay = page.getByTestId('playback-display')
@@ -236,7 +234,7 @@ test.describe('Navigation de Sommaire', () => {
   })
 
   test.describe('Badge de Scène', () => {
-    test('devrait afficher le badge de scène en bas de l\'écran', async ({ page }) => {
+    test("devrait afficher le badge de scène en bas de l'écran", async ({ page }) => {
       const sceneBadge = page.getByTestId('scene-badge')
       await expect(sceneBadge).toBeVisible()
 
@@ -256,7 +254,7 @@ test.describe('Navigation de Sommaire', () => {
       await expect(sceneSummary).toBeVisible()
     })
 
-    test('devrait fermer le sommaire au clic sur l\'overlay', async ({ page }) => {
+    test("devrait fermer le sommaire au clic sur l'overlay", async ({ page }) => {
       const sceneBadge = page.getByTestId('scene-badge')
       await sceneBadge.click()
       await page.waitForTimeout(300)
@@ -305,7 +303,9 @@ test.describe('Navigation de Sommaire', () => {
       }
     })
 
-    test('ne devrait pas avoir de conflit entre scroll programmatique et manuel', async ({ page }) => {
+    test('ne devrait pas avoir de conflit entre scroll programmatique et manuel', async ({
+      page,
+    }) => {
       // Naviguer via le sommaire
       const sceneBadge = page.getByTestId('scene-badge')
       await sceneBadge.click()
