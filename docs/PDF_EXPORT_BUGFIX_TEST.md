@@ -294,3 +294,37 @@ pdftotext -f [last_page] -l [last_page] your_export.pdf -
 ## Done! ✅
 
 Once all tests pass, the bug fixes are validated and ready for merge.
+---
+
+### Test 7: Character Name + Dialogue Cohesion (No Orphans) ✅
+
+1. **Export a long play to PDF**
+2. **Scroll through all pages carefully**
+3. **Check the bottom of each page**:
+   - Look for character names alone at the bottom
+   - Verify each character name is followed by at least one line of dialogue
+4. **Verify no orphaned names**:
+   - No character name should appear at page bottom without text
+   - Character name + first line should always be together
+
+**Expected Result**: ✅ No orphaned character names at page bottoms
+
+**Good Example**:
+```
+Page N bottom:
+[margin space]
+
+Page N+1 top:
+HAMLET: To be or not to be...  ✅ (entire dialogue moved)
+```
+
+**Bad Example (before fix)**:
+```
+Page N bottom:
+HAMLET:                         ❌ (orphaned name)
+
+Page N+1 top:
+To be or not to be...
+```
+
+---

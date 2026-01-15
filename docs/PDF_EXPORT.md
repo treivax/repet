@@ -85,8 +85,9 @@ Le système :
 - Vérifie l'espace restant **ligne par ligne** avant d'ajouter du contenu
 - Respecte strictement la marge du bas (15mm par défaut)
 - Insère automatiquement de nouvelles pages si nécessaire
-- Évite de couper les répliques au milieu quand possible
-- Peut couper une très longue réplique sur plusieurs pages (avec respect des marges)
+- **Garde le nom du personnage avec sa réplique** : si l'espace est insuffisant, toute la réplique est reportée sur la page suivante
+- Évite de séparer le nom du personnage de son texte sur deux pages différentes
+- Peut couper une très longue réplique sur plusieurs pages (nom sur la première, suite sur les suivantes)
 - Préserve la lisibilité et la cohérence visuelle
 
 ## Qualité et Performance

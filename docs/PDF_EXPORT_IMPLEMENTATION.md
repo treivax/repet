@@ -188,8 +188,12 @@ interface PDFExportOptions {
 ### Page Breaks
 - **Line-by-line margin checking**: Each line verifies available space before rendering
 - **Strict bottom margin respect**: 15mm margin enforced on every page
+- **Character name + dialogue cohesion**: Name and first line of dialogue always stay together
+  - Checks if minimum space available (name + first line = 11mm)
+  - If insufficient, entire dialogue moves to next page
+  - Prevents orphaned character names
 - Automatic page break when content would exceed bottom margin
-- Long dialogues can span multiple pages (with proper margins)
+- Long dialogues can span multiple pages (name on first, continuation on next)
 - New page for each act
 - Continuous flow for scenes within acts
 
@@ -266,13 +270,20 @@ interface PDFExportOptions {
    - Improved page break logic for long dialogues
    - Added hexToRgb utility for color conversion
 
-4. **fix: Stage directions in gray + fix text spacing issues** (current)
+4. **fix: Stage directions in gray + fix text spacing issues** (f37ac24)
    - Stage directions now rendered in gray (128,128,128) and italic
    - Applies to both standalone stage directions and inline (within dialogues)
    - Parse dialogues to extract stage directions using `parseTextWithStageDirections()`
    - Fixed text spacing issues by replacing `splitTextToSize()` with manual word wrapping
    - Added `splitTextManually()` utility to prevent abnormal character spacing
    - Matches application display exactly (gray italic stage directions)
+
+5. **fix: Keep character name with dialogue (no orphans)** (current)
+   - Prevents splitting character name and dialogue text across pages
+   - Checks minimum space (11mm: 6mm name + 5mm first line) before rendering
+   - If space insufficient, moves entire dialogue to next page
+   - Character name always appears with at least first line of text
+   - Improves readability and professional appearance
 
 ## Testing Recommendations
 
@@ -282,6 +293,7 @@ interface PDFExportOptions {
 3. **Test 17**: Print test (verify A4 print quality)
 4. **Test 18**: Special characters (ensure UTF-8 encoding)
 5. **Test 25**: Loading indicator (UX feedback)
+6. **Test Cohesion**: Verify no orphaned character names at page bottoms
 
 ### Automated Testing (Future)
 - Unit tests for `pdfExportService` methods

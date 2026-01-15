@@ -301,19 +301,24 @@ export class PDFExportService {
 
       // Convertir la couleur hex en RGB
       const rgb = this.hexToRgb(characterColor)
-      pdf.setTextColor(rgb.r, rgb.g, rgb.b)
 
-      // Vérifier si on a assez d'espace pour le nom
-      if (currentY + 6 > maxY) {
+      // Parser le texte pour extraire les didascalies
+      const segments = parseTextWithStageDirections(line.text)
+
+      // Vérifier si on a assez d'espace pour le nom + au moins une ligne de texte
+      // On veut garantir que le nom et la première ligne restent ensemble
+      const minHeight = 6 + 5 // nom (6mm) + première ligne (5mm)
+
+      if (currentY + minHeight > maxY) {
+        // Pas assez d'espace, on change de page AVANT d'écrire le nom
         pdf.addPage()
         currentY = margin + 10
       }
 
+      // Écrire le nom du personnage
+      pdf.setTextColor(rgb.r, rgb.g, rgb.b)
       pdf.text(characterName, margin, currentY)
       currentY += 6
-
-      // Parser le texte pour extraire les didascalies
-      const segments = parseTextWithStageDirections(line.text)
 
       // Afficher chaque segment
       for (const segment of segments) {
