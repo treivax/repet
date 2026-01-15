@@ -33,7 +33,7 @@ var _createPiperPhonemize,
   _logger,
   _speakerId
 const HF_BASE = 'https://huggingface.co/diffusionstudio/piper-voices/resolve/main'
-const ONNX_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/'
+const ONNX_BASE = (typeof window !== 'undefined' ? window.location.origin : '') + '/wasm/'
 const WASM_BASE =
   'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize'
 const PATH_MAP = {

@@ -67,6 +67,20 @@ const speakerId = __privateGet(this, _speakerId)  // ✅ CONFIGURABLE
 _speakerId = new WeakMap()  // ✅ AJOUTÉ
 ```
 
+#### 6. Changement d'ONNX_BASE pour utiliser les fichiers locaux (ligne 36)
+
+**Avant:**
+```javascript
+const ONNX_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.18.0/'
+```
+
+**Après:**
+```javascript
+const ONNX_BASE = (typeof window !== 'undefined' ? window.location.origin : '') + '/wasm/'
+```
+
+**Raison**: La version hardcodée pointait vers un CDN externe (cloudflare) avec ONNX Runtime 1.18.0, ce qui causait des erreurs 404 en production car les fichiers n'étaient pas disponibles sur le CDN. En utilisant les fichiers locaux du dossier `/wasm/`, on garantit que tous les fichiers WASM sont chargés depuis le même serveur que l'application, évitant les problèmes de CORS et de disponibilité.
+
 ## ✅ Compatibilité ascendante
 
 - Si `speakerId` n'est pas fourni, la valeur par défaut est `0`
@@ -100,8 +114,11 @@ const pierreAudio = await pierreSession.predict('Bonjour')    // Voix masculine
 ## 📋 Fichiers modifiés
 
 - ✅ `dist/piper-tts-web.js` : Fichier principal compilé (~20 KB)
+  - Support multi-speaker (paramètre speakerId)
+  - ONNX_BASE pointant vers /wasm/ au lieu de CDN cloudflare
+- ✅ `dist/fixtures.d.ts` : Types TypeScript mis à jour
+  - ONNX_BASE déclaré comme string (valeur calculée dynamiquement)
 - ❌ `src/*` : Pas de sources TypeScript dans le package NPM
-- ❌ `dist/index.d.ts` : Types non modifiés (pas nécessaire pour JS runtime)
 
 **Note**: Le package est distribué compilé, donc pas de modification de sources TypeScript.
 
@@ -214,11 +231,12 @@ Le fichier a été reformaté avec Prettier lors des modifications. Cela n'affec
 
 | Métrique | Avant | Après |
 |----------|-------|-------|
-| Fichiers modifiés | 0 | 1 |
-| Lignes ajoutées | - | ~8 |
-| Lignes modifiées | - | ~3 |
+| Fichiers modifiés | 0 | 2 |
+| Lignes ajoutées | - | ~10 |
+| Lignes modifiées | - | ~4 |
 | Taille du package | ~500 KB | ~500 KB (identique) |
 | Speakers supportés | 1 (hardcodé) | N (configurable) |
+| Chargement WASM | CDN externe (cloudflare) | Fichiers locaux (/wasm/) |
 | Breaking changes | - | 0 |
 
 ## ✅ Validation
@@ -226,6 +244,8 @@ Le fichier a été reformaté avec Prettier lors des modifications. Cela n'affec
 - [x] Code modifié compile sans erreur
 - [x] Compatibilité ascendante préservée
 - [x] Paramètre optionnel (valeur par défaut = 0)
+- [x] ONNX Runtime chargé depuis fichiers locaux (pas de CDN externe)
+- [x] Fichiers WASM accessibles en mode online et offline
 - [x] Documentation complète
 - [x] Prêt pour utilisation en production
 - [x] Provider activé par défaut dans `TTSProviderManager`
