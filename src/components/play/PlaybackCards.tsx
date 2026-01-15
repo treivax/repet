@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
+import { useState } from 'react'
 import type { Character } from '../../core/models/Character'
 import type {
   PlaybackItem,
@@ -17,9 +18,9 @@ import { generateCharacterColor } from '../../utils/colors'
  * Props communes pour toutes les cartes de lecture
  */
 interface BaseCardProps {
-  isPlaying: boolean
-  hasBeenPlayed: boolean
-  onClick: () => void
+  isPlaying?: boolean
+  hasBeenPlayed?: boolean
+  onClick?: () => void
 }
 
 /**
@@ -27,48 +28,102 @@ interface BaseCardProps {
  * Style discret comme les répliques, texte en italique
  */
 interface StageDirectionCardProps extends BaseCardProps {
-  item: StageDirectionPlaybackItem
+  item?: StageDirectionPlaybackItem
+  text?: string
+  testId?: string
 }
 
 export function StageDirectionCard({
   item,
-  isPlaying,
-  hasBeenPlayed: _hasBeenPlayed,
+  text,
+  isPlaying = false,
+  hasBeenPlayed: _hasBeenPlayed = false,
   onClick,
+  testId,
 }: StageDirectionCardProps) {
+  const displayText = text || item?.text || ''
+  const [isClicked, setIsClicked] = useState(false)
+
   const cardClasses = `
-    my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
+    my-4 px-4 py-3 rounded-lg transition-all text-left w-full
+    ${onClick ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/20' : 'cursor-pointer'}
     ${
       isPlaying
         ? 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
-        : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
+        : isClicked
+          ? 'bg-gray-100 dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700'
+          : ''
     }
   `.trim()
+
+  const content = (
+    <p
+      className={`
+        italic whitespace-pre-wrap
+        ${
+          isPlaying
+            ? 'text-blue-600 dark:text-blue-400 font-medium'
+            : 'text-gray-500 dark:text-gray-500'
+        }
+      `}
+    >
+      {displayText}
+    </p>
+  )
+
+  const handleMouseDown = () => {
+    setIsClicked(true)
+  }
+
+  const handleMouseUp = () => {
+    setIsClicked(false)
+  }
+
+  const handleTouchStart = () => {
+    setIsClicked(true)
+  }
+
+  const handleTouchEnd = () => {
+    setIsClicked(false)
+  }
+
+  if (!onClick) {
+    return (
+      <div
+        className={cardClasses}
+        data-testid={testId}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
+        {content}
+      </div>
+    )
+  }
 
   return (
     <button
       onClick={onClick}
       className={cardClasses}
-      aria-label={`Didascalie: ${item.text}`}
+      aria-label={`Didascalie: ${displayText}`}
+      data-testid={testId}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onClick()
         }
       }}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
-      <p
-        className={`
-          italic whitespace-pre-wrap
-          ${
-            isPlaying
-              ? 'text-blue-600 dark:text-blue-400 font-medium'
-              : 'text-gray-600 dark:text-gray-400'
-          }
-        `}
-      >
-        {item.text}
-      </p>
+      {content}
     </button>
   )
 }
@@ -78,18 +133,30 @@ export function StageDirectionCard({
  * Style discret comme les répliques, différencié par la typographie
  */
 interface StructureCardProps extends BaseCardProps {
-  item: StructurePlaybackItem
+  item?: StructurePlaybackItem
+  type?: 'title' | 'act' | 'scene'
+  text?: string
+  subtitle?: string
+  testId?: string
 }
 
 export function StructureCard({
   item,
-  isPlaying,
-  hasBeenPlayed: _hasBeenPlayed,
+  type,
+  text,
+  subtitle,
+  isPlaying = false,
+  hasBeenPlayed: _hasBeenPlayed = false,
   onClick,
+  testId,
 }: StructureCardProps) {
+  const structureType = type || item?.structureType || 'title'
+  const displayText = text || item?.text || ''
+  const [isClicked, setIsClicked] = useState(false)
+
   // Déterminer les classes de typographie selon le type de structure
   const getTypographyClasses = () => {
-    switch (item.structureType) {
+    switch (structureType) {
       case 'title':
         // Titre : très grand, gras, centré
         return 'text-4xl font-bold text-center'
@@ -113,29 +180,81 @@ export function StructureCard({
   }
 
   const cardClasses = `
-    my-4 px-4 py-6 rounded-lg cursor-pointer transition-all text-left w-full
+    my-4 px-6 py-4 rounded-lg transition-all text-left w-full
+    ${onClick ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/20' : 'cursor-pointer'}
     ${
       isPlaying
         ? 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
-        : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
+        : isClicked
+          ? 'bg-gray-100 dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700'
+          : ''
     }
   `.trim()
+
+  const content = (
+    <div className={`${getTypographyClasses()} ${getColorClasses()} whitespace-pre-wrap`}>
+      {displayText}
+      {subtitle && (
+        <span className="block text-xl font-normal mt-1 text-gray-600 dark:text-gray-400">
+          {subtitle}
+        </span>
+      )}
+    </div>
+  )
+
+  const handleMouseDown = () => {
+    setIsClicked(true)
+  }
+
+  const handleMouseUp = () => {
+    setIsClicked(false)
+  }
+
+  const handleTouchStart = () => {
+    setIsClicked(true)
+  }
+
+  const handleTouchEnd = () => {
+    setIsClicked(false)
+  }
+
+  if (!onClick) {
+    return (
+      <div
+        className={cardClasses}
+        data-testid={testId}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
+        {content}
+      </div>
+    )
+  }
 
   return (
     <button
       onClick={onClick}
       className={cardClasses}
-      aria-label={`${item.structureType}: ${item.text}`}
+      aria-label={`${structureType}: ${displayText}`}
+      data-testid={testId}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           onClick()
         }
       }}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
     >
-      <p className={`${getTypographyClasses()} ${getColorClasses()} whitespace-pre-wrap`}>
-        {item.text}
-      </p>
+      {content}
     </button>
   )
 }
@@ -147,38 +266,35 @@ export function StructureCard({
 interface PresentationCardProps extends BaseCardProps {
   item: PresentationPlaybackItem
   charactersMap?: Record<string, Character>
+  testId?: string
 }
 
 export function PresentationCard({
   item,
-  isPlaying,
-  hasBeenPlayed: _hasBeenPlayed,
+  isPlaying = false,
+  hasBeenPlayed: _hasBeenPlayed = false,
   onClick,
   charactersMap,
+  testId,
 }: PresentationCardProps) {
+  const [isClicked, setIsClicked] = useState(false)
+
   const cardClasses = `
-    my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
+    my-4 px-4 py-3 rounded-lg transition-all text-left w-full
+    ${onClick ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/20' : 'cursor-pointer'}
     ${
       isPlaying
         ? 'bg-blue-50 dark:bg-blue-900/10 shadow-md border-l-4 border-blue-500'
-        : 'hover:bg-gray-50 dark:hover:bg-gray-900/20'
+        : isClicked
+          ? 'bg-gray-100 dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700'
+          : ''
     }
   `.trim()
 
   const { castSection } = item
 
-  return (
-    <button
-      onClick={onClick}
-      className={cardClasses}
-      aria-label="Section de présentation (Cast)"
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onClick()
-        }
-      }}
-    >
+  const content = (
+    <>
       <h3
         className={`
           text-2xl font-bold text-center mb-4
@@ -196,7 +312,7 @@ export function PresentationCard({
               key={`text-${idx}`}
               className={`
               italic whitespace-pre-wrap
-              ${isPlaying ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}
+              ${isPlaying ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-500'}
             `}
             >
               {block}
@@ -244,6 +360,62 @@ export function PresentationCard({
             )
           })}
       </div>
+    </>
+  )
+
+  const handleMouseDown = () => {
+    setIsClicked(true)
+  }
+
+  const handleMouseUp = () => {
+    setIsClicked(false)
+  }
+
+  const handleTouchStart = () => {
+    setIsClicked(true)
+  }
+
+  const handleTouchEnd = () => {
+    setIsClicked(false)
+  }
+
+  if (!onClick) {
+    return (
+      <div
+        className={cardClasses}
+        data-testid={testId}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+      >
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      className={cardClasses}
+      aria-label="Section de présentation (Cast)"
+      data-testid={testId}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      {content}
     </button>
   )
 }
