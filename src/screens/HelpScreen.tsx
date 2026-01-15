@@ -183,24 +183,27 @@ export function HelpScreen() {
                     </span>
                   </h4>
                   <p className="text-gray-700 dark:text-gray-300 mb-2">
-                    Lecture audio de toutes les répliques avec synthèse vocale (mode carte).
+                    Lecture audio de toutes les répliques avec synthèse vocale offline (mode carte).
                   </p>
                   <ul className="list-disc list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
                     <li>Affichage en cartes cliquables (titre, actes, scènes, répliques)</li>
+                    <li>4 voix françaises de qualité : Siwis, Tom, Jessica, Pierre</li>
                     <li>Écoute automatique de toutes les répliques avec voix assignées</li>
                     <li>Suivi visuel du texte en cours de lecture</li>
                     <li>Contrôles : lecture, pause, ligne suivante/précédente</li>
-                    <li>Section de présentation des personnages lue avec voix off (si activée)</li>
-                    <li>Réglage de la voix off (rien, didascalies, structure, tout)</li>
+                    <li>
+                      Paramètres voix off : 3 toggles indépendants (didascalies, structure,
+                      présentation)
+                    </li>
                     <li>Utile pour mémoriser le rythme et l'enchaînement des répliques</li>
                   </ul>
                 </div>
 
-                {/* Mode Italien */}
+                {/* Mode Italienne */}
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
                     <span className="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900 px-3 py-1 text-sm text-green-800 dark:text-green-200">
-                      🎭 Italien
+                      🎭 Italienne
                     </span>
                   </h4>
                   <p className="text-gray-700 dark:text-gray-300 mb-2">
@@ -216,7 +219,7 @@ export function HelpScreen() {
                       Cliquez sur une ligne masquée pour révéler temporairement le texte si besoin
                     </li>
                     <li>Paramètres : afficher vos lignes avant/après la lecture</li>
-                    <li>Réglage de la voix off pour la structure et les didascalies</li>
+                    <li>3 toggles voix off indépendants : didascalies, structure, présentation</li>
                   </ul>
                 </div>
               </div>
@@ -235,28 +238,26 @@ export function HelpScreen() {
                   <strong>Votre personnage :</strong> Sélectionnez le rôle que vous jouez
                 </li>
                 <li>
-                  <strong>Voix par personnage :</strong> Assignez une voix de synthèse spécifique à
-                  chaque personnage
+                  <strong>Voix par personnage :</strong> Assignez une voix parmi les 4 voix
+                  disponibles (Siwis, Tom, Jessica, Pierre)
                 </li>
                 <li>
-                  <strong>Voix narrateur :</strong> Voix utilisée pour la voix off (structure,
-                  didascalies, présentation)
+                  <strong>Voix narrateur :</strong> Voix utilisée pour la voix off
                 </li>
                 <li>
                   <strong>Vitesse de lecture :</strong> Ajustez la vitesse de la synthèse vocale
                   (0.5x à 2x)
                 </li>
                 <li>
-                  <strong>Voix off :</strong> Choisissez ce qui est lu en voix off
+                  <strong>Voix off :</strong> 3 toggles indépendants pour contrôler ce qui est lu
                   <ul className="list-circle list-inside ml-6 mt-1 space-y-1 text-sm">
-                    <li>Rien : Uniquement les dialogues</li>
-                    <li>Didascalies : Dialogues + didascalies</li>
-                    <li>Structure : Dialogues + didascalies + structure (actes/scènes)</li>
-                    <li>Tout : Dialogues + didascalies + structure + section de présentation</li>
+                    <li>Didascalies : Lit les didascalies (dans et hors répliques)</li>
+                    <li>Structure : Lit les titres, actes et scènes</li>
+                    <li>Présentation : Lit la section de présentation des personnages (Cast)</li>
                   </ul>
                 </li>
                 <li>
-                  <strong>Options mode Italien :</strong>
+                  <strong>Options mode Italienne :</strong>
                   <ul className="list-circle list-inside ml-6 mt-1 space-y-1 text-sm">
                     <li>Masquer vos répliques : active/désactive le masquage</li>
                     <li>Afficher avant lecture : montre vos lignes avant qu'elles soient lues</li>
@@ -461,19 +462,23 @@ Je compte mes dépenses.`}
               <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300">
                 <li>
                   <strong>Progression graduée :</strong> Commencez en mode Silencieux, passez à
-                  Audio, puis Italien
+                  Audio, puis Italienne
                 </li>
                 <li>
                   <strong>Répétition ciblée :</strong> Utilisez le sommaire pour travailler une
                   scène spécifique
                 </li>
                 <li>
-                  <strong>Mode Italien progressif :</strong> Activez d'abord "Afficher avant" et
+                  <strong>Mode Italienne progressif :</strong> Activez d'abord "Afficher avant" et
                   "Afficher après", puis désactivez-les au fur et à mesure
                 </li>
                 <li>
                   <strong>Ajustez la vitesse :</strong> Ralentissez pour mémoriser, accélérez pour
                   tester votre réactivité
+                </li>
+                <li>
+                  <strong>Voix off personnalisée :</strong> Activez/désactivez indépendamment les
+                  didascalies, la structure et la présentation selon vos besoins
                 </li>
                 <li>
                   <strong>Thème sombre :</strong> Activez le mode sombre pour réduire la fatigue

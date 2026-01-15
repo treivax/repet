@@ -5,7 +5,9 @@
  * the same text multiple times. Uses IndexedDB for persistent storage.
  */
 
-interface CachedAudio {
+import { audioCompressionService } from './AudioCompressionService'
+
+export interface CachedAudio {
   key: string
   blob: Blob
   text: string
@@ -18,6 +20,20 @@ interface CachedAudio {
   createdAt: number
   lastAccess: number
   accessCount: number
+}
+
+export type CacheEntry = CachedAudio
+
+export interface CacheMetadata {
+  rate?: number
+  pitch?: number
+  volume?: number
+}
+
+export interface CacheStats {
+  count: number
+  size: number
+  sizeFormatted: string
 }
 
 export class AudioCacheService {
@@ -116,6 +132,7 @@ export class AudioCacheService {
 
   /**
    * Store audio in cache
+   * Phase 2: Integrates audio compression for space optimization
    */
   async cacheAudio(
     text: string,
@@ -134,9 +151,32 @@ export class AudioCacheService {
     console.warn(`[AudioCache] 💾 Mise en cache avec clé: ${key}`)
     const now = Date.now()
 
+    // Phase 2: Try compression if beneficial
+    let finalBlob = blob
+    const originalSize = blob.size
+
+    try {
+      const result = await audioCompressionService.compress(blob)
+      const compressionRatio = result.compressionRatio
+
+      // Only use compression if it saves at least 10% space
+      if (compressionRatio < 0.9) {
+        finalBlob = result.blob
+        console.warn(
+          `[AudioCache] 🗜️ Compression réussie: ${originalSize} → ${result.compressedSize} bytes (${Math.round((1 - compressionRatio) * 100)}% économisé)`
+        )
+      } else {
+        console.warn(
+          `[AudioCache] ⚠️ Compression non rentable (${Math.round(compressionRatio * 100)}%), conservation de l'original`
+        )
+      }
+    } catch (error) {
+      console.warn('[AudioCache] ⚠️ Erreur de compression, utilisation du blob original:', error)
+    }
+
     const cached: CachedAudio = {
       key,
-      blob,
+      blob: finalBlob,
       text,
       voiceId,
       settings,
@@ -152,7 +192,7 @@ export class AudioCacheService {
 
       request.onsuccess = () => {
         console.warn(
-          `[AudioCache] ✅ Audio mis en cache avec succès (clé: ${key}, taille: ${blob.size} bytes)`
+          `[AudioCache] ✅ Audio mis en cache avec succès (clé: ${key}, taille: ${finalBlob.size} bytes)`
         )
         // Check cache size and cleanup if needed
         this.cleanupIfNeeded().catch(console.error)

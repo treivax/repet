@@ -15,6 +15,7 @@ import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts/engine'
 import { ttsProviderManager } from '../core/tts/providers'
 import type { VoiceGender } from '../core/tts/types'
+import { useAudioOptimization } from '../hooks/useAudioOptimization'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
 import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
@@ -240,6 +241,52 @@ export function PlayScreen() {
 
     initializeTTS()
   }, [playId, currentPlay, getPlaySettings])
+
+  // Phase 1 Optimizations: Voice preload & audio prefetch
+  const { preloadSceneVoices, prefetchNextLines } = useAudioOptimization()
+
+  // Précharger les voix de la scène actuelle au montage
+  useEffect(() => {
+    if (!currentPlay || !playSettings || !playId) return
+
+    const act = currentPlay.ast.acts[currentActIndex]
+    const scene = act?.scenes[currentSceneIndex]
+    if (!scene) return
+
+    // Collecter les voix utilisées dans la scène
+    const voiceIds = new Set<string>()
+    const assignmentMap = playSettings.characterVoicesPiper
+
+    // Parcourir les lignes de la scène
+    scene.lines.forEach((line) => {
+      if (line.characterId && assignmentMap[line.characterId]) {
+        voiceIds.add(assignmentMap[line.characterId])
+      }
+      if (line.characterIds) {
+        line.characterIds.forEach((charId) => {
+          if (assignmentMap[charId]) {
+            voiceIds.add(assignmentMap[charId])
+          }
+        })
+      }
+    })
+
+    // Ajouter la voix du narrateur si nécessaire
+    if (assignmentMap['__narrator__']) {
+      voiceIds.add(assignmentMap['__narrator__'])
+    }
+
+    // Précharger toutes les voix
+    if (voiceIds.size > 0) {
+      console.warn(`[PlayScreen] 🚀 Préchargement de ${voiceIds.size} voix pour la scène...`)
+      // Convertir en Map avec usage count = 1 pour chaque voix
+      const voiceUsageMap: Record<string, number> = {}
+      voiceIds.forEach((id) => {
+        voiceUsageMap[id] = 1
+      })
+      preloadSceneVoices(voiceUsageMap)
+    }
+  }, [currentPlay, currentActIndex, currentSceneIndex, playSettings, playId, preloadSceneVoices])
 
   // Nettoyer TTS et arrêter la lecture au démontage
   useEffect(() => {
@@ -1060,6 +1107,45 @@ export function PlayScreen() {
       )
       if (currentItem) {
         playNextPlaybackItem(currentItem.index)
+      }
+
+      // Phase 1 Optimization: Prefetch des 2-3 prochaines répliques
+      if (currentItem && playSettings && currentPlay) {
+        const nextLines: Array<{ text: string; voiceId: string }> = []
+
+        // Collecter les 2-3 prochaines répliques de type 'line'
+        for (
+          let i = currentItem.index + 1;
+          i < Math.min(currentItem.index + 4, playbackSequence.length);
+          i++
+        ) {
+          const nextItem = playbackSequence[i]
+          if (nextItem.type === 'line') {
+            const lineItem = nextItem as LinePlaybackItem
+            const coords = getLineCoordinates(lineItem.lineIndex)
+            if (coords) {
+              const { line } = coords
+              let charId = line.characterId
+              if (line.characterIds && line.characterIds.length > 0) {
+                charId = line.characterIds[0]
+              }
+              const assignedVoiceId = charId ? playSettings.characterVoicesPiper[charId] : ''
+              if (assignedVoiceId && line.text) {
+                nextLines.push({ text: line.text, voiceId: assignedVoiceId })
+              }
+            }
+          }
+        }
+
+        if (nextLines.length > 0) {
+          console.warn(`[PlayScreen] 🔄 Prefetch de ${nextLines.length} prochaines répliques...`)
+          const prefetchItems = nextLines.map((line, idx) => ({
+            id: `prefetch_${currentItem.index + idx + 1}`,
+            text: line.text,
+            voiceId: line.voiceId,
+          }))
+          prefetchNextLines(prefetchItems)
+        }
       }
     })
 

@@ -10,9 +10,9 @@
     "prebuild": "npm run lint && npm run type-check",
     "build": "npm run build:offline && npm run build:online",
     "prebuild:offline": "npm run lint && npm run type-check",
-    "build:offline": "vite build --config vite.config.offline.ts --outDir dist-offline",
+    "build:offline": "npm run bump-version:build && vite build --config vite.config.offline.ts --outDir dist-offline",
     "prebuild:online": "npm run lint && npm run type-check",
-    "build:online": "vite build --config vite.config.online.ts --outDir dist-online",
+    "build:online": "npm run bump-version:build && vite build --config vite.config.online.ts --outDir dist-online",
     "preview": "vite preview",
     "preview:offline": "vite preview --outDir dist-offline",
     "preview:online": "vite preview --outDir dist-online",
@@ -34,7 +34,12 @@
     "deploy:offline": "npm run build:offline && echo 'Build offline complete! Deploy dist-offline/ to app.repet.com'",
     "deploy:online": "npm run build:online && echo 'Build online complete! Deploy dist-online/ to ios.repet.com'",
     "deploy:netlify": "netlify deploy --prod",
-    "deploy:vercel": "vercel --prod"
+    "deploy:vercel": "vercel --prod",
+    "bump-version": "node scripts/bump-version.js",
+    "bump-version:patch": "node scripts/bump-version.js patch",
+    "bump-version:minor": "node scripts/bump-version.js minor",
+    "bump-version:major": "node scripts/bump-version.js major",
+    "bump-version:build": "echo 'Build with version' $(node -p \"require('./package.json').version\")"
   },
   "dependencies": {
     "@mintplex-labs/piper-tts-web": "^1.0.4",

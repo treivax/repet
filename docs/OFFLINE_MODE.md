@@ -43,8 +43,10 @@ L'application intègre **4 voix françaises de qualité moyenne** :
 |---------------|-------|--------|-------------|
 | `fr_FR-siwis-medium` | Femme | ~15 MB | Voix féminine claire et naturelle |
 | `fr_FR-tom-medium` | Homme | ~15 MB | Voix masculine posée |
-| `fr_FR-upmc-medium` | Femme | ~16 MB | Jessica, voix féminine expressive |
-| `fr_FR-mls-medium` | Homme | ~14 MB | Pierre, voix masculine dynamique |
+| `fr_FR-upmc-medium` (speaker #0) | Femme | ~16 MB | Jessica, voix féminine expressive |
+| `fr_FR-upmc-medium` (speaker #1) | Homme | ~16 MB | Pierre, voix masculine (multi-speaker) |
+
+**Note** : Pierre utilise le même modèle ONNX que Jessica (`fr_FR-upmc-medium`) mais avec un `speakerId` différent (speaker #1). Le fork `piper-tts-web-patched` permet de sélectionner le speaker.
 
 #### Structure des Fichiers
 
@@ -58,16 +60,15 @@ public/voices/
 ├── fr_FR-tom-medium/
 │   ├── fr_FR-tom-medium.onnx
 │   └── fr_FR-tom-medium.onnx.json
-├── fr_FR-upmc-medium/
-│   ├── fr_FR-upmc-medium.onnx
+├── fr_FR-upmc-medium/               # Modèle multi-speaker
+│   ├── fr_FR-upmc-medium.onnx       # Contient Jessica (speaker #0) et Pierre (speaker #1)
 │   └── fr_FR-upmc-medium.onnx.json
-├── fr_FR-mls-medium/
-│   ├── fr_FR-mls-medium.onnx
-│   └── fr_FR-mls-medium.onnx.json
 └── manifest.json                     # Manifeste des modèles
 ```
 
-**Taille totale** : ~60 MB (modèles) + ~15 MB (WASM) = **~75 MB**
+**Taille totale** : ~46 MB (3 modèles ONNX) + ~15 MB (WASM) = **~61 MB**
+
+**Note** : Le modèle UPMC est multi-speaker et contient 2 voix (Jessica et Pierre) dans un seul fichier `.onnx`.
 
 ---
 

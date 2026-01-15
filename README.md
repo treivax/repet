@@ -1,454 +1,316 @@
-# Répét
+# Répét 🎭
 
-Application PWA de répétition de théâtre en italiennes.
+Application PWA de répétition de théâtre en italiennes avec synthèse vocale offline.
 
-## 🎭 À propos
+## 🎯 À propos
 
-**Répét** est une application web progressive (PWA) open-source conçue pour faciliter la répétition de pièces de théâtre en mode "italiennes". Elle permet aux comédiens de :
+**Répét** est une Progressive Web App (PWA) open-source conçue pour aider les comédiens à mémoriser leurs textes et répéter leurs scènes. Elle propose :
 
-- Importer des textes de pièces au format `.txt`
-- Lire silencieusement ou avec synthèse vocale (TTS)
-- **Pratiquer en mode "italiennes"** avec masquage de leurs propres répliques pour les réciter de mémoire
-- Révéler temporairement une réplique en cas de trou de mémoire
-- Gérer plusieurs pièces et personnages
-- Travailler hors-ligne grâce au stockage local
+- 📖 **Lecture silencieuse** - Lecture classique à votre rythme
+- 🔊 **Mode Audio** - Synthèse vocale pour toutes les répliques
+- 🎭 **Mode Italienne** - Vos répliques sont masquées pour tester votre mémoire
+- 🎤 **Voix offline** - 4 voix françaises de haute qualité embarquées (Piper TTS)
+- 💾 **100% hors ligne** - Fonctionne sans connexion après installation
+- 📱 **Multi-plateforme** - Desktop, Android, iOS
 
 ## 🚀 Stack Technique
 
-- **React 18** + **TypeScript** - Interface utilisateur moderne et type-safe
-- **Vite** - Build tool rapide avec HMR
-- **Tailwind CSS** - Styling utilitaire avec support du mode sombre
-- **React Router** - Navigation côté client
-- **Zustand** - Gestion d'état légère et performante avec persistance
-- **Dexie.js** - Abstraction IndexedDB pour stockage local
-- **Web Speech API** - Synthèse vocale native du navigateur
-- **PWA** - Application installable, fonctionnelle hors-ligne
-- **Mode Italiennes** - Masquage intelligent des répliques pour répétition
+- **React 18** + **TypeScript** - Interface moderne et type-safe
+- **Vite** - Build ultra-rapide avec HMR
+- **Tailwind CSS** - Styling avec support mode sombre
+- **Zustand** - State management avec persistance
+- **Dexie.js** - Stockage local IndexedDB
+- **Piper TTS** - Synthèse vocale offline de qualité (ONNX)
+- **PWA** - Application installable fonctionnant hors ligne
 
 ## 📋 Prérequis
 
-- **Node.js** 18+ 
-- **npm** 7+
+- **Node.js** 18+
+- **npm** 9+
 
-## 🚀 Installation et Développement
+## 🛠️ Installation
 
 ```bash
-# Cloner le repository
-git clone https://github.com/OWNER/repet.git
+# Cloner le projet
+git clone https://github.com/ecanasso/repet.git
 cd repet
 
 # Installer les dépendances
 npm install
 
-# Télécharger les modèles vocaux (~268 MB)
+# Télécharger les voix (~268 MB)
 npm run download-models
-
-# Développement version offline (default)
-npm run dev:offline
-
-# Développement version online (iOS)
-npm run dev:online
-```
-
-## 📦 Déploiement
-
-Répét utilise une architecture dual-build pour optimiser l'expérience utilisateur selon la plateforme :
-
-### Architecture de déploiement
-
-- **Build OFFLINE** (~675 MB) : Version complète avec toutes les voix embarquées
-  - URL : `https://app.repet.ecanasso.org`
-  - Cible : Desktop (Chrome, Firefox, Edge, Safari) et Android
-  
-- **Build ONLINE** (~10 MB) : Version légère qui télécharge les voix à la demande
-  - URL : `https://ios.repet.ecanasso.org`
-  - Cible : iOS/Safari/macOS (compatible avec les limites de stockage iOS)
-
-### Déploiement automatique
-
-Le déploiement se fait automatiquement via GitHub Actions à chaque push sur `main` :
-
-```bash
-# Build les deux versions
-npm run build
-
-# Le workflow GitHub Actions déploie automatiquement :
-# - dist-offline/ vers app.repet.ecanasso.org
-# - dist-online/ vers ios.repet.ecanasso.org
-```
-
-### Configuration requise
-
-Pour configurer le déploiement automatique sur O2switch :
-
-1. Suivre le guide complet : [`deployment/O2SWITCH_DEPLOYMENT.md`](deployment/O2SWITCH_DEPLOYMENT.md)
-2. Utiliser la checklist : [`deployment/SETUP_CHECKLIST.md`](deployment/SETUP_CHECKLIST.md)
-
-**Secrets GitHub requis :**
-- `O2SWITCH_HOST` : Hôte SSH
-- `O2SWITCH_PORT` : Port SSH (généralement 2222)
-- `O2SWITCH_USERNAME` : Nom d'utilisateur cPanel
-- `O2SWITCH_SSH_KEY` : Clé privée SSH pour le déploiement
-- `O2SWITCH_PATH_OFFLINE` : Chemin vers le dossier offline
-- `O2SWITCH_PATH_ONLINE` : Chemin vers le dossier online
-
-Voir [`deployment/O2SWITCH_DEPLOYMENT.md`](deployment/O2SWITCH_DEPLOYMENT.md) pour les instructions détaillées.
-
-### Déploiement manuel
-
-Si nécessaire, vous pouvez déployer manuellement via rsync :
-
-```bash
-# Build local
-npm run build
-
-# Déployer la version offline
-rsync -avz --delete \
-  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
-  dist-offline/ \
-  user@ecanasso.org:/home/user/public_html/app.repet.ecanasso.org/
-
-# Déployer la version online
-rsync -avz --delete \
-  -e "ssh -i ~/.ssh/o2switch_deploy_repet -p 2222" \
-  dist-online/ \
-  user@ecanasso.org:/home/user/public_html/ios.repet.ecanasso.org/
-```
-
-## 🏗️ Build de Production
-
-### Build des deux versions
-
-```bash
-# Build complet (offline + online)
-npm run build
-
-# Build offline uniquement
-npm run build:offline
-
-# Build online uniquement
-npm run build:online
-```
-
-### Structure des builds
-
-```
-repet/
-├── dist-offline/     # Version offline (~675 MB)
-│   └── voices/       # Voix embarquées
-└── dist-online/      # Version online (~5-10 MB)
-    └── (pas de dossier voices/)
-```
-
-### Preview
-
-```bash
-# Preview version offline
-npm run preview:offline
-
-# Preview version online
-npm run preview:online
-```
-
-## 📦 Déploiement
-
-### Version Offline → app.repet.com
-
-```bash
-npm run build:offline
-# Déployer dist-offline/
-```
-
-### Version Online → ios.repet.com
-
-```bash
-npm run build:online
-# Déployer dist-online/
-# + Héberger les voix sur CDN (voir docs/CDN_SETUP.md)
-```
-
-📚 **Guide de déploiement** : Voir [docs/TWO_BUILDS_ARCHITECTURE.md](docs/TWO_BUILDS_ARCHITECTURE.md) et [docs/CDN_SETUP.md](docs/CDN_SETUP.md)
-
-## 📱 Deux Versions Disponibles
-
-Répét est disponible en **deux versions** pour s'adapter aux contraintes des différentes plateformes :
-
-### 🖥️ Version Offline - Desktop/Android
-
-**URL** : https://app.repet.com
-
-- ✅ **100% hors ligne** après le premier chargement
-- ✅ **Toutes les voix embarquées** (~675 MB)
-- ✅ Compatible **Desktop** (Chrome, Firefox, Edge, Safari) et **Android**
-- ✅ Expérience optimale pour répétitions sans connexion
-
-### 📱 Version Online - iOS/Safari/macOS
-
-**URL** : https://ios.repet.com
-
-- ✅ **Léger** : ~5-10 MB seulement
-- ✅ **Compatible iOS/Safari** : respecte les limites de stockage strictes
-- ✅ Les voix sont **téléchargées à la demande** depuis le CDN
-- ✅ **Cache intelligent** avec stratégie LRU
-- ⚠️ **Nécessite Internet** pour le téléchargement initial des voix
-
-### 🎯 Quelle Version Choisir ?
-
-| Plateforme | Version Recommandée |
-|------------|---------------------|
-| Desktop (Chrome, Firefox, Edge) | **Offline** |
-| Android moderne | **Offline** |
-| iOS / iPhone / iPad | **Online** |
-| macOS Safari | **Online** |
-
-📚 **Documentation complète** : Voir [docs/TWO_BUILDS_ARCHITECTURE.md](docs/TWO_BUILDS_ARCHITECTURE.md)
-
-### Documentation Complète
-
-- **[OFFLINE_QUICKSTART.md](OFFLINE_QUICKSTART.md)** - Guide de démarrage rapide
-- **[docs/OFFLINE_MODE.md](docs/OFFLINE_MODE.md)** - Documentation technique complète
-- **[OFFLINE_MODE_READY.md](OFFLINE_MODE_READY.md)** - Instructions de test
-
-### Commandes
-
-```bash
-# Télécharger/re-télécharger les modèles
-npm run download-models
-
-# Vérifier les fichiers
-ls public/voices/  # 4 dossiers de modèles
-ls public/wasm/    # Fichiers WASM Piper + ONNX
-
-# Build avec tous les assets
-npm run build      # dist/ contient tout (~390 MB)
-```
-
----
-
-## 🚀 Installation
-
-```bash
-# Cloner le dépôt
-git clone https://github.com/votre-username/repet.git
-cd repet
-
-# Installer les dépendances
-npm install
 ```
 
 ## 💻 Développement
 
 ```bash
-# Lancer le serveur de développement
+# Mode développement (version offline par défaut)
 npm run dev
 
-# L'application sera accessible sur http://localhost:5173
+# Version online (iOS/léger)
+npm run dev:online
+
+# L'app sera sur http://localhost:5173
 ```
 
 ### Commandes disponibles
 
-| Commande | Description |
-|----------|-------------|
-| `npm run dev` | Lance le serveur de développement avec HMR |
-| `npm run build` | Compile l'application pour la production |
-| `npm run preview` | Prévisualise le build de production |
-| `npm run type-check` | Vérifie les types TypeScript sans compiler |
-| `npm run lint` | Analyse le code avec ESLint |
-| `npm run format` | Formate le code avec Prettier |
+```bash
+npm run dev              # Dev offline (défaut)
+npm run dev:online       # Dev online (iOS)
+npm run build            # Build offline + online
+npm run build:offline    # Build offline uniquement (~248 MB)
+npm run build:online     # Build online uniquement (~54 MB)
+npm run preview:offline  # Preview build offline
+npm run preview:online   # Preview build online
+npm run type-check       # Vérification TypeScript
+npm run lint             # Analyse ESLint
+npm run format           # Format Prettier
+```
 
-### 📱 Tester l'installation PWA
+## 📦 Architecture Dual-Build
 
-L'icône d'installation PWA n'apparaît **pas en mode dev** (`npm run dev`). Pour tester l'installation :
+Répét utilise deux builds optimisés pour différentes plateformes :
+
+### 🖥️ Build Offline (~248 MB)
+
+**Cible** : Desktop (Chrome, Firefox, Edge, Safari) et Android
+
+- ✅ 4 voix françaises embarquées (Siwis, Tom, Jessica, Pierre)
+- ✅ 100% fonctionnel hors ligne
+- ✅ Précache ~1.35 MB (assets légers)
+- ✅ Voix stockées hors précache (compatibilité iOS)
+
+**Déployer** : `dist-offline/` → https://app.repet.com
+
+### 📱 Build Online (~54 MB)
+
+**Cible** : iOS/Safari (limites strictes de stockage PWA)
+
+- ✅ Aucune voix embarquée
+- ✅ Téléchargement à la demande depuis CDN
+- ✅ Précache ~1.2 MB seulement
+- ✅ Cache OPFS persistant
+
+**Déployer** : `dist-online/` → https://ios.repet.com (+ CDN pour voix)
+
+📚 **Documentation complète** : [docs/TWO_BUILDS_ARCHITECTURE.md](docs/TWO_BUILDS_ARCHITECTURE.md)
+
+## 🌐 Déploiement
+
+### Build de production
 
 ```bash
-# Option 1 : Script automatique
-./test-pwa.sh
-
-# Option 2 : Manuellement
+# Build des deux versions
 npm run build
-npm run preview
-# Puis ouvrez http://localhost:4173 dans Chrome
+
+# Résultat :
+# - dist-offline/  (~248 MB)
+# - dist-online/   (~54 MB)
+```
+
+### Déploiement recommandé
+
+**Netlify / Vercel** (le plus simple)
+
+1. Connectez votre repo
+2. Configuration :
+   - Build command: `npm run build:offline` (ou `:online`)
+   - Publish directory: `dist-offline` (ou `dist-online`)
+3. Deploy !
+
+**GitHub Pages**
+
+Le workflow `.github/workflows/deploy.yml` est déjà configuré.
+Activez Pages dans Settings → Pages → Source: GitHub Actions
+
+**Serveur personnel**
+
+```bash
+# Via rsync/FTP : uploadez dist-offline/ ou dist-online/
+# Servir avec nginx/apache en mode SPA (fallback index.html)
+```
+
+📚 **Guide détaillé** : [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
+## 📱 Tester l'Installation PWA
+
+⚠️ L'icône d'installation n'apparaît **pas en dev** (`npm run dev`).
+
+### Pour tester l'installation :
+
+```bash
+npm run build:offline
+npm run preview:offline
+# Ouvrez http://localhost:4173 dans Chrome
 ```
 
 **Dans Chrome** :
-1. Attendez quelques secondes après le chargement
-2. Cherchez l'icône ⊕ dans la barre d'adresse (à droite de l'URL)
-3. Ou Menu (⋮) → "Installer Répét..."
-4. Cliquez pour installer l'application
+- Attendez quelques secondes
+- Icône ⊕ dans la barre d'adresse
+- Ou Menu (⋮) → "Installer Répét"
 
-**Vérification** :
-- Ouvrez DevTools (F12) → Onglet **Application**
-- Section **Manifest** : doit afficher le manifest de Répét
-- Section **Service Workers** : doit montrer un service worker actif
-
-**Alternative pour tester en dev** :
-Décommentez `devOptions.enabled: true` dans `vite.config.ts` (⚠️ peut causer des problèmes de cache)
-
-## 📦 Build Production
-
-```bash
-# Compiler l'application
-npm run build
-
-# Prévisualiser le build
-npm run preview
-```
-
-Le build sera généré dans le dossier `dist/`.
-
-## 🌐 Déploiement en production
-
-### Déploiement rapide (5 minutes)
-
-Voir **[DEPLOY_QUICKSTART.md](DEPLOY_QUICKSTART.md)** pour un guide express.
-
-### Options de déploiement
-
-| Plateforme | Difficulté | HTTPS | Déploiement auto | Gratuit |
-|------------|------------|-------|------------------|---------|
-| **Netlify** | ⭐ Facile | ✅ | ✅ | ✅ |
-| **Vercel** | ⭐ Facile | ✅ | ✅ | ✅ |
-| **GitHub Pages** | ⭐⭐ Moyen | ✅ | ✅ | ✅ |
-| **Serveur personnel** | ⭐⭐⭐ Avancé | ⚙️ | ❌ | Dépend |
-
-### Netlify (Recommandé)
-
-```bash
-# 1. Connectez votre repo sur netlify.com
-# 2. Configuration :
-#    Build command: npm run build
-#    Publish directory: dist
-# 3. Deploy !
-```
-
-Configuration incluse dans `netlify.toml` ✅
-
-### Vercel
-
-```bash
-# Via CLI
-npm install -g vercel
-vercel login
-vercel --prod
-
-# Ou via l'interface web vercel.com
-```
-
-### GitHub Pages
-
-```bash
-# Le workflow GitHub Actions est déjà configuré
-# Il suffit d'activer Pages dans Settings → Pages
-# Source: GitHub Actions
-```
-
-**Documentation complète** : [DEPLOYMENT.md](DEPLOYMENT.md)
-
-**Vérification après déploiement** :
-- ✅ Site accessible en HTTPS
-- ✅ PWA installable (icône ⊕ dans Chrome)
-- ✅ Service Worker actif (DevTools → Application)
-- ✅ Fonctionne hors ligne
+**Vérification DevTools (F12)** :
+- Onglet **Application** → **Manifest** (doit s'afficher)
+- **Service Workers** (doit être actif)
 
 ## 📁 Structure du Projet
 
 ```
 repet/
-├── public/                    # Fichiers statiques
-│   └── icons/                # Icônes PWA
+├── public/
+│   ├── icons/              # Icônes PWA
+│   ├── voices/             # Modèles Piper (3 voix FR)
+│   ├── wasm/               # ONNX Runtime + Piper phonemizer
+│   └── manifest.json
 ├── src/
-│   ├── core/                 # Logique métier
-│   │   ├── parser/          # Parser de textes de pièces
-│   │   ├── storage/         # Gestion IndexedDB
-│   │   ├── tts/             # Text-to-Speech
-│   │   └── models/          # Types et interfaces TypeScript
-│   ├── state/               # State management (Zustand)
-│   ├── screens/             # Pages de l'application
-│   ├── components/          # Composants React réutilisables
-│   │   ├── common/         # Composants génériques
-│   │   ├── play/           # Composants liés aux pièces
-│   │   ├── settings/       # Composants de configuration
-│   │   └── reader/         # Composants de lecture
-│   ├── hooks/              # Custom React hooks
-│   ├── utils/              # Fonctions utilitaires
-│   ├── styles/             # Styles globaux
-│   ├── App.tsx             # Composant racine
-│   └── main.tsx            # Point d'entrée
-├── docs/                    # Documentation
-└── plans/                   # Plans de développement
+│   ├── core/
+│   │   ├── parser/        # Parser textes théâtre
+│   │   ├── storage/       # IndexedDB (Dexie)
+│   │   ├── tts/           # TTS offline (Piper)
+│   │   └── models/        # Types TypeScript
+│   ├── state/             # Zustand stores
+│   ├── screens/           # Pages React
+│   ├── components/        # Composants réutilisables
+│   ├── hooks/             # Custom hooks
+│   └── utils/             # Utilitaires
+├── docs/                  # Documentation technique
+├── examples/              # Exemples de pièces
+├── scripts/               # Scripts d'optimisation
+├── vite.config.offline.ts # Config build offline
+├── vite.config.online.ts  # Config build online
+└── README.md
 ```
-
-## 🧪 Tests
-
-Les tests manuels sont effectués pour chaque fonctionnalité :
-
-```bash
-# Vérifier les types
-npm run type-check
-
-# Lancer l'application
-npm run dev
-
-# Vérifier :
-# - Aucune erreur console
-# - Fonctionnalités nominales
-# - Responsive (mobile/desktop)
-# - Thème clair et sombre
-```
-
-## 🌐 Compatibilité Navigateurs
-
-- **Desktop** : Chrome, Firefox, Safari, Edge (dernières versions)
-- **iOS** : Safari 15+ (support PWA)
-- **Android** : Chrome 90+ (support PWA)
 
 ## 📚 Documentation
 
-### Guides Utilisateur
+### Pour Utilisateurs
 
-- [README.md](README.md) - Ce fichier
-- [OFFLINE_QUICKSTART.md](OFFLINE_QUICKSTART.md) - Mode déconnecté : guide rapide
+- **Aide intégrée** : Bouton "?" dans l'application
+- [USER_GUIDE.md](docs/USER_GUIDE.md) - Guide complet
 
-### Documentation Technique
+### Pour Développeurs
 
-- [Guide utilisateur](docs/USER_GUIDE.md) - Instructions complètes d'utilisation et mode italiennes
-- [Architecture](docs/ARCHITECTURE.md) - Documentation technique complète (AST, flux, stores)
-- [Parser](docs/PARSER.md) - Format de fichier théâtral et utilisation du parser
-- [Statut du projet](PROJECT_STATUS.md) - État d'avancement et roadmap
-- [Changelog](CHANGELOG.md) - Historique des versions
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Architecture technique
+- [PARSER.md](docs/PARSER.md) - Format de fichiers texte
+- [TWO_BUILDS_ARCHITECTURE.md](docs/TWO_BUILDS_ARCHITECTURE.md) - Builds offline/online
+- [OFFLINE_MODE.md](docs/OFFLINE_MODE.md) - Mode hors ligne
+- [BUILD_OPTIMIZATION_SUMMARY.md](docs/BUILD_OPTIMIZATION_SUMMARY.md) - Optimisations
+- [CHANGELOG.md](CHANGELOG.md) - Historique versions
+
+### Exemples
+
+Le dossier `examples/` contient des pièces d'exemple au format supporté :
+
+- `ALEGRIA.txt` - Exemple complet
+- `format-mixte.txt` - Plusieurs formats combinés
+- `format-sans-deux-points.txt` - Format alternatif
+- `section-cast-complete.txt` - Avec section Personnages
+- `uniquement-scenes.txt` - Sans actes
+- `sans-structure.txt` - Minimal
+
+## 🎨 Format des Fichiers Texte
+
+Répét accepte les fichiers `.txt` avec une structure flexible :
+
+```
+Titre de la Pièce
+
+Auteur: Nom de l'auteur
+Annee: 2024
+
+PERSONNAGES:
+HAMLET - Prince de Danemark
+OPHÉLIE - Fille de Polonius
+
+ACTE I
+
+Scène 1
+
+HAMLET:
+Être ou ne pas être, telle est la question.
+
+OPHÉLIE
+Monseigneur, j'ai des souvenirs de vous.
+(Elle lui tend des lettres)
+```
+
+**Formats supportés** :
+- Répliques avec deux-points : `HAMLET:`
+- Répliques sans deux-points : ligne vide + `HAMLET`
+- Didascalies : `(texte entre parenthèses)`
+- Section Personnages optionnelle
+- Structure flexible (actes/scènes optionnels)
+
+📚 **Documentation complète** : [docs/PARSER.md](docs/PARSER.md)
+
+## 🌐 Compatibilité
+
+| Plateforme | Navigateur | PWA Installable | Voix Offline |
+|------------|-----------|----------------|--------------|
+| **Desktop** | Chrome 90+ | ✅ | ✅ |
+| **Desktop** | Firefox 88+ | ✅ | ✅ |
+| **Desktop** | Edge 90+ | ✅ | ✅ |
+| **Desktop** | Safari 15+ | ✅ | ✅ |
+| **Android** | Chrome 90+ | ✅ | ✅ |
+| **iOS** | Safari 15+ | ✅ | ✅ (via CDN) |
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! Consultez les [plans de développement](plans/) pour voir les fonctionnalités en cours.
+Les contributions sont bienvenues !
 
-### Processus de contribution
+### Processus
 
 1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'feat: add amazing feature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
+2. Créer une branche : `git checkout -b feature/ma-feature`
+3. Commit : `git commit -m 'feat: ajout de ma feature'`
+4. Push : `git push origin feature/ma-feature`
 5. Ouvrir une Pull Request
 
-### Standards de code
+### Standards
 
-- TypeScript strict (pas de `any`)
-- Pas de hardcoding (utiliser des constantes)
-- Tests manuels systématiques
-- Documentation JSDoc pour les fonctions complexes
-- Respecter les conventions du projet (voir `.github/prompts/common.md`)
+- ✅ TypeScript strict (pas de `any`)
+- ✅ Pas de hardcoding (constantes nommées)
+- ✅ Tests manuels systématiques
+- ✅ JSDoc pour fonctions complexes
+- ✅ Copyright header MIT sur nouveaux fichiers
+
+📚 **Standards complets** : [.github/prompts/common.md](.github/prompts/common.md)
+
+## 🐛 Signaler un Bug
+
+Ouvrez une issue sur GitHub avec :
+
+- Description du problème
+- Étapes de reproduction
+- Navigateur et version
+- Captures d'écran si applicable
 
 ## 📄 Licence
 
-Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plus de détails.
+Ce projet est sous licence **MIT**.
+
+Copyright (c) 2025 Répét Contributors
+
+Voir [LICENSE](LICENSE) pour le texte complet.
+
+## 👤 Auteur
+
+**Xavier Talon**
+
+Ce logiciel open-source est fourni gracieusement par l'association **"En Compagnie des Alliés Nés"**.
 
 ## 🙏 Remerciements
 
+- [Piper TTS](https://github.com/rhasspy/piper) - Synthèse vocale offline de qualité
+- [ONNX Runtime](https://onnxruntime.ai/) - Inférence ML performante
 - [Vite](https://vitejs.dev/) - Build tool ultra-rapide
-- [React](https://react.dev/) - Bibliothèque UI
-- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS utilitaire
-- [Dexie.js](https://dexie.org/) - Wrapper IndexedDB élégant
-- [Zustand](https://github.com/pmndrs/zustand) - State management simple
+- [React](https://react.dev/) - Framework UI
+- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS
+- [Dexie.js](https://dexie.org/) - Wrapper IndexedDB
+- [Zustand](https://github.com/pmndrs/zustand) - State management
 
 ---
 
-**Répét** - Parce que la répétition est la clé de la performance 🎭
+**Répét** - Répétez, mémorisez, performez 🎭✨

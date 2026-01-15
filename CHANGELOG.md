@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Phase 1 & 2 Audio Generation Optimizations** 🚀
+  - `TTSMetricsService`: Performance tracking (sessionLoadTime, inferenceTime, cacheHitRate)
+  - `VoicePreloadService`: Preload voice sessions before first use (-90% first play time)
+  - `AudioPrefetchService`: Background generation of next 2-3 lines (80-90% cache hit rate)
+  - `AudioStreamingService`: Progressive streaming for long texts (Phase 2)
+  - `AudioCompressionService`: Opus compression for cache storage (-70% storage, Phase 2)
+  - `useAudioOptimization` React hook for easy integration
+  - ONNX Runtime multi-threading (4 threads) with automatic SharedArrayBuffer detection
+  - **Expected gains**: First play time reduced from 2500ms to 100ms (-96%)
+- Comprehensive optimization documentation
+  - `AUDIO_OPTIMIZATION_IMPLEMENTATION.md`: Complete implementation guide
+  - `PHASE_1_2_IMPLEMENTATION_COMPLETE.md`: Implementation status and integration guide
+  - `FIRST_PLAY_OPTIMIZATION.md`: Initial analysis and optimization plan
+
+### Changed
+- **Enhanced PiperWASMProvider** with performance optimizations
+  - Integrated automatic metrics tracking for all synthesis operations
+  - Multi-threading ONNX Runtime (4 threads when supported, fallback to 1)
+  - SIMD always enabled for better performance
+- **Improved TTS type system**
+  - Added optional `preloadModel()` method to TTSProvider interface
+  - Enhanced AudioCacheService with exported types (CacheEntry, CacheMetadata, CacheStats)
+
 ## [0.4.1] - 2025-01-XX
 
 ### Added

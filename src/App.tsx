@@ -11,6 +11,8 @@ import { Toast } from './components/common/Toast'
 import { HelpScreen } from './screens/HelpScreen'
 import { useUIStore } from './state/uiStore'
 import { InitializationModal } from './components/voice-preloader'
+import { UpdateManager } from './core/pwa/UpdateManager'
+import { logVersionInfo } from './config/version'
 
 function App() {
   const { setTheme } = useUIStore()
@@ -26,11 +28,17 @@ function App() {
     }
   }, [setTheme])
 
+  // Afficher les informations de version au démarrage
+  useEffect(() => {
+    logVersionInfo()
+  }, [])
+
   return (
     <>
       <Router />
       <Toast />
       <HelpScreen />
+      <UpdateManager checkInterval={60 * 60 * 1000} autoUpdate={false} />
       {!voicesLoaded && <InitializationModal onComplete={() => setVoicesLoaded(true)} />}
     </>
   )

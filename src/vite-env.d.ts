@@ -5,9 +5,12 @@
  */
 
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
   readonly VITE_BUILD_MODE: 'offline' | 'online'
+  readonly VITE_APP_VERSION?: string
+  readonly VITE_MODELS_CDN_URL?: string
 }
 
 interface ImportMeta {

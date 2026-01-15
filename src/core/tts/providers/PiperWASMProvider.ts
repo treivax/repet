@@ -14,6 +14,7 @@ import type {
 } from '../types'
 import { TtsSession, type VoiceId } from '@/lib/piper-tts-web-patched'
 import { audioCacheService } from '../services/AudioCacheService'
+import { ttsMetricsService } from '../services/TTSMetricsService'
 import * as ort from 'onnxruntime-web'
 import { ALL_VOICE_PROFILES, getVoiceProfile, applyBasicModifiers } from '../voiceProfiles'
 
@@ -143,14 +144,27 @@ export class PiperWASMProvider implements TTSProvider {
     console.warn('[PiperWASM] 🔧 Initialisation du provider...')
 
     // Configurer ONNX Runtime pour utiliser les fichiers WASM locaux
-    // Désactiver le multi-threading pour éviter les problèmes CORS
-    ort.env.wasm.numThreads = 1
+    // Phase 1 Optimization: Tenter d'activer multi-threading si supporté
+    // Détection du support SharedArrayBuffer pour le multi-threading
+    const supportsThreads = typeof SharedArrayBuffer !== 'undefined'
+
+    if (supportsThreads) {
+      // Multi-threading activé (nécessite COOP/COEP headers)
+      ort.env.wasm.numThreads = 4 // Utiliser 4 threads pour meilleure performance
+      console.warn('[PiperWASM]    - Threads: 4 (multi-threaded) ✅')
+    } else {
+      // Fallback single-thread si SharedArrayBuffer non disponible
+      ort.env.wasm.numThreads = 1
+      console.warn(
+        '[PiperWASM]    - Threads: 1 (single-threaded - SharedArrayBuffer non disponible)'
+      )
+    }
+
     ort.env.wasm.simd = true
     ort.env.wasm.wasmPaths = '/wasm/'
 
     console.warn('[PiperWASM] ✅ ONNX Runtime configuré')
     console.warn('[PiperWASM]    - WASM Path: /wasm/')
-    console.warn('[PiperWASM]    - Threads: 1 (single-threaded)')
     console.warn('[PiperWASM]    - SIMD: enabled')
 
     // Configurer les chemins WASM pour TtsSession (utilisés par predict())
@@ -340,6 +354,8 @@ export class PiperWASMProvider implements TTSProvider {
    */
   async synthesize(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
     const startTime = Date.now()
+    let sessionLoadTime: number | undefined
+    let inferenceTime = 0
 
     console.warn('[PiperWASM] synthesize() appelé avec voiceId:', options.voiceId)
 
@@ -389,9 +405,22 @@ export class PiperWASMProvider implements TTSProvider {
 
         this.currentAudio = audio
 
+        const totalTime = Date.now() - startTime
+
+        // Enregistrer les métriques (cache hit)
+        ttsMetricsService.recordSynthesis({
+          sessionLoadTime: undefined,
+          inferenceTime: 0,
+          totalTime,
+          fromCache: true,
+          voiceId: options.voiceId,
+          textLength: text.length,
+          audioSize: cachedBlob.size,
+        })
+
         return {
           audio,
-          duration: Date.now() - startTime,
+          duration: totalTime,
           fromCache: true,
         }
       } else {
@@ -439,7 +468,7 @@ export class PiperWASMProvider implements TTSProvider {
         // Mettre en cache la session (avec la voix de base)
         this.sessionCache.set(actualVoiceId, session)
 
-        const sessionLoadTime = Date.now() - sessionStartTime
+        sessionLoadTime = Date.now() - sessionStartTime
         console.warn(
           `[PiperWASM] ✅ Session créée et mise en cache pour ${modelConfig.piperVoiceId} (${sessionLoadTime}ms)`
         )
@@ -465,9 +494,9 @@ export class PiperWASMProvider implements TTSProvider {
 
       const synthesisStartTime = Date.now()
       const audioBlob = await session.predict(text)
-      const synthesisTime = Date.now() - synthesisStartTime
+      inferenceTime = Date.now() - synthesisStartTime
 
-      console.warn(`[PiperWASM] ✅ Synthèse terminée en ${synthesisTime}ms`)
+      console.warn(`[PiperWASM] ✅ Synthèse terminée en ${inferenceTime}ms`)
       console.warn(`[PiperWASM] ✅ Audio généré: ${audioBlob.size} bytes pour ${options.voiceId}`)
 
       // Mettre en cache
@@ -519,9 +548,22 @@ export class PiperWASMProvider implements TTSProvider {
 
       this.currentAudio = audio
 
+      const totalTime = Date.now() - startTime
+
+      // Enregistrer les métriques (cache miss)
+      ttsMetricsService.recordSynthesis({
+        sessionLoadTime,
+        inferenceTime,
+        totalTime,
+        fromCache: false,
+        voiceId: options.voiceId,
+        textLength: text.length,
+        audioSize: audioBlob.size,
+      })
+
       return {
         audio,
-        duration: Date.now() - startTime,
+        duration: totalTime,
         fromCache: false,
       }
     } catch (error) {

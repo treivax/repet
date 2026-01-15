@@ -39,17 +39,18 @@ export function getBuildMode(): BuildMode {
 const URL_MAPPINGS: URLMapping[] = [
   // HuggingFace - Modèles vocaux Piper
   // Pattern: https://huggingface.co/diffusionstudio/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
-  // Devient: /models/piper/fr_FR-siwis-medium.onnx
+  // Devient: /voices/fr_FR-siwis-medium/fr_FR-siwis-medium.onnx
   {
     pattern:
-      /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+\.(onnx|json))$/,
+      /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx|json)$/,
     localPath: (url: string) => {
       const match = url.match(
-        /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+\.(onnx|json))$/
+        /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx|json)$/
       )
       if (match) {
-        const fileName = match[1]
-        return `/models/piper/${fileName}`
+        const baseName = match[1] // e.g., "fr_FR-siwis-medium"
+        const extension = match[2] // e.g., "onnx" or "json"
+        return `/voices/${baseName}/${baseName}.${extension}`
       }
       return null
     },

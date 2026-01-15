@@ -10,6 +10,11 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
+import fs from 'fs'
+
+// Lire la version depuis package.json
+const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf-8'))
+const APP_VERSION = packageJson.version
 
 /**
  * Configuration Vite pour le build ONLINE
@@ -67,17 +72,14 @@ export default defineConfig({
     }),
     viteStaticCopy({
       targets: [
-        // Fichiers WASM de ONNX Runtime
+        // ✅ OPTIMISÉ : Ne copier QUE les fichiers WASM nécessaires (30 MB au lieu de 106 MB)
+        // ONNX Runtime - fichier WASM principal (multi-threaded avec SIMD)
         {
-          src: 'node_modules/onnxruntime-web/dist/*.wasm',
+          src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
           dest: 'wasm',
         },
         {
-          src: 'node_modules/onnxruntime-web/dist/*.mjs',
-          dest: 'wasm',
-        },
-        {
-          src: 'node_modules/onnxruntime-web/dist/*.js',
+          src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
           dest: 'wasm',
         },
         // Fichiers WASM de Piper (phonemize)
@@ -87,6 +89,10 @@ export default defineConfig({
         },
         {
           src: 'public/wasm/piper_phonemize.data',
+          dest: 'wasm',
+        },
+        {
+          src: 'public/wasm/piper_phonemize.js',
           dest: 'wasm',
         },
         // ✅ Copier manuellement les assets nécessaires depuis public/
@@ -104,6 +110,8 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'prompt',
+      // Inclure la version dans le nom du fichier SW pour forcer la mise à jour
+      injectRegister: 'auto',
       manifest: {
         name: 'Répét - Répétition Théâtre (Online)',
         short_name: 'Répét Online',
@@ -114,6 +122,7 @@ export default defineConfig({
         background_color: '#ffffff',
         theme_color: '#2563eb',
         orientation: 'any',
+        categories: ['entertainment', 'education'],
         icons: [
           {
             src: '/icons/icon-192.png',
@@ -129,12 +138,19 @@ export default defineConfig({
           },
         ],
       },
+      // Stratégie de mise à jour
       workbox: {
-        // Cache minimal pour iOS
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,mjs}'],
-        // Pas de gros fichiers à mettre en cache
-        globIgnores: ['**/voices/**/*', '**/wasm/ort-wasm-simd-threaded*.wasm'],
-        maximumFileSizeToCacheInBytes: 50 * 1024 * 1024, // 50 MB (limite iOS)
+        // Nettoyer les anciens caches lors de l'activation
+        cleanupOutdatedCaches: true,
+        // Cache minimal pour iOS - EXCLURE les gros fichiers WASM
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json}'],
+        // Exclure TOUS les fichiers du dossier wasm du precache (trop gros pour iOS)
+        globIgnores: [
+          '**/voices/**/*', // Modèles vocaux (téléchargés à la demande)
+          '**/wasm/**/*', // TOUS les fichiers WASM (chargés à la demande via runtime caching)
+        ],
+        // Limite stricte pour respecter les contraintes iOS
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB (strict pour iOS)
         runtimeCaching: [
           {
             // Cache les fonts Google
@@ -152,11 +168,27 @@ export default defineConfig({
             },
           },
           {
-            // Cache les fichiers voix depuis le CDN (stratégie CacheFirst avec LRU)
-            urlPattern: /^https:\/\/cdn\.repet\.com\/voices\/.*/i,
+            // Cache les fichiers WASM locaux (chargés à la demande, pas en precache)
+            urlPattern: /\/wasm\/.*\.(wasm|data|mjs)$/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'voice-models-cache',
+              cacheName: `wasm-runtime-cache-v${APP_VERSION}`,
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year (fichiers immuables)
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // Cache les fichiers voix depuis HuggingFace (stratégie NetworkFirst pour toujours avoir la dernière version)
+            urlPattern: /^https:\/\/huggingface\.co\/rhasspy\/piper-voices\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: `voice-models-cache-v${APP_VERSION}`,
+              networkTimeoutSeconds: 30,
               expiration: {
                 maxEntries: 5, // Maximum 5 voix en cache (environ 300-400 MB)
                 maxAgeSeconds: 60 * 60 * 24 * 30, // 30 jours
@@ -184,5 +216,7 @@ export default defineConfig({
   define: {
     // Variable d'environnement pour identifier le build
     'import.meta.env.VITE_BUILD_MODE': JSON.stringify('online'),
+    // Version de l'application
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION),
   },
 })

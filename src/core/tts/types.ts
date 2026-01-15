@@ -203,6 +203,9 @@ export interface TTSProvider {
   /** Synthétise du texte en audio */
   synthesize(text: string, options: SynthesisOptions): Promise<SynthesisResult>
 
+  /** Précharge un modèle de voix (optionnel) */
+  preloadModel?(voiceId: string, onProgress?: (percent: number) => void): Promise<void>
+
   /** Arrête la lecture en cours */
   stop(): void
 
