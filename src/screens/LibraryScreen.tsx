@@ -338,39 +338,6 @@ export function LibraryScreen() {
         />
       )}
 
-      {/* Empty State */}
-      {plays.length === 0 && (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 p-12 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-gray-100">
-            Aucune pièce
-          </h3>
-          <p className="mt-1 text-gray-600 dark:text-gray-400">
-            Commencez par importer votre première pièce
-          </p>
-          <div className="mt-6">
-            <Button
-              variant="primary"
-              onClick={() => document.getElementById('file-input')?.click()}
-            >
-              Importer une pièce
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* No Results */}
       {plays.length > 0 && filteredPlays.length === 0 && (
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-8 text-center">
