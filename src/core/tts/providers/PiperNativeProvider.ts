@@ -530,7 +530,7 @@ export class PiperNativeProvider implements TTSProvider {
 
     // Convertir en WAV
     const wavBuffer = this.pcmToWav(audioData, config.audio.sample_rate)
-    let audioBlob = new Blob([wavBuffer], { type: 'audio/wav' })
+    const audioBlob = new Blob([wavBuffer], { type: 'audio/wav' })
 
     // Note: Les modificateurs vocaux (rate, pitch, volume) seront appliqués
     // lors de la lecture audio, pas lors de la synthèse

@@ -64,7 +64,13 @@ export class PiperPhonemizer {
       })
 
       // Le script devrait avoir créé une fonction createPiperPhonemize globale
-      const createModule = (window as any).createPiperPhonemize
+      const createModule = (
+        window as {
+          createPiperPhonemize?: (
+            opts: Partial<PiperPhonemizeModule>
+          ) => Promise<PiperPhonemizeModule>
+        }
+      ).createPiperPhonemize
       if (!createModule) {
         throw new Error('createPiperPhonemize non trouvé')
       }
@@ -136,7 +142,7 @@ export class PiperPhonemizer {
       try {
         this.module.FS.unlink(inputPath)
         this.module.FS.unlink(outputPath)
-      } catch (e) {
+      } catch {
         // Ignorer les erreurs de nettoyage
       }
 
