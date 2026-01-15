@@ -21,6 +21,8 @@ import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
 
+import { pdfExportService } from '../core/export/pdfExportService'
+
 /**
  * Écran de lecture focalisée (mode lecteur)
  * Utilise les nouveaux composants et playSettingsStore
@@ -162,6 +164,36 @@ export function ReaderScreen() {
     }
   }
 
+  // Handler pour l'export PDF
+  const handleExportPDF = async () => {
+    if (!currentPlay) return
+
+    try {
+      startLoading()
+      const charactersMap = currentPlay.ast.characters.reduce(
+        (acc, char) => {
+          acc[char.id] = char
+          return acc
+        },
+        {} as Record<string, Character>
+      )
+
+      await pdfExportService.exportPlayToPDF(currentPlay, charactersMap, {
+        playTitle: getPlayTitle(currentPlay),
+        playAuthor: getPlayAuthor(currentPlay),
+        includeCover: true,
+        includeCast: true,
+        includePageNumbers: true,
+        theme: 'light', // Toujours clair pour l'impression
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error)
+      addError("Erreur lors de l'export PDF")
+    } finally {
+      stopLoading()
+    }
+  }
+
   // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
   const handleReadingModeClick = () => {
     if (playId) {
@@ -252,6 +284,7 @@ export function ReaderScreen() {
           ) : undefined
         }
         onBack={handleClose}
+        onExportPDF={handleExportPDF}
         testId="reader-header"
       />
 

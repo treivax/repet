@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **PDF Export Feature** 📄
+  - Export plays to A4 format PDF for printing or archiving
+  - Professional layout with cover page, cast section, and full content
+  - Automatic pagination with page numbers
+  - Optimized typography (Helvetica font, 11pt default)
+  - Smart page breaks to preserve readability
+  - Export button in PlayScreen and ReaderScreen headers
+  - Uses jsPDF and html2canvas libraries (~200 KB bundle size)
+  - Documentation in `docs/PDF_EXPORT.md`
 - **Phase 1 & 2 Audio Generation Optimizations** 🚀
   - `TTSMetricsService`: Performance tracking (sessionLoadTime, inferenceTime, cacheHitRate)
   - `VoicePreloadService`: Preload voice sessions before first use (-90% first play time)

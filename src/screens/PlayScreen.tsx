@@ -37,6 +37,8 @@ import type {
   PresentationPlaybackItem,
 } from '../core/models/types'
 
+import { pdfExportService } from '../core/export/pdfExportService'
+
 /**
  * Écran de lecture audio
  * Affiche tout le texte et permet la lecture audio au clic sur les répliques
@@ -1251,6 +1253,36 @@ export function PlayScreen() {
     }
   }
 
+  // Handler pour l'export PDF
+  const handleExportPDF = useCallback(async () => {
+    if (!currentPlay) return
+
+    try {
+      startLoading()
+      const charactersMap = currentPlay.ast.characters.reduce(
+        (acc, char) => {
+          acc[char.id] = char
+          return acc
+        },
+        {} as Record<string, Character>
+      )
+
+      await pdfExportService.exportPlayToPDF(currentPlay, charactersMap, {
+        playTitle: getPlayTitle(currentPlay),
+        playAuthor: getPlayAuthor(currentPlay),
+        includeCover: true,
+        includeCast: true,
+        includePageNumbers: true,
+        theme: 'light', // Toujours clair pour l'impression
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error)
+      addError("Erreur lors de l'export PDF")
+    } finally {
+      stopLoading()
+    }
+  }, [currentPlay, startLoading, stopLoading, addError])
+
   // Rendu
   if (!currentPlay) {
     return (
@@ -1304,6 +1336,7 @@ export function PlayScreen() {
           ) : undefined
         }
         onBack={handleClose}
+        onExportPDF={handleExportPDF}
         testId="play-header"
       />
 

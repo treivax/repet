@@ -10,6 +10,7 @@ Application PWA de répétition de théâtre en italiennes avec synthèse vocale
 - 🔊 **Mode Audio** - Synthèse vocale pour toutes les répliques
 - 🎭 **Mode Italienne** - Vos répliques sont masquées pour tester votre mémoire
 - 🎤 **Voix offline** - 4 voix françaises de haute qualité embarquées (Piper TTS)
+- 📄 **Export PDF** - Exportez vos pièces au format A4 pour l'impression
 - 💾 **100% hors ligne** - Fonctionne sans connexion après installation
 - 📱 **Multi-plateforme** - Desktop, Android, iOS
 

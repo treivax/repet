@@ -18,6 +18,8 @@ export interface ReadingHeaderProps {
   modeBadge?: React.ReactNode
   /** Callback pour le bouton retour */
   onBack: () => void
+  /** Callback pour l'export PDF (optionnel) */
+  onExportPDF?: () => void
   /** Test ID pour les tests */
   testId?: string
 }
@@ -31,6 +33,7 @@ export function ReadingHeader({
   author,
   modeBadge,
   onBack,
+  onExportPDF,
   testId = 'reading-header',
 }: ReadingHeaderProps) {
   const { toggleHelp, toggleTheme, theme } = useUIStore()
@@ -77,8 +80,28 @@ export function ReadingHeader({
           {modeBadge}
         </div>
 
-        {/* Droite : icônes aide et thème */}
+        {/* Droite : icônes export, aide et thème */}
         <div className="flex items-center gap-1">
+          {/* Icône Export PDF (uniquement si onExportPDF est fourni) */}
+          {onExportPDF && (
+            <button
+              onClick={onExportPDF}
+              className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Exporter en PDF"
+              title="Exporter en PDF"
+              data-testid="export-pdf-button"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </button>
+          )}
+
           {/* Icône d'aide */}
           <button
             onClick={toggleHelp}
