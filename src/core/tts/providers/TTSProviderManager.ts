@@ -5,21 +5,21 @@
  */
 
 import type { TTSProvider, VoiceDescriptor, SynthesisOptions, SynthesisResult } from '../types'
-import { PiperWASMProvider } from './PiperWASMProvider'
+import { PiperNativeProvider } from './PiperNativeProvider'
 
 /**
- * Gestionnaire centralisé du provider TTS Piper WASM
+ * Gestionnaire centralisé du provider TTS Piper Native
  */
 export class TTSProviderManager {
   private provider: TTSProvider
   private initialized = false
 
   constructor() {
-    this.provider = new PiperWASMProvider()
+    this.provider = new PiperNativeProvider()
   }
 
   /**
-   * Initialise le provider Piper WASM
+   * Initialise le provider Piper Native
    */
   async initialize(): Promise<void> {
     // Si déjà initialisé, ne rien faire
@@ -30,7 +30,7 @@ export class TTSProviderManager {
     // Vérifier disponibilité
     const availability = await this.provider.checkAvailability()
     if (!availability.available) {
-      throw new Error(`Piper WASM indisponible: ${availability.reason}`)
+      throw new Error(`Piper Native indisponible: ${availability.reason}`)
     }
 
     // Initialiser le provider
@@ -39,21 +39,21 @@ export class TTSProviderManager {
   }
 
   /**
-   * Récupère les voix du provider Piper WASM
+   * Récupère les voix du provider Piper Native
    */
   getVoices(): VoiceDescriptor[] {
     return this.provider.getVoices()
   }
 
   /**
-   * Récupère le provider actif
+   * Récupère le provider actif (Piper Native)
    */
   getActiveProvider(): TTSProvider {
     return this.provider
   }
 
   /**
-   * Synthétise du texte avec Piper WASM
+   * Synthétise du texte avec Piper Native
    */
   async speak(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
     return this.provider.synthesize(text, options)
