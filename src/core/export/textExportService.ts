@@ -132,24 +132,19 @@ export function exportPlayToText(play: PlayAST, options: TextExportOptions = {})
 
         if (line.type === 'dialogue') {
           // Réplique : PERSONNAGE: texte
-          // Trouver le personnage depuis l'AST
+          // Dans le parser, characterId et characterIds contiennent directement les NOMS (pas des UUIDs)
           let characterName = 'INCONNU'
-          if (line.characterId) {
-            const character = play.characters.find((c) => c.id === line.characterId)
-            if (character) {
-              characterName = character.name.toUpperCase()
-            }
-          } else if (line.isAllCharacters) {
+
+          if (line.isAllCharacters) {
             characterName = 'TOUS'
           } else if (line.characterIds && line.characterIds.length > 0) {
-            // Multi-personnages
-            const names = line.characterIds
-              .map((id) => {
-                const char = play.characters.find((c) => c.id === id)
-                return char ? char.name.toUpperCase() : null
-              })
-              .filter(Boolean)
-            characterName = names.join(', ')
+            // Multi-personnages ou personnage simple
+            // characterIds contient déjà les noms en majuscules
+            characterName = line.characterIds.join(', ')
+          } else if (line.characterId) {
+            // Fallback pour compatibilité
+            // characterId contient déjà le nom en majuscules
+            characterName = line.characterId
           }
 
           // Construire la ligne de réplique
