@@ -39,17 +39,18 @@ export function getBuildMode(): BuildMode {
 const URL_MAPPINGS: URLMapping[] = [
   // HuggingFace - Modèles vocaux Piper
   // Pattern: https://huggingface.co/diffusionstudio/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
-  // Devient: /voices/fr_FR-siwis-medium/fr_FR-siwis-medium.onnx
+  // Pattern: https://huggingface.co/diffusionstudio/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json
+  // Devient: /voices/fr_FR-siwis-medium/fr_FR-siwis-medium.onnx (ou .onnx.json)
   {
     pattern:
-      /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx|json)$/,
+      /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx(?:\.json)?|json)$/,
     localPath: (url: string) => {
       const match = url.match(
-        /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx|json)$/
+        /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx(?:\.json)?|json)$/
       )
       if (match) {
         const baseName = match[1] // e.g., "fr_FR-siwis-medium"
-        const extension = match[2] // e.g., "onnx" or "json"
+        const extension = match[2] // e.g., "onnx", "onnx.json", or "json"
         return `/voices/${baseName}/${baseName}.${extension}`
       }
       return null
