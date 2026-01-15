@@ -1,0 +1,62 @@
+# Configuration Apache pour le build ONLINE (ios.repet.ecanasso.org)
+# Ces headers sont nécessaires pour ONNX Runtime WASM avec SharedArrayBuffer
+
+<IfModule mod_headers.c>
+    # Headers globaux pour tous les fichiers
+    Header set Cross-Origin-Embedder-Policy "credentialless"
+    Header set Cross-Origin-Opener-Policy "same-origin"
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Cache pour les fichiers WASM (immutables)
+    <FilesMatch "\.(wasm|data)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Cache pour les assets JS/CSS
+    <FilesMatch "\.(js|mjs|css|jpg|jpeg|png|gif|svg|woff|woff2|ttf|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Pas de cache pour le Service Worker
+    <FilesMatch "^(sw|registerSW)\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+
+    # Cache court pour le manifest
+    <FilesMatch "\.webmanifest$">
+        Header set Cache-Control "public, max-age=86400"
+    </FilesMatch>
+</IfModule>
+
+# Compression gzip pour les fichiers texte
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE application/json application/xml
+    AddOutputFilterByType DEFLATE application/wasm
+</IfModule>
+
+# Types MIME corrects
+<IfModule mod_mime.c>
+    AddType application/wasm .wasm
+    AddType application/javascript .mjs
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+# Réécriture pour SPA (Single Page Application)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Ne pas réécrire les fichiers existants
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Rediriger tout vers index.html
+    RewriteRule . /index.html [L]
+</IfModule>

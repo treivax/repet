@@ -17,6 +17,7 @@ import { audioCacheService } from '../services/AudioCacheService'
 import { ttsMetricsService } from '../services/TTSMetricsService'
 import * as ort from 'onnxruntime-web'
 import { ALL_VOICE_PROFILES, getVoiceProfile, applyBasicModifiers } from '../voiceProfiles'
+import { BUILD_MODE } from '@/config/version'
 
 /**
  * Configuration d'un modèle Piper
@@ -145,20 +146,29 @@ export class PiperWASMProvider implements TTSProvider {
     console.warn('[PiperWASM] 🔧 Initialisation du provider...')
 
     // Configurer ONNX Runtime pour utiliser les fichiers WASM locaux
-    // Phase 1 Optimization: Tenter d'activer multi-threading si supporté
-    // Détection du support SharedArrayBuffer pour le multi-threading
-    const supportsThreads = typeof SharedArrayBuffer !== 'undefined'
+    // Mode ONLINE (iOS) : Single-thread (pas besoin de COOP/COEP headers)
+    // Mode OFFLINE (Desktop) : Multi-thread si supporté (meilleure performance)
 
-    if (supportsThreads) {
-      // Multi-threading activé (nécessite COOP/COEP headers)
-      ort.env.wasm.numThreads = 4 // Utiliser 4 threads pour meilleure performance
-      console.warn('[PiperWASM]    - Threads: 4 (multi-threaded) ✅')
-    } else {
-      // Fallback single-thread si SharedArrayBuffer non disponible
+    if (BUILD_MODE === 'online') {
+      // Mode ONLINE : Toujours single-thread pour compatibilité iOS
       ort.env.wasm.numThreads = 1
-      console.warn(
-        '[PiperWASM]    - Threads: 1 (single-threaded - SharedArrayBuffer non disponible)'
-      )
+      console.warn('[PiperWASM]    - Mode: ONLINE (iOS)')
+      console.warn('[PiperWASM]    - Threads: 1 (single-thread pour compatibilité)')
+    } else {
+      // Mode OFFLINE : Multi-threading si supporté
+      const supportsThreads = typeof SharedArrayBuffer !== 'undefined'
+
+      if (supportsThreads) {
+        ort.env.wasm.numThreads = 4
+        console.warn('[PiperWASM]    - Mode: OFFLINE (Desktop)')
+        console.warn('[PiperWASM]    - Threads: 4 (multi-threaded) ✅')
+      } else {
+        ort.env.wasm.numThreads = 1
+        console.warn('[PiperWASM]    - Mode: OFFLINE (Desktop)')
+        console.warn(
+          '[PiperWASM]    - Threads: 1 (single-threaded - SharedArrayBuffer non disponible)'
+        )
+      }
     }
 
     ort.env.wasm.simd = true

@@ -73,7 +73,7 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         // ✅ OPTIMISÉ : Ne copier QUE les fichiers WASM nécessaires (30 MB au lieu de 106 MB)
-        // ONNX Runtime - fichier WASM principal (multi-threaded avec SIMD)
+        // ONNX Runtime - fichier WASM principal (configuré en single-thread pour iOS)
         {
           src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
           dest: 'wasm',
@@ -102,6 +102,15 @@ export default defineConfig({
         },
         {
           src: 'public/vite.svg',
+          dest: '.',
+        },
+        // ✅ Headers pour COOP/COEP (nécessaire pour WASM avec SharedArrayBuffer)
+        {
+          src: 'public-online/_headers',
+          dest: '.',
+        },
+        {
+          src: 'public-online/.htaccess',
           dest: '.',
         },
         // ❌ Modèles de voix Piper (EXCLUS - seront téléchargés depuis CDN)
