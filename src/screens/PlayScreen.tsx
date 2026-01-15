@@ -1313,6 +1313,7 @@ export function PlayScreen() {
               readLinesSet={readLinesSet}
               charactersMap={charactersMap}
               playTitle={getPlayTitle(currentPlay)}
+              castSection={currentPlay.ast.metadata?.castSection}
               onLineClick={
                 playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
                   ? handleLineClick

@@ -309,6 +309,7 @@ export function ReaderScreen() {
             readLinesSet={readLinesSet}
             charactersMap={charactersMap}
             playTitle={getPlayTitle(currentPlay)}
+            castSection={currentPlay.ast.metadata?.castSection}
             onLongPress={playSettings.readingMode === 'silent' ? handleLongPress : undefined}
           />
         ) : (

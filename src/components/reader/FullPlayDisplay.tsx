@@ -7,7 +7,7 @@
 import { useRef, useEffect } from 'react'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
-import type { Act } from '../../core/models/Play'
+import type { Act, CastSection } from '../../core/models/Play'
 import { LineRenderer } from './LineRenderer'
 
 interface Props {
@@ -50,6 +50,9 @@ interface Props {
   /** Titre de la pièce */
   playTitle?: string
 
+  /** Section Cast (distribution des rôles) */
+  castSection?: CastSection
+
   /** Callback optionnel pour le clic sur une ligne (mode audio) */
   onLineClick?: (lineIndex: number) => void
 
@@ -90,6 +93,7 @@ export function FullPlayDisplay({
   readLinesSet,
   charactersMap,
   playTitle,
+  castSection,
   onLineClick,
   onLongPress,
   isPaused,
@@ -98,6 +102,14 @@ export function FullPlayDisplay({
   estimatedDuration,
   isGenerating,
 }: Props) {
+  // Fonction helper pour trouver un personnage par son nom
+  const findCharacterByName = (name: string): Character | undefined => {
+    const normalizedSearchName = name.trim().toUpperCase()
+    return Object.values(charactersMap).find(
+      (char) => char.name.trim().toUpperCase() === normalizedSearchName
+    )
+  }
+
   const containerRef = useRef<HTMLDivElement>(null)
   const currentLineRef = useRef<HTMLDivElement>(null)
 
@@ -136,6 +148,51 @@ export function FullPlayDisplay({
         {playTitle && (
           <div className="mb-8 text-center">
             <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">{playTitle}</h1>
+          </div>
+        )}
+
+        {/* Section Cast (Distribution des rôles) */}
+        {castSection && (
+          <div className="mb-12 px-4 py-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+            <h2 className="text-3xl font-bold text-center mb-6 text-gray-900 dark:text-gray-100">
+              Distribution des rôles
+            </h2>
+
+            <div className="space-y-4 max-w-2xl mx-auto">
+              {/* Blocs de texte libre (didascalies) */}
+              {castSection.textBlocks &&
+                castSection.textBlocks.map((block, idx) => (
+                  <p
+                    key={`text-${idx}`}
+                    className="italic text-gray-600 dark:text-gray-400 whitespace-pre-wrap"
+                  >
+                    {block}
+                  </p>
+                ))}
+
+              {/* Présentations de personnages */}
+              {castSection.presentations &&
+                castSection.presentations.map((presentation, idx) => {
+                  const character = findCharacterByName(presentation.characterName)
+                  const characterColor = character?.color || '#6366f1'
+
+                  return (
+                    <div key={`pres-${idx}`} className="mb-4">
+                      {/* Nom du personnage (gras + couleur) */}
+                      <div className="font-bold mb-1" style={{ color: characterColor }}>
+                        {presentation.characterName}
+                      </div>
+
+                      {/* Description (italique) */}
+                      {presentation.description && (
+                        <p className="italic text-gray-600 dark:text-gray-400 whitespace-pre-wrap ml-4">
+                          {presentation.description}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+            </div>
           </div>
         )}
 

@@ -155,6 +155,15 @@ export function PresentationCard({
   onClick,
   charactersMap,
 }: PresentationCardProps) {
+  // Fonction helper pour trouver un personnage par son nom
+  const findCharacterByName = (name: string): Character | undefined => {
+    if (!charactersMap) return undefined
+    const normalizedSearchName = name.trim().toUpperCase()
+    return Object.values(charactersMap).find(
+      (char) => char.name.trim().toUpperCase() === normalizedSearchName
+    )
+  }
+
   const cardClasses = `
     my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
     ${
@@ -205,7 +214,7 @@ export function PresentationCard({
         {/* Présentations de personnages */}
         {castSection.presentations &&
           castSection.presentations.map((presentation, idx) => {
-            const character = charactersMap?.[presentation.characterName]
+            const character = findCharacterByName(presentation.characterName)
             const characterColor = character?.color || '#6366f1'
 
             return (
