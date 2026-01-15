@@ -76,6 +76,7 @@ export interface VoiceProfile {
 
 /**
  * Profils vocaux prédéfinis pour Tom
+ * Réduits à 3 variantes les plus distinctes
  */
 export const TOM_VOICE_PROFILES: VoiceProfile[] = [
   {
@@ -91,48 +92,6 @@ export const TOM_VOICE_PROFILES: VoiceProfile[] = [
     characteristics: ['naturel', 'neutre'],
   },
   {
-    id: 'fr_FR-tom-medium-grave',
-    displayName: 'Tom Grave',
-    baseVoiceId: 'fr_FR-tom-medium',
-    description: 'Tom avec voix plus grave et posée',
-    modifiers: {
-      playbackRate: 0.9,
-      pitchShift: -2,
-      volume: 1.0,
-      bassBoost: 0.3,
-    },
-    perceivedGender: 'male',
-    characteristics: ['grave', 'posé', 'chaleureux'],
-  },
-  {
-    id: 'fr_FR-tom-medium-aigu',
-    displayName: 'Tom Vif',
-    baseVoiceId: 'fr_FR-tom-medium',
-    description: 'Tom avec voix plus dynamique et claire',
-    modifiers: {
-      playbackRate: 1.1,
-      pitchShift: 2,
-      volume: 0.95,
-      trebleBoost: 0.2,
-    },
-    perceivedGender: 'male',
-    characteristics: ['vif', 'énergique', 'clair'],
-  },
-  {
-    id: 'fr_FR-tom-medium-calme',
-    displayName: 'Tom Calme',
-    baseVoiceId: 'fr_FR-tom-medium',
-    description: 'Tom avec voix posée et rassurante',
-    modifiers: {
-      playbackRate: 0.95,
-      pitchShift: -1,
-      volume: 0.9,
-      bassBoost: 0.15,
-    },
-    perceivedGender: 'male',
-    characteristics: ['calme', 'rassurant', 'doux'],
-  },
-  {
     id: 'fr_FR-tom-medium-autoritaire',
     displayName: 'Tom Autoritaire',
     baseVoiceId: 'fr_FR-tom-medium',
@@ -144,7 +103,7 @@ export const TOM_VOICE_PROFILES: VoiceProfile[] = [
       bassBoost: 0.4,
     },
     perceivedGender: 'male',
-    characteristics: ['autoritaire', 'puissant', 'affirme'],
+    characteristics: ['autoritaire', 'puissant', 'grave'],
   },
   {
     id: 'fr_FR-tom-medium-jeune',
@@ -253,12 +212,22 @@ export const UPMC_VOICE_PROFILES: VoiceProfile[] = [
 ]
 
 /**
+ * Profils vocaux pour Pierre - DÉSACTIVÉS
+ *
+ * La bibliothèque @mintplex-labs/piper-tts-web ne supporte pas la sélection
+ * du speaker pour les modèles multi-speaker (speakerId hardcodé à 0).
+ * Le modèle UPMC a 2 speakers (jessica=0, pierre=1) mais seul jessica est accessible.
+ */
+export const PIERRE_VOICE_PROFILES: VoiceProfile[] = []
+
+/**
  * Tous les profils vocaux disponibles
  */
 export const ALL_VOICE_PROFILES: VoiceProfile[] = [
   ...TOM_VOICE_PROFILES,
   ...SIWIS_VOICE_PROFILES,
   ...UPMC_VOICE_PROFILES,
+  // PIERRE_VOICE_PROFILES désactivé (multi-speaker non supporté)
 ]
 
 /**
@@ -363,10 +332,7 @@ export function validateVoiceModifiers(modifiers: VoiceModifiers): {
  * Note: Les modificateurs avancés (pitchShift, trebleBoost, bassBoost)
  * nécessitent Web Audio API et seront appliqués via AudioContext.
  */
-export function applyBasicModifiers(
-  audio: HTMLAudioElement,
-  modifiers: VoiceModifiers
-): void {
+export function applyBasicModifiers(audio: HTMLAudioElement, modifiers: VoiceModifiers): void {
   // Appliquer les modificateurs de base supportés par HTMLAudioElement
   audio.playbackRate = modifiers.playbackRate
   audio.volume = modifiers.volume ?? 1.0

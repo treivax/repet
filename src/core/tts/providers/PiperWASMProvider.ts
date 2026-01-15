@@ -72,6 +72,23 @@ const PIPER_MODELS: PiperModelConfig[] = [
     piperVoiceId: 'fr_FR-upmc-medium',
     downloadSize: 16_000_000, // ~16MB
   },
+  // DÉSACTIVÉ : Pierre (fr_FR-upmc-pierre-medium) - Multi-speaker non supporté
+  // La bibliothèque @mintplex-labs/piper-tts-web ne permet pas de sélectionner
+  // le speaker pour les modèles multi-speaker (speakerId hardcodé à 0)
+  // Le modèle UPMC a 2 speakers (jessica=0, pierre=1) mais seul jessica est accessible
+  // {
+  //   id: 'fr_FR-upmc-pierre-medium',
+  //   name: 'fr_FR-upmc-pierre-medium',
+  //   displayName: 'Pierre (Homme, France)',
+  //   language: 'fr-FR',
+  //   gender: 'male',
+  //   provider: 'piper-wasm',
+  //   quality: 'medium',
+  //   isLocal: true,
+  //   requiresDownload: false, // Déjà dans le build (même modèle que UPMC, speaker #1)
+  //   piperVoiceId: 'fr_FR-upmc-medium#1',
+  //   downloadSize: 16_000_000, // ~16MB (partagé avec Jessica)
+  // },
   // DÉSACTIVÉ : Gilles (fr_FR-gilles-low) - Cause des erreurs ONNX Runtime
   // (Gather node index out of bounds - indices hors limites du modèle)
   // Les personnages utilisant Gilles doivent être réassignés à Tom

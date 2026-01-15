@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2025-01-15
+
+### ✨ Added
+
+- **Optimisation des profils vocaux masculins** - Tom réduit à 3 profils maximalement différents
+  - Normal (référence neutre), Autoritaire (pitchShift -3, très grave), Jeune (pitchShift +3, très aigu)
+  - Évite les redondances entre profils trop similaires (Grave/Calme/Vif supprimés)
+  - Diversité vocale maximisée avec moins de choix mais plus distincts
+- **Documentation mise à jour** - Profils optimisés documentés dans `docs/VOICE_PROFILES.md`
+
+### ⚠️ Known Issues
+
+- **Pierre (voix masculine) désactivé** - Limitation technique découverte
+  - La bibliothèque `@mintplex-labs/piper-tts-web` ne supporte pas la sélection du speaker pour les modèles multi-speaker
+  - Le modèle UPMC contient 2 speakers (jessica=0, pierre=1) mais seul jessica est accessible (speakerId hardcodé à 0)
+  - Pierre sera réactivé lorsqu'une solution sera trouvée (mise à jour bibliothèque, fork, ou provider alternatif)
+  - Code conservé mais commenté dans `PiperWASMProvider.ts` et `voiceProfiles.ts`
+
 ### ✨ Features
 
 #### Modes de Voix Off - Implémentation Complète (2025-01-XX)
@@ -101,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `voiceMigration.ts` : Gestion des migrations de voix obsolètes
   - `voiceDiagnostics.ts` : Détection des voix problématiques et analyse de texte
   - Détection automatique des patterns problématiques (???, !!!, onomatopées, didascalies)
-- **Voix masculine recommandée** - Tom (`fr_FR-tom-medium`) est maintenant la seule voix masculine fiable
+- **Voix masculines recommandées** - Tom (`fr_FR-tom-medium`) et Pierre (`fr_FR-upmc-pierre-medium`) sont les deux voix masculines fiables
 - **Note historique** - La voix MLS (`fr_FR-mls-medium`) avait été retirée précédemment pour audio distordu
 
 ### ✨ Features

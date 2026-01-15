@@ -13,22 +13,22 @@ Le système de profils vocaux permet de créer **plusieurs variantes perceptuell
 
 ## 🎯 Cas d'Usage
 
-### Problème : Une seule voix masculine (Tom)
+### Problème : Manque de diversité vocale masculine
 
-Avec la désactivation de Gilles et MLS, **Tom** est la seule voix masculine fiable. Pour une pièce avec 4 personnages masculins, tous auraient la même voix.
+Avec la désactivation de Gilles et MLS, **Tom** et **Pierre** sont les deux voix masculines fiables. Pour une pièce avec plusieurs personnages masculins, nous avons besoin de variété.
 
-### Solution : 6 profils de Tom
+### Solution : 3 profils distincts par voix masculine (Tom et Pierre)
 
 ```
-Tom Normal       → Roméo (voix naturelle)
-Tom Grave        → Le Père (voix autoritaire)
-Tom Vif          → Mercutio (voix énergique)
-Tom Calme        → Le Frère (voix rassurante)
-Tom Autoritaire  → Le Prince (voix puissante)
-Tom Jeune        → Benvolio (voix juvénile)
+Tom Normal          → Roméo (voix naturelle)
+Tom Autoritaire     → Le Père (voix grave et puissante)
+Pierre Autoritaire  → Le Prince (voix autoritaire)
+Pierre Jeune        → Mercutio (voix vive et énergique)
+Tom Jeune           → Benvolio (voix juvénile)
+Pierre Normal       → Narrateur (voix neutre)
 ```
 
-Chaque personnage garde la même voix de base (Tom) mais **sonne différemment** grâce aux modificateurs.
+Chaque voix a **3 variantes maximalement différentes** : Normal (neutre), Autoritaire (très grave), Jeune (très aigu).
 
 ## 🔧 Paramètres Modifiables
 
@@ -101,7 +101,7 @@ bassBoost: 0.4  // Voix très profonde et autoritaire
 
 ## 📦 Profils Prédéfinis
 
-### Tom (6 profils)
+### Tom (3 profils)
 
 #### Tom Normal
 ```typescript
@@ -112,39 +112,6 @@ bassBoost: 0.4  // Voix très profonde et autoritaire
 ```
 Voix naturelle, neutre.
 
-#### Tom Grave
-```typescript
-{
-  playbackRate: 0.9,
-  pitchShift: -2,
-  volume: 1.0,
-  bassBoost: 0.3,
-}
-```
-Voix grave, posée, chaleureuse. Idéal pour personnages matures, sages.
-
-#### Tom Vif
-```typescript
-{
-  playbackRate: 1.1,
-  pitchShift: 2,
-  volume: 0.95,
-  trebleBoost: 0.2,
-}
-```
-Voix dynamique, énergique, claire. Idéal pour personnages vifs, enjoués.
-
-#### Tom Calme
-```typescript
-{
-  playbackRate: 0.95,
-  pitchShift: -1,
-  volume: 0.9,
-  bassBoost: 0.15,
-}
-```
-Voix posée, rassurante, douce. Idéal pour personnages calmes, apaisants.
-
 #### Tom Autoritaire
 ```typescript
 {
@@ -154,7 +121,7 @@ Voix posée, rassurante, douce. Idéal pour personnages calmes, apaisants.
   bassBoost: 0.4,
 }
 ```
-Voix affirmée, puissante. Idéal pour personnages d'autorité, leaders.
+Voix très grave, affirmée, puissante. Idéal pour personnages d'autorité, leaders, pères.
 
 #### Tom Jeune
 ```typescript
@@ -165,7 +132,7 @@ Voix affirmée, puissante. Idéal pour personnages d'autorité, leaders.
   trebleBoost: 0.25,
 }
 ```
-Voix jeune, enjouée, dynamique. Idéal pour personnages adolescents, juvéniles.
+Voix très aiguë, jeune, enjouée, dynamique. Idéal pour personnages adolescents, juvéniles.
 
 ### Siwis (3 profils)
 
@@ -218,6 +185,39 @@ Voix assurée, professionnelle, claire.
 }
 ```
 Voix chaleureuse, bienveillante, douce.
+
+### Pierre (3 profils)
+
+#### Pierre Normal
+```typescript
+{
+  playbackRate: 1.0,
+  volume: 1.0,
+}
+```
+Voix naturelle, neutre.
+
+#### Pierre Autoritaire
+```typescript
+{
+  playbackRate: 0.92,
+  pitchShift: -3,
+  volume: 1.0,
+  bassBoost: 0.4,
+}
+```
+Voix très grave, affirmée, puissante. Idéal pour personnages d'autorité, leaders, pères.
+
+#### Pierre Jeune
+```typescript
+{
+  playbackRate: 1.08,
+  pitchShift: 3,
+  volume: 1.0,
+  trebleBoost: 0.25,
+}
+```
+Voix très aiguë, jeune, enjouée, dynamique. Idéal pour personnages adolescents, juvéniles.
 
 ## 💻 Utilisation dans le Code
 
