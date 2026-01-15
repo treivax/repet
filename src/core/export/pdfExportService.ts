@@ -10,6 +10,7 @@ import type { Play, Act, CastSection } from '../models/Play'
 import type { Character } from '../models/Character'
 import type { Line } from '../models/Line'
 import { generateCharacterColor } from '../../utils/colors'
+import { parseTextWithStageDirections } from '../../utils/textParser'
 
 /**
  * Options pour l'export PDF
@@ -311,29 +312,58 @@ export class PDFExportService {
       pdf.text(characterName, margin, currentY)
       currentY += 6
 
-      // Texte de la réplique (noir)
-      pdf.setFont('helvetica', 'normal')
-      pdf.setTextColor(0, 0, 0)
-      const textLines = pdf.splitTextToSize(line.text, maxWidth - 5)
+      // Parser le texte pour extraire les didascalies
+      const segments = parseTextWithStageDirections(line.text)
 
-      textLines.forEach((textLine: string) => {
-        // Vérifier si on a assez d'espace pour cette ligne
-        if (currentY + 5 > maxY) {
-          pdf.addPage()
-          currentY = margin + 10
+      // Afficher chaque segment
+      for (const segment of segments) {
+        if (segment.type === 'stage-direction') {
+          // Didascalie dans réplique : italique + gris
+          pdf.setFont('helvetica', 'italic')
+          pdf.setTextColor(128, 128, 128) // Gris
+
+          const stageText = `(${segment.content})`
+          const stageLines = this.splitTextManually(pdf, stageText, maxWidth - 5)
+
+          for (const stageLine of stageLines) {
+            if (currentY + 5 > maxY) {
+              pdf.addPage()
+              currentY = margin + 10
+            }
+            pdf.text(stageLine, margin + 5, currentY)
+            currentY += 5
+          }
+
+          // Revenir au noir et normal
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(0, 0, 0)
+        } else {
+          // Texte normal de la réplique : noir
+          pdf.setFont('helvetica', 'normal')
+          pdf.setTextColor(0, 0, 0)
+
+          const textLines = this.splitTextManually(pdf, segment.content, maxWidth - 5)
+
+          for (const textLine of textLines) {
+            if (currentY + 5 > maxY) {
+              pdf.addPage()
+              currentY = margin + 10
+            }
+            pdf.text(textLine, margin + 5, currentY)
+            currentY += 5
+          }
         }
-        pdf.text(textLine, margin + 5, currentY)
-        currentY += 5
-      })
+      }
 
       currentY += 3 // Espacement après la réplique
     } else if (line.type === 'stage-direction') {
-      // Didascalie (italique, noir)
+      // Didascalie hors réplique : italique + gris
       pdf.setFont('helvetica', 'italic')
-      pdf.setTextColor(0, 0, 0)
-      const directionLines = pdf.splitTextToSize(line.text, maxWidth - 10)
+      pdf.setTextColor(128, 128, 128) // Gris
 
-      directionLines.forEach((textLine: string) => {
+      const directionLines = this.splitTextManually(pdf, line.text, maxWidth - 10)
+
+      for (const textLine of directionLines) {
         // Vérifier si on a assez d'espace pour cette ligne
         if (currentY + 5 > maxY) {
           pdf.addPage()
@@ -341,9 +371,12 @@ export class PDFExportService {
         }
         pdf.text(textLine, margin + 5, currentY)
         currentY += 5
-      })
+      }
 
       currentY += 3
+
+      // Revenir au noir
+      pdf.setTextColor(0, 0, 0)
     }
 
     return currentY
@@ -362,6 +395,34 @@ export class PDFExportService {
     const b = parseInt(hex.substring(4, 6), 16)
 
     return { r, g, b }
+  }
+
+  /**
+   * Divise le texte manuellement en lignes sans utiliser splitTextToSize
+   * pour éviter les problèmes d'espacement
+   */
+  private splitTextManually(pdf: jsPDF, text: string, maxWidth: number): string[] {
+    const lines: string[] = []
+    const words = text.split(/\s+/)
+    let currentLine = ''
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word
+      const textWidth = pdf.getTextWidth(testLine)
+
+      if (textWidth > maxWidth && currentLine) {
+        lines.push(currentLine)
+        currentLine = word
+      } else {
+        currentLine = testLine
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+
+    return lines.length > 0 ? lines : [text]
   }
 
   /**

@@ -174,7 +174,8 @@ interface PDFExportOptions {
 | Cast Section Title | 18pt | Bold | Normal | Black |
 | Character Names | 11pt | Bold | Normal | **Generated Color** |
 | Dialogues | 11pt | Normal | Normal | Black |
-| Stage Directions | 11pt | Normal | Italic | Black |
+| Stage Directions (in dialogues) | 11pt | Normal | Italic | **Gray (128,128,128)** |
+| Stage Directions (standalone) | 11pt | Normal | Italic | **Gray (128,128,128)** |
 | Page Numbers | 10pt | Normal | Normal | Black |
 
 ### Spacing
@@ -259,11 +260,19 @@ interface PDFExportOptions {
    - Testing documentation
    - 28 test cases across 7 categories
 
-3. **fix: Respect bottom margins and add character colors** (current)
+3. **fix: Respect bottom margins and add character colors** (073685c)
    - Fixed margin enforcement (line-by-line checking)
    - Added character name colors matching app display
    - Improved page break logic for long dialogues
    - Added hexToRgb utility for color conversion
+
+4. **fix: Stage directions in gray + fix text spacing issues** (current)
+   - Stage directions now rendered in gray (128,128,128) and italic
+   - Applies to both standalone stage directions and inline (within dialogues)
+   - Parse dialogues to extract stage directions using `parseTextWithStageDirections()`
+   - Fixed text spacing issues by replacing `splitTextToSize()` with manual word wrapping
+   - Added `splitTextManually()` utility to prevent abnormal character spacing
+   - Matches application display exactly (gray italic stage directions)
 
 ## Testing Recommendations
 
@@ -283,7 +292,7 @@ interface PDFExportOptions {
 ## Known Limitations
 
 ### Current Implementation
-1. **Colors**: ✅ Character names exported in color (same as app display)
+1. **Colors**: ✅ Character names in color + stage directions in gray (matches app)
 2. **Fonts**: Uses Helvetica only (standard PDF font)
 3. **Theme**: Always exports in light theme (optimal for printing)
 4. **Customization**: Limited export options (by design for simplicity)

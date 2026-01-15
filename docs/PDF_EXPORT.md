@@ -69,7 +69,7 @@ Exemple : `le_malade_imaginaire.pdf`
 - **Titres de scènes** : 14pt, gras, noir
 - **Noms de personnages** : 11pt, gras, **en couleur** (mêmes couleurs que dans l'application)
 - **Répliques** : 11pt, normal, noir, légèrement indentées
-- **Didascalies** : 11pt, italique, noir, indentées
+- **Didascalies** : 11pt, italique, **gris** (dans les répliques et hors répliques), indentées
 - **Page de couverture** : 28pt pour le titre, 16pt pour l'auteur
 
 ### Structure
@@ -138,8 +138,10 @@ Ces bibliothèques ajoutent ~200 KB au build.
 ### Formatage
 
 - ✅ Les couleurs des personnages **sont** exportées (mêmes couleurs que dans l'application)
+- ✅ Les didascalies **sont** en gris et italique (fidèle à l'affichage de l'application)
 - Le thème sombre n'est pas appliqué (PDF en mode clair par défaut pour l'impression)
 - Les polices utilisent Helvetica (standard PDF)
+- Espacement optimisé pour éviter les problèmes de lisibilité
 
 ### Contenu
 

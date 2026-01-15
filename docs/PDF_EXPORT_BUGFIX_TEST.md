@@ -2,7 +2,7 @@
 
 ## Bug Fixes Applied
 
-### Fix 1: Bottom Margin Enforcement
+### Fix 1: Bottom Margin Enforcement ✅
 **Problem**: Text was overflowing beyond the bottom margin, causing truncated content.
 
 **Solution**: 
@@ -11,13 +11,32 @@
 - Automatic page breaks when space is insufficient
 - Proper handling of long dialogues spanning multiple pages
 
-### Fix 2: Character Name Colors
+### Fix 2: Character Name Colors ✅
 **Problem**: Character names were displayed in black instead of their assigned colors.
 
 **Solution**:
 - Import and use `generateCharacterColor()` utility
 - Convert hex colors to RGB for jsPDF
 - Character names now match application display colors
+
+### Fix 3: Stage Directions Formatting ✅
+**Problem**: 
+- Stage directions within dialogues were not italic
+- All stage directions were black instead of gray
+
+**Solution**:
+- Parse dialogue text to extract stage directions using `parseTextWithStageDirections()`
+- Render all stage directions (inline and standalone) in gray (RGB: 128,128,128)
+- Apply italic formatting to all stage directions
+- Matches application display exactly
+
+### Fix 4: Text Spacing Issues ✅
+**Problem**: Some lines had abnormal character spacing, making them unreadable and extending beyond margins.
+
+**Solution**:
+- Replaced `pdf.splitTextToSize()` with custom `splitTextManually()` function
+- Manual word-based text wrapping to prevent spacing issues
+- Proper line width calculation for all text types
 
 ## Quick Test Procedure
 
@@ -64,7 +83,55 @@ CLAUDIUS (orange)→    CLAUDIUS (orange)✅
 
 ---
 
-### Test 3: Long Dialogue Spanning Pages ✅
+### Test 3: Stage Directions Formatting ✅
+
+1. **Open a play in the application**
+2. **Find a dialogue with inline stage directions**
+   - Example: "Bonjour (souriant) comment allez-vous?"
+3. **Note the formatting**:
+   - Stage direction "(souriant)" should be in gray and italic
+4. **Export to PDF**
+5. **Find the same dialogue in PDF**
+6. **Verify**:
+   - Stage direction is in gray (not black)
+   - Stage direction is in italic
+   - Formatting matches the app display
+
+**Expected Result**: ✅ Stage directions (inline and standalone) are gray and italic
+
+**Visual Check**:
+```
+APP Display:          PDF Export:
+Bonjour (souriant)    Bonjour (souriant)
+  - souriant in gray    - souriant in gray  ✅
+  - souriant italic     - souriant italic   ✅
+```
+
+---
+
+### Test 4: Text Spacing Normal ✅
+
+1. **Export a play to PDF**
+2. **Open the PDF**
+3. **Scan through all pages**
+4. **Look for any lines with abnormal spacing**:
+   - Characters too far apart (like: "H e l l o")
+   - Text extending beyond right margin
+   - Unreadable text due to spacing
+5. **Verify all text is normally spaced**
+
+**Expected Result**: ✅ All text has normal, readable character spacing
+
+**Bad vs Good**:
+```
+BAD (before fix):    GOOD (after fix):
+H  e  l  l  o        Hello
+T  e  x  t           Text
+```
+
+---
+
+### Test 5: Long Dialogue Spanning Pages ✅
 
 1. **Find or create a play with a very long dialogue** (10+ lines of text)
 2. **Export to PDF**
@@ -79,7 +146,7 @@ CLAUDIUS (orange)→    CLAUDIUS (orange)✅
 
 ---
 
-### Test 4: Multiple Characters on Same Page ✅
+### Test 6: Multiple Characters on Same Page ✅
 
 1. **Export a play with dialogue between multiple characters**
 2. **Open PDF to a page with 3+ different characters**
@@ -109,11 +176,11 @@ CLAUDIUS (orange)→    CLAUDIUS (orange)✅
 - [ ] Starts after cover page
 
 ### Regression 4: Typography Still Correct
-- [ ] Act titles: 16pt, bold
-- [ ] Scene titles: 14pt, bold
-- [ ] Character names: 11pt, bold, **NOW IN COLOR**
-- [ ] Dialogues: 11pt, normal, indented
-- [ ] Stage directions: 11pt, italic
+- [ ] Act titles: 16pt, bold, black
+- [ ] Scene titles: 14pt, bold, black
+- [ ] Character names: 11pt, bold, **IN COLOR**
+- [ ] Dialogues: 11pt, normal, black, indented
+- [ ] Stage directions: 11pt, italic, **GRAY** (both inline and standalone)
 
 ---
 
@@ -123,6 +190,8 @@ CLAUDIUS (orange)→    CLAUDIUS (orange)✅
 - All pages have visible bottom margin (~15mm)
 - No text is truncated or cut off
 - Character names appear in color (not black)
+- Stage directions are gray and italic (inline and standalone)
+- No abnormal text spacing issues
 - Colors match the application display
 - All regression tests pass
 
@@ -130,6 +199,9 @@ CLAUDIUS (orange)→    CLAUDIUS (orange)✅
 - Any page has text touching the bottom edge
 - Any text is cut off mid-word or mid-line
 - Character names are black instead of colored
+- Stage directions are black instead of gray
+- Stage directions within dialogues are not italic
+- Any text has abnormal character spacing
 - Colors don't match the application
 - Any previously working feature is broken
 
@@ -145,6 +217,8 @@ CLAUDIUS (orange)→    CLAUDIUS (orange)✅
 |------|--------|-------|
 | Bottom Margin | ☐ Pass ☐ Fail | |
 | Character Colors | ☐ Pass ☐ Fail | |
+| Stage Directions | ☐ Pass ☐ Fail | |
+| Text Spacing | ☐ Pass ☐ Fail | |
 | Long Dialogues | ☐ Pass ☐ Fail | |
 | Multiple Characters | ☐ Pass ☐ Fail | |
 | Regression: Cover | ☐ Pass ☐ Fail | |
@@ -183,6 +257,19 @@ BEFORE (❌):                    AFTER (✅):
 BEFORE (❌):                    AFTER (✅):
 HAMLET: To be...  (black)      HAMLET: To be...  (blue)
 OPHÉLIE: My lord... (black)    OPHÉLIE: My lord... (pink)
+```
+
+**Stage Direction Issue**:
+```
+BEFORE (❌):                    AFTER (✅):
+(souriant) - black, not italic (souriant) - gray, italic
+```
+
+**Text Spacing Issue**:
+```
+BEFORE (❌):                    AFTER (✅):
+C  o  m  m  e  n  t            Comment allez-vous?
+a  l  l  e  z  -  v  o  u  s
 ```
 
 ---
