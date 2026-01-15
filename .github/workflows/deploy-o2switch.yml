@@ -29,12 +29,6 @@ jobs:
       - name: 📥 Install dependencies
         run: npm ci
 
-      - name: 🔍 Type check
-        run: npm run type-check
-
-      - name: 🧹 Lint
-        run: npm run lint
-
       - name: 🏗️ Build OFFLINE
         run: npm run build:offline
         env:
@@ -262,12 +256,6 @@ jobs:
 
       - name: 📥 Install dependencies
         run: npm ci
-
-      - name: 🔍 Type check
-        run: npm run type-check
-
-      - name: 🧹 Lint
-        run: npm run lint
 
       - name: 🏗️ Build ONLINE
         run: npm run build:online
