@@ -10,7 +10,6 @@ import { Button } from '../components/common/Button'
 import { Input } from '../components/common/Input'
 import { PlayCard } from '../components/play/PlayCard'
 import { Modal } from '../components/common/Modal'
-import { DropdownMenu } from '../components/common/DropdownMenu'
 import { useUIStore } from '../state/uiStore'
 import { playsRepository } from '../core/storage/plays'
 import { parsePlayText } from '../core/parser/textParser'
@@ -317,7 +316,6 @@ export function LibraryScreen() {
           >
             {isImporting ? 'Import en cours...' : 'Importer une pièce'}
           </Button>
-          <DropdownMenu />
         </div>
       </div>
 

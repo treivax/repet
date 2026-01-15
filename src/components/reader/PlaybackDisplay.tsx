@@ -143,9 +143,7 @@ export function PlaybackDisplay({
       <div className="mx-auto max-w-3xl space-y-4">
         {/* Titre de la pièce - affiché au début si pas dans la séquence */}
         {playTitle && !playbackSequence.some((item) => item.type === 'structure') && (
-          <div className="mb-8 text-center">
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">{playTitle}</h1>
-          </div>
+          <StructureCard type="title" text={playTitle} onClick={undefined} testId="play-title" />
         )}
 
         {/* Parcourir tous les items de la séquence */}
@@ -171,7 +169,7 @@ export function PlaybackDisplay({
                     item={presentationItem}
                     isPlaying={isCurrentItem}
                     hasBeenPlayed={hasBeenPlayed}
-                    onClick={onCardClick ? () => onCardClick(item.index) : () => {}}
+                    onClick={onCardClick ? () => onCardClick(item.index) : undefined}
                     charactersMap={charactersMap}
                   />
                 </div>
@@ -193,7 +191,7 @@ export function PlaybackDisplay({
                     item={structureItem}
                     isPlaying={isCurrentItem}
                     hasBeenPlayed={hasBeenPlayed}
-                    onClick={onCardClick ? () => onCardClick(item.index) : () => {}}
+                    onClick={onCardClick ? () => onCardClick(item.index) : undefined}
                   />
                 </div>
               )
@@ -213,7 +211,7 @@ export function PlaybackDisplay({
                     item={stageDirectionItem}
                     isPlaying={isCurrentItem}
                     hasBeenPlayed={hasBeenPlayed}
-                    onClick={onCardClick ? () => onCardClick(item.index) : () => {}}
+                    onClick={onCardClick ? () => onCardClick(item.index) : undefined}
                   />
                 </div>
               )

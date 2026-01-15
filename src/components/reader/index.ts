@@ -7,6 +7,4 @@
 export * from './LineRenderer'
 export * from './SceneSummary'
 export * from './SceneBadge'
-export * from './FullPlayDisplay'
 export * from './PlaybackDisplay'
-export * from './ReadingHeader'

@@ -8,39 +8,59 @@ import { useState, useRef, useEffect } from 'react'
 import { useUIStore } from '../../state/uiStore'
 
 /**
- * Props du StandardHeader
+ * Item du menu dropdown
  */
-export interface StandardHeaderProps {
-  /** Titre à afficher */
-  title?: string
-  /** Contenu personnalisé à gauche */
-  leftContent?: React.ReactNode
-  /** Contenu personnalisé au centre */
-  centerContent?: React.ReactNode
-  /** Contenu personnalisé à droite (avant le menu) */
-  rightContent?: React.ReactNode
-  /** Masquer l'icône d'aide */
-  hideHelp?: boolean
-  /** Masquer l'icône de thème */
-  hideTheme?: boolean
-  /** Classe CSS supplémentaire */
-  className?: string
+export interface HeaderMenuItem {
+  /** Identifiant de l'item */
+  id: string
+  /** Libellé de l'item */
+  label: string
+  /** Icône SVG de l'item */
+  icon: React.ReactNode
+  /** Callback au clic */
+  onClick: () => void
 }
 
 /**
- * Composant StandardHeader
- * Header standardisé avec menu dropdown (aide et thème)
+ * Props du Header
  */
-export function StandardHeader({
+export interface HeaderProps {
+  /** Titre à afficher au centre */
+  title?: string
+  /** Contenu personnalisé au centre (remplace le titre si fourni) */
+  centerContent?: React.ReactNode
+  /** Afficher le bouton retour à gauche */
+  showBackButton?: boolean
+  /** Callback pour le bouton retour */
+  onBack?: () => void
+  /** Items supplémentaires du menu dropdown (avant Aide et Thème) */
+  menuItems?: HeaderMenuItem[]
+  /** Masquer l'item Aide du menu */
+  hideHelp?: boolean
+  /** Masquer l'item Thème du menu */
+  hideTheme?: boolean
+  /** Classe CSS supplémentaire */
+  className?: string
+  /** Test ID pour les tests */
+  testId?: string
+}
+
+/**
+ * Composant Header unifié
+ * Header standardisé pour toute l'application avec menu dropdown configurable
+ */
+export function Header({
   title,
-  leftContent,
   centerContent,
-  rightContent,
+  showBackButton = false,
+  onBack,
+  menuItems = [],
   hideHelp = false,
   hideTheme = false,
   className = '',
-}: StandardHeaderProps) {
-  const { theme, toggleTheme, toggleHelp } = useUIStore()
+  testId = 'header',
+}: HeaderProps) {
+  const { toggleHelp, toggleTheme, theme } = useUIStore()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -63,28 +83,53 @@ export function StandardHeader({
     setIsMenuOpen(false)
   }
 
+  // Calculer si on a au moins un item dans le menu
+  const hasMenuItems = menuItems.length > 0 || !hideHelp || !hideTheme
+
   return (
     <header
-      className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 ${className}`}
+      className={`bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex-shrink-0 ${className}`}
+      data-testid={testId}
+      onClick={(e: React.MouseEvent) => e.stopPropagation()}
     >
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-        <nav className="flex items-center justify-between">
-          {/* Gauche */}
-          <div className="flex items-center gap-4">
-            {leftContent ||
-              (title && (
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{title}</h1>
-              ))}
-          </div>
+      <div className="flex items-center justify-between max-w-7xl mx-auto">
+        {/* Gauche : bouton retour OU espace vide pour symétrie */}
+        <div className="w-10 flex-shrink-0">
+          {showBackButton && onBack && (
+            <button
+              onClick={onBack}
+              className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Retour"
+              data-testid="back-button"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
 
-          {/* Centre */}
-          {centerContent && <div className="flex-1 flex justify-center">{centerContent}</div>}
+        {/* Centre : titre OU contenu personnalisé */}
+        <div className="flex-1 mx-4 flex items-center justify-center min-w-0">
+          {centerContent ||
+            (title && (
+              <h1
+                className="text-lg font-bold text-gray-900 dark:text-gray-100 text-center truncate"
+                data-testid="header-title"
+              >
+                {title}
+              </h1>
+            ))}
+        </div>
 
-          {/* Droite : contenu custom + menu */}
-          <div className="flex items-center gap-2">
-            {rightContent}
-
-            {/* Menu dropdown */}
+        {/* Droite : menu dropdown OU espace vide pour symétrie */}
+        <div className="w-10 flex-shrink-0 flex justify-end">
+          {hasMenuItems && (
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -109,6 +154,24 @@ export function StandardHeader({
                   className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
                   data-testid="dropdown-menu"
                 >
+                  {/* Items personnalisés */}
+                  {menuItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleMenuItemClick(item.onClick)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      data-testid={`menu-${item.id}`}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+
+                  {/* Séparateur si on a des items personnalisés */}
+                  {menuItems.length > 0 && (!hideHelp || !hideTheme) && (
+                    <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                  )}
+
                   {/* Aide */}
                   {!hideHelp && (
                     <button
@@ -180,8 +243,8 @@ export function StandardHeader({
                 </div>
               )}
             </div>
-          </div>
-        </nav>
+          )}
+        </div>
       </div>
     </header>
   )

@@ -16,7 +16,7 @@ import { ItalianSettings } from '../components/play/ItalianSettings'
 import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { CharacterSelector } from '../components/play/CharacterSelector'
-import { StandardHeader } from '../components/common/StandardHeader'
+import { Header } from '../components/common/Header'
 import { ttsProviderManager } from '../core/tts/providers'
 import type { VoiceDescriptor, VoiceGender } from '../core/tts/types'
 
@@ -284,25 +284,11 @@ export function PlayDetailScreen() {
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <StandardHeader
-        leftContent={
-          <button
-            onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Retour
-          </button>
-        }
+      <Header
+        showBackButton
+        onBack={() => navigate('/')}
         centerContent={
-          <div className="flex-1 flex items-baseline justify-center gap-2 px-4 min-w-0">
+          <div className="flex items-baseline gap-2 min-w-0">
             <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
               {getPlayTitle(play)}
             </h1>
