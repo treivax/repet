@@ -128,6 +128,7 @@ export class PiperWASMProvider implements TTSProvider {
   private initialized = false
   private downloadProgress: Map<string, number> = new Map()
   private isPaused = false
+  private activeBlobUrls: Set<string> = new Set()
 
   /**
    * Cache de sessions TtsSession par voix pour éviter de recharger les modèles
@@ -388,7 +389,9 @@ export class PiperWASMProvider implements TTSProvider {
           `[PiperWASM] ✅ Audio trouvé dans le cache pour voiceId="${options.voiceId}" (${cachedBlob.size} bytes)`
         )
         // Utiliser l'audio en cache
-        const audio = new Audio(URL.createObjectURL(cachedBlob))
+        const blobUrl = URL.createObjectURL(cachedBlob)
+        this.activeBlobUrls.add(blobUrl)
+        const audio = new Audio(blobUrl)
         audio.playbackRate = options.rate ?? 1
         audio.volume = options.volume ?? 1
 
@@ -397,11 +400,41 @@ export class PiperWASMProvider implements TTSProvider {
         )
 
         // Connecter les événements
-        audio.addEventListener('play', () => options.onStart?.())
-        audio.addEventListener('ended', () => options.onEnd?.())
-        audio.addEventListener('error', (e) =>
+        audio.addEventListener('play', () => {
+          console.warn(
+            `[PiperWASM] 🎵 Audio PLAY event triggered (cache) - blobUrl: ${blobUrl.substring(0, 50)}...`
+          )
+          options.onStart?.()
+        })
+        audio.addEventListener('ended', () => {
+          console.warn(
+            `[PiperWASM] ✅ Audio ENDED event triggered (cache) - blobUrl: ${blobUrl.substring(0, 50)}...`
+          )
+          // Nettoyer l'URL blob après la lecture
+          if (blobUrl) {
+            URL.revokeObjectURL(blobUrl)
+            this.activeBlobUrls.delete(blobUrl)
+            console.warn(
+              `[PiperWASM] 🗑️ Blob URL révoquée (cache, ended): ${blobUrl.substring(0, 50)}...`
+            )
+          }
+          options.onEnd?.()
+        })
+        audio.addEventListener('error', (e) => {
+          console.error(
+            `[PiperWASM] ❌ Audio ERROR event triggered (cache) - blobUrl: ${blobUrl.substring(0, 50)}...`,
+            e
+          )
+          // Nettoyer l'URL blob en cas d'erreur
+          if (blobUrl) {
+            URL.revokeObjectURL(blobUrl)
+            this.activeBlobUrls.delete(blobUrl)
+            console.warn(
+              `[PiperWASM] 🗑️ Blob URL révoquée (cache, error): ${blobUrl.substring(0, 50)}...`
+            )
+          }
           options.onError?.(new Error(`Audio error: ${e.message}`))
-        )
+        })
 
         this.currentAudio = audio
 
@@ -511,7 +544,9 @@ export class PiperWASMProvider implements TTSProvider {
       console.warn(`[PiperWASM] ✅ Audio mis en cache avec succès`)
 
       // Créer l'élément audio
-      const audio = new Audio(URL.createObjectURL(audioBlob))
+      const blobUrl = URL.createObjectURL(audioBlob)
+      this.activeBlobUrls.add(blobUrl)
+      const audio = new Audio(blobUrl)
 
       // Appliquer les modificateurs du profil vocal ou les options par défaut
       if (voiceModifiers) {
@@ -540,11 +575,41 @@ export class PiperWASMProvider implements TTSProvider {
       this.stop()
 
       // Connecter les événements
-      audio.addEventListener('play', () => options.onStart?.())
-      audio.addEventListener('ended', () => options.onEnd?.())
-      audio.addEventListener('error', (e) =>
+      audio.addEventListener('play', () => {
+        console.warn(
+          `[PiperWASM] 🎵 Audio PLAY event triggered (synth) - blobUrl: ${blobUrl.substring(0, 50)}...`
+        )
+        options.onStart?.()
+      })
+      audio.addEventListener('ended', () => {
+        console.warn(
+          `[PiperWASM] ✅ Audio ENDED event triggered (synth) - blobUrl: ${blobUrl.substring(0, 50)}...`
+        )
+        // Nettoyer l'URL blob après la lecture
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl)
+          this.activeBlobUrls.delete(blobUrl)
+          console.warn(
+            `[PiperWASM] 🗑️ Blob URL révoquée (synth, ended): ${blobUrl.substring(0, 50)}...`
+          )
+        }
+        options.onEnd?.()
+      })
+      audio.addEventListener('error', (e) => {
+        console.error(
+          `[PiperWASM] ❌ Audio ERROR event triggered (synth) - blobUrl: ${blobUrl.substring(0, 50)}...`,
+          e
+        )
+        // Nettoyer l'URL blob en cas d'erreur
+        if (blobUrl) {
+          URL.revokeObjectURL(blobUrl)
+          this.activeBlobUrls.delete(blobUrl)
+          console.warn(
+            `[PiperWASM] 🗑️ Blob URL révoquée (synth, error): ${blobUrl.substring(0, 50)}...`
+          )
+        }
         options.onError?.(new Error(`Audio error: ${e.message}`))
-      )
+      })
 
       this.currentAudio = audio
 
@@ -635,22 +700,35 @@ export class PiperWASMProvider implements TTSProvider {
    */
   stop(): void {
     if (this.currentAudio) {
-      // Supprimer tous les événements pour éviter les callbacks après l'arrêt
-      this.currentAudio.onplay = null
-      this.currentAudio.onended = null
-      this.currentAudio.onerror = null
-      this.currentAudio.ontimeupdate = null
+      const audioState = {
+        paused: this.currentAudio.paused,
+        ended: this.currentAudio.ended,
+        currentTime: this.currentAudio.currentTime,
+        duration: this.currentAudio.duration,
+        src: this.currentAudio.src?.substring(0, 50),
+      }
+      console.warn(`[PiperWASM] ⏹️ STOP appelé - état audio:`, audioState)
 
-      // Arrêter la lecture
+      // Si l'audio est déjà terminé, ne rien faire - le nettoyage a déjà eu lieu via l'événement 'ended'
+      if (this.currentAudio.ended) {
+        console.warn(
+          `[PiperWASM] ⏹️ STOP ignoré - audio déjà terminé (l'événement 'ended' s'en est occupé)`
+        )
+        this.currentAudio = null
+        this.isPaused = false
+        return
+      }
+
+      // Arrêter la lecture seulement si elle est encore en cours
       this.currentAudio.pause()
       this.currentAudio.currentTime = 0
 
-      // Libérer l'URL de l'objet blob si elle existe
-      if (this.currentAudio.src && this.currentAudio.src.startsWith('blob:')) {
-        URL.revokeObjectURL(this.currentAudio.src)
-      }
+      // Ne pas supprimer les événements ni révoquer l'URL blob ici
+      // Les événements 'ended' ou 'error' s'occuperont du nettoyage
+      // Cela permet à l'événement 'ended' de se déclencher naturellement
 
       this.currentAudio = null
+      console.warn(`[PiperWASM] ⏹️ STOP terminé - currentAudio = null`)
     }
     this.isPaused = false
   }
@@ -683,6 +761,13 @@ export class PiperWASMProvider implements TTSProvider {
   async dispose(): Promise<void> {
     this.stop()
     this.downloadProgress.clear()
+
+    // Révoquer toutes les URLs blob actives
+    console.warn(`[PiperWASM] 🗑️ Révocation de ${this.activeBlobUrls.size} URLs blob actives`)
+    this.activeBlobUrls.forEach((url) => {
+      URL.revokeObjectURL(url)
+    })
+    this.activeBlobUrls.clear()
 
     // Libérer toutes les sessions en cache
     console.warn(`[PiperWASM] 🗑️ Libération de ${this.sessionCache.size} sessions en cache`)
