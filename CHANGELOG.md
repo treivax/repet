@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-01-15
+
+### 🎉 Added
+
+- **Voix Pierre (UPMC) activée** - Support multi-speaker via fork local de `@mintplex-labs/piper-tts-web`
+  - Fork minimal exposant le paramètre `speakerId` qui était hardcodé à 0 dans la bibliothèque originale
+  - Pierre (voix masculine, speaker #1 du modèle UPMC) désormais disponible
+  - 4 voix françaises au total : Siwis (F), Tom (H), Jessica (F), Pierre (H)
+  - Même modèle ONNX partagé entre Jessica et Pierre (16 MB)
+
+### 🔧 Technical Changes
+
+- **Fork local** : `src/lib/piper-tts-web-patched/` (~500 KB)
+  - Modifications minimales (~10 lignes dans `dist/piper-tts-web.js`)
+  - Ajout du paramètre `speakerId` au constructeur `TtsSession`
+  - Utilisation dynamique du `speakerId` dans l'inférence ONNX
+  - Compatibilité ascendante préservée (défaut: 0)
+  
+- **Intégration** : `PiperWASMProvider.ts`
+  - Import du fork : `@/lib/piper-tts-web-patched`
+  - Passage du `speakerId` lors de la création de sessions
+  - Configuration Pierre : `{ speakerId: 1, piperVoiceId: 'fr_FR-upmc-medium' }`
+  
+- **Configuration Vite/TypeScript**
+  - Alias de chemin `@` configuré dans `vite.config.ts`, `.offline.ts`, `.online.ts`
+  - `tsconfig.json` : `paths` mappé pour résolution TypeScript
+  - ESLint : Fork exclu de la vérification (`eslint.config.js`)
+  - Types : `speakerId?: number` ajouté à `TtsSessionOptions`
+
+### 📝 Documentation
+
+- `src/lib/piper-tts-web-patched/FORK_NOTES.md` - Documentation complète du fork
+- `PLAN_ACTION_FORK.md` - Plan d'action détaillé de l'implémentation
+- Commentaires dans `PiperWASMProvider.ts` expliquant le fork
+
+### 🎯 Impact
+
+| Métrique | Avant | Après |
+|----------|-------|-------|
+| Voix françaises | 3 | 4 (+33%) |
+| Voix masculines | 1 (Tom) | 2 (Tom, Pierre) (+100%) |
+| Modèles multi-speaker | 0 | 1 (UPMC) |
+| Taille du fork | - | ~500 KB |
+| Breaking changes | - | 0 |
+
 ## [0.3.3] - 2025-01-15
 
 ### ✨ Added
@@ -19,11 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ⚠️ Known Issues
 
-- **Pierre (voix masculine) désactivé** - Limitation technique découverte
-  - La bibliothèque `@mintplex-labs/piper-tts-web` ne supporte pas la sélection du speaker pour les modèles multi-speaker
-  - Le modèle UPMC contient 2 speakers (jessica=0, pierre=1) mais seul jessica est accessible (speakerId hardcodé à 0)
-  - Pierre sera réactivé lorsqu'une solution sera trouvée (mise à jour bibliothèque, fork, ou provider alternatif)
-  - Code conservé mais commenté dans `PiperWASMProvider.ts` et `voiceProfiles.ts`
+- **Pierre (voix masculine) désactivé** - Limitation technique (RÉSOLU en v0.4.1)
+  - La bibliothèque `@mintplex-labs/piper-tts-web` ne supportait pas la sélection du speaker
+  - ✅ Solution implémentée : fork local avec exposition du paramètre `speakerId`
+  - ✅ Pierre réactivé en v0.4.1
 
 ### ✨ Features
 
