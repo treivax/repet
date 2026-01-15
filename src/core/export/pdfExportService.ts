@@ -335,7 +335,7 @@ export class PDFExportService {
               pdf.addPage()
               currentY = margin + 10
             }
-            pdf.text(stageLine, margin + 5, currentY)
+            pdf.text(stageLine, margin + 5, currentY, { align: 'left', charSpace: 0 })
             currentY += 5
           }
 
@@ -354,7 +354,7 @@ export class PDFExportService {
               pdf.addPage()
               currentY = margin + 10
             }
-            pdf.text(textLine, margin + 5, currentY)
+            pdf.text(textLine, margin + 5, currentY, { align: 'left', charSpace: 0 })
             currentY += 5
           }
         }
@@ -374,7 +374,7 @@ export class PDFExportService {
           pdf.addPage()
           currentY = margin + 10
         }
-        pdf.text(textLine, margin + 5, currentY)
+        pdf.text(textLine, margin + 5, currentY, { align: 'left', charSpace: 0 })
         currentY += 5
       }
 
@@ -407,27 +407,69 @@ export class PDFExportService {
    * pour éviter les problèmes d'espacement
    */
   private splitTextManually(pdf: jsPDF, text: string, maxWidth: number): string[] {
+    if (!text || text.trim().length === 0) {
+      return []
+    }
+
     const lines: string[] = []
-    const words = text.split(/\s+/)
+    const trimmedText = text.trim()
+
+    // Si le texte est vide après trim, retourner vide
+    if (trimmedText.length === 0) {
+      return []
+    }
+
+    // Diviser en mots, en préservant les espaces multiples comme un seul
+    const words = trimmedText.split(/\s+/)
+
+    if (words.length === 0) {
+      return []
+    }
+
     let currentLine = ''
 
     for (const word of words) {
+      // Construire la ligne de test
       const testLine = currentLine ? `${currentLine} ${word}` : word
-      const textWidth = pdf.getTextWidth(testLine)
 
-      if (textWidth > maxWidth && currentLine) {
+      // Mesurer la largeur en unités internes de jsPDF
+      // Utiliser getTextDimensions pour plus de précision
+      const dims = pdf.getTextDimensions(testLine)
+      const width = dims.w
+
+      if (width > maxWidth && currentLine) {
+        // La ligne de test est trop longue, sauvegarder la ligne courante
         lines.push(currentLine)
         currentLine = word
+
+        // Vérifier si le mot seul est trop long
+        const wordDims = pdf.getTextDimensions(word)
+        if (wordDims.w > maxWidth) {
+          // Le mot est trop long, on le coupe caractère par caractère
+          let charLine = ''
+          for (const char of word) {
+            const testChar = charLine + char
+            const charDims = pdf.getTextDimensions(testChar)
+            if (charDims.w > maxWidth && charLine) {
+              lines.push(charLine)
+              charLine = char
+            } else {
+              charLine = testChar
+            }
+          }
+          currentLine = charLine
+        }
       } else {
         currentLine = testLine
       }
     }
 
+    // Ajouter la dernière ligne
     if (currentLine) {
       lines.push(currentLine)
     }
 
-    return lines.length > 0 ? lines : [text]
+    return lines.length > 0 ? lines : []
   }
 
   /**
