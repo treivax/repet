@@ -81,6 +81,14 @@ export default defineConfig({
           src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
           dest: 'wasm',
         },
+        {
+          src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm',
+          dest: 'wasm',
+        },
+        {
+          src: 'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.mjs',
+          dest: 'wasm',
+        },
         // Fichiers WASM de Piper (phonemize)
         {
           src: 'public/wasm/piper_phonemize.wasm',
