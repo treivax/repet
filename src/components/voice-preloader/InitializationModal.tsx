@@ -30,7 +30,7 @@ export function InitializationModal({ onComplete }: InitializationModalProps) {
         throw new Error('Provider Piper WASM non disponible')
       }
 
-      // Récupérer UNIQUEMENT les modèles de base (3 voix), PAS les profils (15)
+      // Récupérer UNIQUEMENT les modèles de base (4 voix), PAS les profils
       const availableVoices = provider.getBaseModels()
       const totalVoices = availableVoices.length
 
@@ -58,6 +58,7 @@ export function InitializationModal({ onComplete }: InitializationModalProps) {
           const initialGlobal = (voicesCompleted / totalVoices) * 100
           setProgress(Math.round(initialGlobal))
 
+          // Précharger le modèle avec suivi de progression
           await provider.preloadModel(voice.id, (percent) => {
             // Calculer la progression globale
             const currentVoiceProgress = percent / 100

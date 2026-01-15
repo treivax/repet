@@ -11,7 +11,16 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['dist', 'dist-offline', 'dist-online', 'examples', 'node_modules'] },
+  {
+    ignores: [
+      'dist',
+      'dist-offline',
+      'dist-online',
+      'examples',
+      'node_modules',
+      'src/lib/piper-tts-web-patched',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],

@@ -212,13 +212,51 @@ export const UPMC_VOICE_PROFILES: VoiceProfile[] = [
 ]
 
 /**
- * Profils vocaux pour Pierre - DÉSACTIVÉS
- *
- * La bibliothèque @mintplex-labs/piper-tts-web ne supporte pas la sélection
- * du speaker pour les modèles multi-speaker (speakerId hardcodé à 0).
- * Le modèle UPMC a 2 speakers (jessica=0, pierre=1) mais seul jessica est accessible.
+ * Profils vocaux pour Pierre (UPMC speaker #1)
+ * Utilise le fork piper-tts-web-patched pour le support multi-speaker
  */
-export const PIERRE_VOICE_PROFILES: VoiceProfile[] = []
+export const PIERRE_VOICE_PROFILES: VoiceProfile[] = [
+  {
+    id: 'fr_FR-upmc-pierre-medium-normal',
+    displayName: 'Pierre (Normal)',
+    baseVoiceId: 'fr_FR-upmc-pierre-medium',
+    description: 'Voix naturelle de Pierre',
+    modifiers: {
+      playbackRate: 1.0,
+      volume: 1.0,
+    },
+    perceivedGender: 'male',
+    characteristics: ['naturel', 'neutre'],
+  },
+  {
+    id: 'fr_FR-upmc-pierre-medium-autoritaire',
+    displayName: 'Pierre Autoritaire',
+    baseVoiceId: 'fr_FR-upmc-pierre-medium',
+    description: 'Pierre avec voix affirmée et grave',
+    modifiers: {
+      playbackRate: 0.93,
+      pitchShift: -3,
+      volume: 1.0,
+      bassBoost: 0.4,
+    },
+    perceivedGender: 'male',
+    characteristics: ['autoritaire', 'grave', 'puissant'],
+  },
+  {
+    id: 'fr_FR-upmc-pierre-medium-jeune',
+    displayName: 'Pierre Jeune',
+    baseVoiceId: 'fr_FR-upmc-pierre-medium',
+    description: 'Pierre avec voix plus dynamique',
+    modifiers: {
+      playbackRate: 1.07,
+      pitchShift: 2,
+      volume: 1.0,
+      trebleBoost: 0.2,
+    },
+    perceivedGender: 'male',
+    characteristics: ['jeune', 'dynamique', 'vif'],
+  },
+]
 
 /**
  * Tous les profils vocaux disponibles
@@ -227,7 +265,7 @@ export const ALL_VOICE_PROFILES: VoiceProfile[] = [
   ...TOM_VOICE_PROFILES,
   ...SIWIS_VOICE_PROFILES,
   ...UPMC_VOICE_PROFILES,
-  // PIERRE_VOICE_PROFILES désactivé (multi-speaker non supporté)
+  ...PIERRE_VOICE_PROFILES,
 ]
 
 /**

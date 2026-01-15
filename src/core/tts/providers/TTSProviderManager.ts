@@ -8,7 +8,9 @@ import type { TTSProvider, VoiceDescriptor, SynthesisOptions, SynthesisResult } 
 import { PiperWASMProvider } from './PiperWASMProvider'
 
 /**
- * Gestionnaire centralisé du provider TTS Piper WASM
+ * Gestionnaire centralisé du provider TTS
+ *
+ * Utilise PiperWASMProvider (fork avec support speakerId pour multi-speaker)
  */
 export class TTSProviderManager {
   private provider: TTSProvider
@@ -19,7 +21,7 @@ export class TTSProviderManager {
   }
 
   /**
-   * Initialise le provider Piper WASM
+   * Initialise le provider TTS
    */
   async initialize(): Promise<void> {
     // Si déjà initialisé, ne rien faire
@@ -30,7 +32,7 @@ export class TTSProviderManager {
     // Vérifier disponibilité
     const availability = await this.provider.checkAvailability()
     if (!availability.available) {
-      throw new Error(`Piper WASM indisponible: ${availability.reason}`)
+      throw new Error(`Provider TTS indisponible: ${availability.reason}`)
     }
 
     // Initialiser le provider
@@ -39,7 +41,7 @@ export class TTSProviderManager {
   }
 
   /**
-   * Récupère les voix du provider Piper WASM
+   * Récupère les voix du provider TTS
    */
   getVoices(): VoiceDescriptor[] {
     return this.provider.getVoices()
@@ -53,7 +55,7 @@ export class TTSProviderManager {
   }
 
   /**
-   * Synthétise du texte avec Piper WASM
+   * Synthétise du texte avec le provider TTS
    */
   async speak(text: string, options: SynthesisOptions): Promise<SynthesisResult> {
     return this.provider.synthesize(text, options)

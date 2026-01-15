@@ -12,7 +12,7 @@ import type {
   SynthesisOptions,
   SynthesisResult,
 } from '../types'
-import { TtsSession, type VoiceId } from '@mintplex-labs/piper-tts-web'
+import { TtsSession, type VoiceId } from '@/lib/piper-tts-web-patched'
 import { audioCacheService } from '../services/AudioCacheService'
 import * as ort from 'onnxruntime-web'
 import { ALL_VOICE_PROFILES, getVoiceProfile, applyBasicModifiers } from '../voiceProfiles'
@@ -23,6 +23,9 @@ import { ALL_VOICE_PROFILES, getVoiceProfile, applyBasicModifiers } from '../voi
 interface PiperModelConfig extends VoiceDescriptor {
   /** ID du modèle pour piper-tts-web */
   piperVoiceId: VoiceId
+
+  /** Speaker ID pour les modèles multi-speaker (optionnel, défaut: 0) */
+  speakerId?: number
 
   /** Taille estimée du téléchargement en octets */
   downloadSize: number
@@ -70,25 +73,23 @@ const PIPER_MODELS: PiperModelConfig[] = [
     isLocal: true,
     requiresDownload: false, // Déjà dans le build
     piperVoiceId: 'fr_FR-upmc-medium',
+    speakerId: 0, // Jessica (speaker #0)
     downloadSize: 16_000_000, // ~16MB
   },
-  // DÉSACTIVÉ : Pierre (fr_FR-upmc-pierre-medium) - Multi-speaker non supporté
-  // La bibliothèque @mintplex-labs/piper-tts-web ne permet pas de sélectionner
-  // le speaker pour les modèles multi-speaker (speakerId hardcodé à 0)
-  // Le modèle UPMC a 2 speakers (jessica=0, pierre=1) mais seul jessica est accessible
-  // {
-  //   id: 'fr_FR-upmc-pierre-medium',
-  //   name: 'fr_FR-upmc-pierre-medium',
-  //   displayName: 'Pierre (Homme, France)',
-  //   language: 'fr-FR',
-  //   gender: 'male',
-  //   provider: 'piper-wasm',
-  //   quality: 'medium',
-  //   isLocal: true,
-  //   requiresDownload: false, // Déjà dans le build (même modèle que UPMC, speaker #1)
-  //   piperVoiceId: 'fr_FR-upmc-medium#1',
-  //   downloadSize: 16_000_000, // ~16MB (partagé avec Jessica)
-  // },
+  {
+    id: 'fr_FR-upmc-pierre-medium',
+    name: 'fr_FR-upmc-pierre-medium',
+    displayName: 'UPMC Pierre (Homme, France)',
+    language: 'fr-FR',
+    gender: 'male',
+    provider: 'piper-wasm',
+    quality: 'medium',
+    isLocal: true,
+    requiresDownload: false, // Déjà dans le build (même modèle que UPMC, speaker #1)
+    piperVoiceId: 'fr_FR-upmc-medium',
+    speakerId: 1, // Pierre (speaker #1)
+    downloadSize: 16_000_000, // ~16MB (partagé avec Jessica)
+  },
   // DÉSACTIVÉ : Gilles (fr_FR-gilles-low) - Cause des erreurs ONNX Runtime
   // (Gather node index out of bounds - indices hors limites du modèle)
   // Les personnages utilisant Gilles doivent être réassignés à Tom
@@ -108,8 +109,15 @@ const PIPER_MODELS: PiperModelConfig[] = [
 ]
 
 /**
- * Provider TTS utilisant Piper-WASM via @mintplex-labs/piper-tts-web
- * Mode 100% déconnecté : tous les modèles sont intégrés au build
+ * Provider TTS utilisant une version forkée de @mintplex-labs/piper-tts-web
+ * pour supporter la sélection du speakerId dans les modèles multi-speaker.
+ *
+ * Le fork expose le paramètre speakerId qui était hardcodé à 0 dans la version originale,
+ * permettant l'utilisation du speaker #1 (Pierre) du modèle UPMC.
+ *
+ * Mode 100% déconnecté : tous les modèles sont intégrés au build.
+ *
+ * @see src/lib/piper-tts-web-patched/FORK_NOTES.md
  */
 export class PiperWASMProvider implements TTSProvider {
   readonly type = 'piper-wasm' as const
@@ -416,6 +424,7 @@ export class PiperWASMProvider implements TTSProvider {
         // Créer une nouvelle session pour cette voix
         session = await TtsSession.create({
           voiceId: modelConfig.piperVoiceId,
+          speakerId: modelConfig.speakerId ?? 0, // Support multi-speaker (Jessica=0, Pierre=1)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           progress: (progress: any) => {
             const percent = Math.round((progress.loaded / progress.total) * 100)
@@ -563,6 +572,7 @@ export class PiperWASMProvider implements TTSProvider {
     // Créer une nouvelle session pour cette voix
     const session = await TtsSession.create({
       voiceId: modelConfig.piperVoiceId,
+      speakerId: modelConfig.speakerId ?? 0, // Support multi-speaker (Jessica=0, Pierre=1)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       progress: (progress: any) => {
         const percent = Math.round((progress.loaded / progress.total) * 100)

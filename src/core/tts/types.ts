@@ -69,7 +69,7 @@ export interface VoiceInfo {
 /**
  * Types de providers TTS disponibles
  */
-export type TTSProviderType = 'piper-wasm'
+export type TTSProviderType = 'piper-wasm' | 'piper-native'
 
 /**
  * Genre d'une voix (pour l'assignation par personnage)
