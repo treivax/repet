@@ -103,10 +103,6 @@ export default defineConfig({
           src: 'public/vite.svg',
           dest: '',
         },
-        {
-          src: 'public/test-play.txt',
-          dest: '',
-        },
         // ✅ Modèles de voix Piper (INCLUS pour offline)
         // Copier uniquement les dossiers de modèles (pas les fichiers à la racine)
         {
