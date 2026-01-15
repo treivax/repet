@@ -48,6 +48,17 @@ Cette documentation contient les informations essentielles pour comprendre, util
   - Didascalies
   - AST généré
 
+### 📤 Export et Partage
+
+- **[PDF_EXPORT.md](PDF_EXPORT.md)** - Export PDF des pièces
+  - Génération de PDF A4 pour impression
+  - Mise en page professionnelle
+  - Options d'export
+
+- **[TEXT_EXPORT.md](TEXT_EXPORT.md)** - Export texte des pièces
+  - Sauvegarde au format `.txt`
+  - Préservation de la structure
+
 ### 📱 Mode Hors Ligne (PWA)
 
 - **[OFFLINE_MODE.md](OFFLINE_MODE.md)** - Fonctionnement du mode offline
@@ -56,6 +67,15 @@ Cette documentation contient les informations essentielles pour comprendre, util
   - Synthèse vocale offline (Piper TTS)
   - ONNX Runtime Web
   - OPFS pour stockage persistant
+
+- **[VOICE_LOADING.md](VOICE_LOADING.md)** - Chargement des voix TTS
+  - Préchargement et optimisations
+  - Gestion du cache
+  - Stratégies de chargement
+
+- **[WORKFLOW_TROUBLESHOOTING.md](WORKFLOW_TROUBLESHOOTING.md)** - Dépannage
+  - Problèmes courants et solutions
+  - Diagnostic des erreurs
 
 ## 🎯 Parcours Recommandés
 
