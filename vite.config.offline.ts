@@ -8,6 +8,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import path from 'path'
 
 /**
  * Configuration Vite pour le build OFFLINE
@@ -23,6 +24,11 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
  * Déploiement: app.repet.com
  */
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   plugins: [
     react(),
     viteStaticCopy({

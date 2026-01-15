@@ -8,6 +8,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import path from 'path'
 
 /**
  * Configuration Vite pour le build ONLINE
@@ -25,6 +26,12 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 export default defineConfig({
   // ❌ Désactiver la copie automatique de public/ pour exclure les voix
   publicDir: false,
+
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
 
   plugins: [
     react(),
