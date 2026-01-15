@@ -42,10 +42,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ESLint : Fork exclu de la vérification (`eslint.config.js`)
   - Types : `speakerId?: number` ajouté à `TtsSessionOptions`
 
+### 🗑️ Removed
+
+- **Code inutilisé supprimé** (~18 MB économisés)
+  - `PiperNativeProvider.ts` - Provider abandonné au profit de PiperWASMProvider
+  - `PiperPhonemizer.ts` - Utilisé uniquement par PiperNativeProvider
+  - `public/espeak-ng-data/` (17 MB) - Données eSpeak non nécessaires
+  - Scripts de test phonemize obsolètes
+  
+- **Documentation obsolète supprimée**
+  - `PIPER_PHONEMIZE_*.md` - Problèmes résolus avec PiperWASMProvider
+  - `PIPER_NATIVE_*.md` - Documentation du provider abandonné
+  - `TTS_ALTERNATIVES.md` - Comparaison non nécessaire
+  - `PLAN_ACTION_FORK.md` - Plan d'action déjà exécuté
+  - `.backup/` - Fichiers temporaires
+
+- **Total** : 355 fichiers supprimés, ~9115 lignes de code/docs en moins
+
 ### 📝 Documentation
 
-- `src/lib/piper-tts-web-patched/FORK_NOTES.md` - Documentation complète du fork
-- `PLAN_ACTION_FORK.md` - Plan d'action détaillé de l'implémentation
+- `SOLUTION_SUMMARY.md` - Résumé exécutif de la solution
+- `TEST_CHECKLIST.md` - Checklist de validation (10 tests)
+- `docs/AUDIO_PLAYBACK_FIX.md` - Documentation technique complète
+- `src/lib/piper-tts-web-patched/FORK_NOTES.md` - Documentation du fork
 - Commentaires dans `PiperWASMProvider.ts` expliquant le fork
 
 ### 🎯 Impact
