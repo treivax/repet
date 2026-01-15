@@ -138,6 +138,9 @@ export interface SynthesisOptions {
   /** Volume (0.0 - 1.0) */
   volume?: number
 
+  /** Indique si c'est un prefetch (ne pas arrêter l'audio en cours) */
+  isPrefetch?: boolean
+
   /** Callbacks d'événements */
   onStart?: () => void
   onEnd?: () => void

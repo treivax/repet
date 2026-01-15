@@ -572,7 +572,10 @@ export class PiperWASMProvider implements TTSProvider {
       }
 
       // Arrêter complètement tout audio précédent avant d'en démarrer un nouveau
-      this.stop()
+      // SAUF si c'est un prefetch (on ne veut pas interrompre l'audio en cours)
+      if (!options.isPrefetch) {
+        this.stop()
+      }
 
       // Connecter les événements
       audio.addEventListener('play', () => {

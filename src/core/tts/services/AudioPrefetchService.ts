@@ -164,6 +164,7 @@ export class AudioPrefetchService {
           rate: item.options?.rate ?? 1.0,
           pitch: item.options?.pitch ?? 1.0,
           volume: item.options?.volume ?? 1.0,
+          isPrefetch: true, // IMPORTANT: Ne pas arrêter l'audio en cours
           // Pas de callbacks audio car on ne joue pas
           onStart: undefined,
           onEnd: undefined,
