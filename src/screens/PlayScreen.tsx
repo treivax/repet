@@ -18,9 +18,8 @@ import type { VoiceGender } from '../core/tts/types'
 import { useAudioOptimization } from '../hooks/useAudioOptimization'
 import { Button } from '../components/common/Button'
 import { Spinner } from '../components/common/Spinner'
-import { FullPlayDisplay } from '../components/reader/FullPlayDisplay'
 import { PlaybackDisplay } from '../components/reader/PlaybackDisplay'
-import { ReadingHeader } from '../components/reader/ReadingHeader'
+import { Header, type HeaderMenuItem } from '../components/common/Header'
 import { SceneBadge } from '../components/reader/SceneBadge'
 import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
@@ -36,6 +35,9 @@ import type {
   StructurePlaybackItem,
   PresentationPlaybackItem,
 } from '../core/models/types'
+
+import { pdfExportService } from '../core/export/pdfExportService'
+import { downloadPlayAsText } from '../core/export/textExportService'
 
 /**
  * Écran de lecture audio
@@ -1251,6 +1253,52 @@ export function PlayScreen() {
     }
   }
 
+  // Handler pour l'export PDF
+  const handleExportPDF = useCallback(async () => {
+    if (!currentPlay) return
+
+    try {
+      startLoading()
+      const charactersMap = currentPlay.ast.characters.reduce(
+        (acc, char) => {
+          acc[char.id] = char
+          return acc
+        },
+        {} as Record<string, Character>
+      )
+
+      await pdfExportService.exportPlayToPDF(currentPlay, charactersMap, {
+        playTitle: getPlayTitle(currentPlay),
+        playAuthor: getPlayAuthor(currentPlay),
+        includeCover: true,
+        includeCast: true,
+        includePageNumbers: true,
+        theme: 'light', // Toujours clair pour l'impression
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error)
+      addError("Erreur lors de l'export PDF")
+    } finally {
+      stopLoading()
+    }
+  }, [currentPlay, startLoading, stopLoading, addError])
+
+  // Handler pour l'export TXT
+  const handleExportText = useCallback(() => {
+    if (!currentPlay) return
+
+    try {
+      const fileName = getPlayTitle(currentPlay)
+      downloadPlayAsText(currentPlay.ast, fileName, {
+        includeSpacing: true,
+        maxLineWidth: 0, // Pas de limite de largeur
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export TXT:", error)
+      addError("Erreur lors de l'export TXT")
+    }
+  }, [currentPlay, addError])
+
   // Rendu
   if (!currentPlay) {
     return (
@@ -1279,31 +1327,75 @@ export function PlayScreen() {
     )
   }
 
+  // Construire les items de menu pour l'export
+  const menuItems: HeaderMenuItem[] = [
+    {
+      id: 'export-text',
+      label: 'Enregistrer sous (.txt)',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+          />
+        </svg>
+      ),
+      onClick: handleExportText,
+    },
+    {
+      id: 'export-pdf',
+      label: 'Exporter en PDF',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          />
+        </svg>
+      ),
+      onClick: handleExportPDF,
+    },
+  ]
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="play-screen">
       {/* Header */}
-      <ReadingHeader
-        title={getPlayTitle(currentPlay)}
-        author={getPlayAuthor(currentPlay)}
-        modeBadge={
-          playSettings ? (
-            <button
-              onClick={handleReadingModeClick}
-              className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 ${
-                playSettings.readingMode === 'silent'
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
-                  : playSettings.readingMode === 'audio'
-                    ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                    : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
-              }`}
-              data-testid="reading-mode"
-              aria-label="Changer de méthode de lecture"
-            >
-              {getReadingModeLabel()}
-            </button>
-          ) : undefined
-        }
+      <Header
+        showBackButton
         onBack={handleClose}
+        centerContent={
+          <div className="flex items-baseline gap-2 min-w-0">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100 truncate">
+              {getPlayTitle(currentPlay)}
+            </h1>
+            {getPlayAuthor(currentPlay) && (
+              <span className="text-sm text-gray-600 dark:text-gray-400 truncate hidden sm:inline">
+                par {getPlayAuthor(currentPlay)}
+              </span>
+            )}
+            {playSettings && (
+              <button
+                onClick={handleReadingModeClick}
+                className={`text-xs px-2 py-1 rounded font-semibold whitespace-nowrap transition-colors cursor-pointer hover:opacity-80 ${
+                  playSettings.readingMode === 'silent'
+                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+                    : playSettings.readingMode === 'audio'
+                      ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                      : 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+                }`}
+                data-testid="reading-mode"
+                aria-label="Changer de méthode de lecture"
+              >
+                {getReadingModeLabel()}
+              </button>
+            )}
+          </div>
+        }
+        menuItems={menuItems}
         testId="play-header"
       />
 
@@ -1346,77 +1438,42 @@ export function PlayScreen() {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden" data-testid="text-display-container">
-        {currentPlay && playSettings ? (
-          playbackSequence.length > 0 &&
-          (playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian') ? (
-            <PlaybackDisplay
-              playbackSequence={playbackSequence}
-              flatLines={currentPlay.ast.flatLines}
-              readingMode={playSettings.readingMode}
-              userCharacterId={userCharacter?.id}
-              hideUserLines={playSettings.hideUserLines}
-              showBefore={playSettings.showBefore}
-              showAfter={playSettings.showAfter}
-              currentPlaybackIndex={currentPlaybackIndex}
-              playingLineIndex={playingLineIndex}
-              playedItems={playedItems}
-              readLinesSet={readLinesSet}
-              charactersMap={charactersMap}
-              playTitle={getPlayTitle(currentPlay)}
-              onLineClick={
-                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                  ? handleLineClick
-                  : undefined
-              }
-              onCardClick={
-                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                  ? handleCardClick
-                  : undefined
-              }
-              onLongPress={
-                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                  ? handleLongPress
-                  : undefined
-              }
-              isPaused={isPaused}
-              isGenerating={isGenerating}
-              progressPercentage={progressPercentage}
-              elapsedTime={elapsedTime}
-              estimatedDuration={estimatedDuration}
-            />
-          ) : (
-            <FullPlayDisplay
-              acts={currentPlay.ast.acts}
-              currentActIndex={currentActIndex}
-              currentSceneIndex={currentSceneIndex}
-              currentLineIndex={0}
-              readingMode={playSettings.readingMode}
-              userCharacterId={userCharacter?.id}
-              hideUserLines={playSettings.hideUserLines}
-              showBefore={playSettings.showBefore}
-              showAfter={playSettings.showAfter}
-              playingLineIndex={playingLineIndex}
-              readLinesSet={readLinesSet}
-              charactersMap={charactersMap}
-              playTitle={getPlayTitle(currentPlay)}
-              castSection={currentPlay.ast.metadata?.castSection}
-              onLineClick={
-                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                  ? handleLineClick
-                  : undefined
-              }
-              onLongPress={
-                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                  ? handleLongPress
-                  : undefined
-              }
-              isPaused={isPaused}
-              isGenerating={isGenerating}
-              progressPercentage={progressPercentage}
-              elapsedTime={elapsedTime}
-              estimatedDuration={estimatedDuration}
-            />
-          )
+        {currentPlay && playSettings && playbackSequence.length > 0 ? (
+          <PlaybackDisplay
+            playbackSequence={playbackSequence}
+            flatLines={currentPlay.ast.flatLines}
+            readingMode={playSettings.readingMode}
+            userCharacterId={userCharacter?.id}
+            hideUserLines={playSettings.hideUserLines}
+            showBefore={playSettings.showBefore}
+            showAfter={playSettings.showAfter}
+            currentPlaybackIndex={currentPlaybackIndex}
+            playingLineIndex={playingLineIndex}
+            playedItems={playedItems}
+            readLinesSet={readLinesSet}
+            charactersMap={charactersMap}
+            playTitle={getPlayTitle(currentPlay)}
+            onLineClick={
+              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                ? handleLineClick
+                : undefined
+            }
+            onCardClick={
+              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                ? handleCardClick
+                : undefined
+            }
+            onLongPress={
+              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+                ? handleLongPress
+                : undefined
+            }
+            isPaused={isPaused}
+            isGenerating={isGenerating}
+            progressPercentage={progressPercentage}
+            elapsedTime={elapsedTime}
+            estimatedDuration={estimatedDuration}
+          />
         ) : (
           <div className="flex items-center justify-center h-full">
             <Spinner size="lg" />

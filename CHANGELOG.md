@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **PDF Export Feature** 📄
+  - Export plays to A4 format PDF for printing or archiving
+  - Professional layout with cover page, cast section, and full content
+  - Automatic pagination with page numbers
+  - Optimized typography (Helvetica font, 11pt default)
+  - Smart page breaks to preserve readability
+  - Export button in PlayScreen and ReaderScreen headers
+  - Uses jsPDF and html2canvas libraries (~200 KB bundle size)
+  - Documentation in `docs/PDF_EXPORT.md`
 - **Phase 1 & 2 Audio Generation Optimizations** 🚀
   - `TTSMetricsService`: Performance tracking (sessionLoadTime, inferenceTime, cacheHitRate)
   - `VoicePreloadService`: Preload voice sessions before first use (-90% first play time)
@@ -321,21 +330,6 @@ Cette version majeure réécrit les composants clés pour respecter strictement 
 - **Design cohérent** - Couleurs distinctes par mode avec effet hover
 
 ### 🐛 Bug Fixes
-
-#### 🔴 CRITIQUE - Bug de Closure dans FullPlayDisplay (2025-01-XX)
-
-- **PROBLÈME MAJEUR RÉSOLU** - Les cartes n'étaient pas cliquables en mode audio et italiennes
-  - **Cause racine** : Bug de closure JavaScript - `globalLineIndex` capturé par référence au lieu de par valeur
-  - **Symptôme** : Toutes les cartes appelaient `onLineClick(59)` au lieu de leur index réel (0-58)
-  - **Conséquence** : `getLineCoordinates(59)` retournait `null` → lecture audio jamais démarrée
-  - **Solution** : Capture de l'index dans une constante locale `currentGlobalIndex` pour chaque ligne
-  - **Impact** : Restauration totale de la fonctionnalité de lecture
-- **Corrections appliquées** :
-  - ✅ Mode audio : Lecture audio fonctionne correctement
-  - ✅ Mode italiennes : Synthèse vocale déclenchée pour les bonnes répliques
-  - ✅ Chaque carte passe maintenant le bon index global
-  - ✅ Enchaînement automatique des lignes fonctionne
-  - ✅ Mode silencieux préservé (non affecté par le bug)
 
 #### Navigation et Interface (2025-01-XX)
 

@@ -37,19 +37,22 @@ export function getBuildMode(): BuildMode {
  * Mappings des URLs externes vers chemins locaux (mode offline uniquement)
  */
 const URL_MAPPINGS: URLMapping[] = [
-  // HuggingFace - Modèles vocaux Piper
+  // HuggingFace - Modèles vocaux Piper (diffusionstudio ou rhasspy)
   // Pattern: https://huggingface.co/diffusionstudio/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
-  // Devient: /voices/fr_FR-siwis-medium/fr_FR-siwis-medium.onnx
+  // Pattern: https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
+  // Pattern: https://huggingface.co/*/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json
+  // Devient: /voices/fr_FR-siwis-medium/fr_FR-siwis-medium.onnx (ou .onnx.json)
   {
     pattern:
-      /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx|json)$/,
+      /https:\/\/huggingface\.co\/(?:diffusionstudio|rhasspy)\/piper-voices\/resolve\/main\/.+\/([^/]+?)\.onnx(?:\.json)?$/,
     localPath: (url: string) => {
       const match = url.match(
-        /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+)\.(onnx|json)$/
+        /https:\/\/huggingface\.co\/(?:diffusionstudio|rhasspy)\/piper-voices\/resolve\/main\/.+\/([^/]+?)\.onnx(?:\.json)?$/
       )
       if (match) {
         const baseName = match[1] // e.g., "fr_FR-siwis-medium"
-        const extension = match[2] // e.g., "onnx" or "json"
+        // Determine extension from URL
+        const extension = url.endsWith('.onnx.json') ? 'onnx.json' : 'onnx'
         return `/voices/${baseName}/${baseName}.${extension}`
       }
       return null
@@ -207,17 +210,19 @@ export function listInterceptedPatterns(): string[] {
  *
  * Exemple:
  * https://huggingface.co/diffusionstudio/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
+ * https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
  * → https://cdn.repet.com/voices/fr_FR-siwis-medium.onnx
  */
 export function convertToRepetCDN(huggingFaceUrl: string): string {
   const match = huggingFaceUrl.match(
-    /https:\/\/huggingface\.co\/diffusionstudio\/piper-voices\/resolve\/main\/.+\/([^/]+\.(onnx|json))$/
+    /https:\/\/huggingface\.co\/(?:diffusionstudio|rhasspy)\/piper-voices\/resolve\/main\/.+\/([^/]+?)\.onnx(?:\.json)?$/
   )
 
   if (match) {
-    const fileName = match[1]
+    const baseName = match[1]
+    const extension = huggingFaceUrl.endsWith('.onnx.json') ? 'onnx.json' : 'onnx'
     // TODO: Remplacer par l'URL réelle du CDN lors du déploiement
-    return `https://cdn.repet.com/voices/${fileName}`
+    return `https://cdn.repet.com/voices/${baseName}.${extension}`
   }
 
   return huggingFaceUrl

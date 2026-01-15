@@ -10,6 +10,7 @@ import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
 import { generateCharacterColor } from '../../utils/colors'
 import { parseTextWithStageDirections } from '../../utils/textParser'
+import { StageDirectionCard } from '../play/PlaybackCards'
 
 interface Props {
   /** Ligne à afficher */
@@ -120,7 +121,14 @@ export function LineRenderer({
 
   // Rendu selon le type de ligne
   if (line.type === 'stage-direction') {
-    return <div className="my-4 italic text-gray-500 dark:text-gray-500">{line.text}</div>
+    return (
+      <StageDirectionCard
+        text={line.text}
+        isPlaying={isPlaying}
+        hasBeenPlayed={hasBeenRead}
+        onClick={onClick}
+      />
+    )
   }
 
   if (line.type === 'dialogue') {

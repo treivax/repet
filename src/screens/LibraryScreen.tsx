@@ -298,23 +298,25 @@ export function LibraryScreen() {
             {plays.length} pièce{plays.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <input
-          type="file"
-          accept=".txt"
-          onChange={handleFileImport}
-          className="hidden"
-          id="file-input"
-          data-testid="file-input"
-          disabled={isImporting}
-        />
-        <Button
-          variant="primary"
-          loading={isImporting}
-          disabled={isImporting}
-          onClick={() => document.getElementById('file-input')?.click()}
-        >
-          {isImporting ? 'Import en cours...' : 'Importer une pièce'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".txt"
+            onChange={handleFileImport}
+            className="hidden"
+            id="file-input"
+            data-testid="file-input"
+            disabled={isImporting}
+          />
+          <Button
+            variant="primary"
+            loading={isImporting}
+            disabled={isImporting}
+            onClick={() => document.getElementById('file-input')?.click()}
+          >
+            {isImporting ? 'Import en cours...' : 'Importer une pièce'}
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
