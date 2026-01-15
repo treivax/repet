@@ -4,13 +4,14 @@
  * See LICENSE file in the project root for full license text
  */
 
+import type { Character } from '../../core/models/Character'
 import type {
   PlaybackItem,
   StageDirectionPlaybackItem,
   StructurePlaybackItem,
   PresentationPlaybackItem,
 } from '../../core/models/types'
-import type { Character } from '../../core/models/Character'
+import { generateCharacterColor } from '../../utils/colors'
 
 /**
  * Props communes pour toutes les cartes de lecture
@@ -155,15 +156,6 @@ export function PresentationCard({
   onClick,
   charactersMap,
 }: PresentationCardProps) {
-  // Fonction helper pour trouver un personnage par son nom
-  const findCharacterByName = (name: string): Character | undefined => {
-    if (!charactersMap) return undefined
-    const normalizedSearchName = name.trim().toUpperCase()
-    return Object.values(charactersMap).find(
-      (char) => char.name.trim().toUpperCase() === normalizedSearchName
-    )
-  }
-
   const cardClasses = `
     my-4 px-4 py-3 rounded-lg cursor-pointer transition-all text-left w-full
     ${
@@ -214,8 +206,14 @@ export function PresentationCard({
         {/* Présentations de personnages */}
         {castSection.presentations &&
           castSection.presentations.map((presentation, idx) => {
-            const character = findCharacterByName(presentation.characterName)
-            const characterColor = character?.color || '#6366f1'
+            // Générer la couleur comme dans LineRenderer
+            const allCharacterNames = charactersMap
+              ? Object.values(charactersMap).map((char) => char.name)
+              : []
+            const characterColor = generateCharacterColor(
+              presentation.characterName,
+              allCharacterNames
+            )
 
             return (
               <div key={`pres-${idx}`} className="mb-3">

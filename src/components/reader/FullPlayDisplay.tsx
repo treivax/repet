@@ -9,6 +9,7 @@ import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
 import type { Act, CastSection } from '../../core/models/Play'
 import { LineRenderer } from './LineRenderer'
+import { generateCharacterColor } from '../../utils/colors'
 
 interface Props {
   /** Actes de la pièce */
@@ -102,14 +103,6 @@ export function FullPlayDisplay({
   estimatedDuration,
   isGenerating,
 }: Props) {
-  // Fonction helper pour trouver un personnage par son nom
-  const findCharacterByName = (name: string): Character | undefined => {
-    const normalizedSearchName = name.trim().toUpperCase()
-    return Object.values(charactersMap).find(
-      (char) => char.name.trim().toUpperCase() === normalizedSearchName
-    )
-  }
-
   const containerRef = useRef<HTMLDivElement>(null)
   const currentLineRef = useRef<HTMLDivElement>(null)
 
@@ -173,8 +166,12 @@ export function FullPlayDisplay({
               {/* Présentations de personnages */}
               {castSection.presentations &&
                 castSection.presentations.map((presentation, idx) => {
-                  const character = findCharacterByName(presentation.characterName)
-                  const characterColor = character?.color || '#6366f1'
+                  // Générer la couleur comme dans LineRenderer
+                  const allCharacterNames = Object.values(charactersMap).map((char) => char.name)
+                  const characterColor = generateCharacterColor(
+                    presentation.characterName,
+                    allCharacterNames
+                  )
 
                   return (
                     <div key={`pres-${idx}`} className="mb-4">
