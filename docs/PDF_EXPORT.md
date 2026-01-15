@@ -65,11 +65,11 @@ Exemple : `le_malade_imaginaire.pdf`
 
 ### Typographie
 
-- **Titres d'actes** : 16pt, gras
-- **Titres de scènes** : 14pt, gras
-- **Noms de personnages** : 11pt, gras
-- **Répliques** : 11pt, normal, légèrement indentées
-- **Didascalies** : 11pt, italique, indentées
+- **Titres d'actes** : 16pt, gras, noir
+- **Titres de scènes** : 14pt, gras, noir
+- **Noms de personnages** : 11pt, gras, **en couleur** (mêmes couleurs que dans l'application)
+- **Répliques** : 11pt, normal, noir, légèrement indentées
+- **Didascalies** : 11pt, italique, noir, indentées
 - **Page de couverture** : 28pt pour le titre, 16pt pour l'auteur
 
 ### Structure
@@ -82,9 +82,11 @@ Exemple : `le_malade_imaginaire.pdf`
 ### Gestion des Sauts de Page
 
 Le système :
-- Vérifie l'espace restant avant d'ajouter du contenu
+- Vérifie l'espace restant **ligne par ligne** avant d'ajouter du contenu
+- Respecte strictement la marge du bas (15mm par défaut)
 - Insère automatiquement de nouvelles pages si nécessaire
-- Évite de couper les répliques au milieu
+- Évite de couper les répliques au milieu quand possible
+- Peut couper une très longue réplique sur plusieurs pages (avec respect des marges)
 - Préserve la lisibilité et la cohérence visuelle
 
 ## Qualité et Performance
@@ -135,8 +137,8 @@ Ces bibliothèques ajoutent ~200 KB au build.
 
 ### Formatage
 
-- Les couleurs des personnages ne sont pas exportées (optimisation pour l'impression)
-- Le thème sombre n'est pas appliqué (PDF en mode clair par défaut)
+- ✅ Les couleurs des personnages **sont** exportées (mêmes couleurs que dans l'application)
+- Le thème sombre n'est pas appliqué (PDF en mode clair par défaut pour l'impression)
 - Les polices utilisent Helvetica (standard PDF)
 
 ### Contenu

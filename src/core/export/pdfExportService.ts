@@ -9,6 +9,7 @@ import html2canvas from 'html2canvas'
 import type { Play, Act, CastSection } from '../models/Play'
 import type { Character } from '../models/Character'
 import type { Line } from '../models/Line'
+import { generateCharacterColor } from '../../utils/colors'
 
 /**
  * Options pour l'export PDF
@@ -236,6 +237,7 @@ export class PDFExportService {
     // Titre de l'acte
     pdf.setFontSize(16)
     pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(0, 0, 0) // Reset to black
     const actTitle = `Acte ${act.actNumber}${act.title ? ' : ' + act.title : ''}`
     pdf.text(actTitle, margin, yPosition)
     yPosition += 12
@@ -251,20 +253,15 @@ export class PDFExportService {
       // Titre de la scène
       pdf.setFontSize(14)
       pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(0, 0, 0) // Reset to black
       const sceneTitle = `Scène ${scene.sceneNumber}${scene.title ? ' - ' + scene.title : ''}`
       pdf.text(sceneTitle, margin, yPosition)
       yPosition += 10
 
       // Parcourir les lignes
       for (const line of scene.lines) {
-        const lineHeight = this.addLine(pdf, line, charactersMap, margin, yPosition, fontSize)
-        yPosition += lineHeight
-
-        // Vérifier si on doit ajouter une nouvelle page
-        if (yPosition > this.A4_HEIGHT - margin - 20) {
-          pdf.addPage()
-          yPosition = margin + 10
-        }
+        // Vérifier l'espace disponible avant d'ajouter la ligne
+        yPosition = this.addLine(pdf, line, charactersMap, margin, yPosition, fontSize)
       }
 
       yPosition += 5 // Espacement entre scènes
@@ -273,7 +270,8 @@ export class PDFExportService {
 
   /**
    * Ajoute une ligne (réplique ou didascalie) au PDF
-   * @returns Hauteur utilisée en mm
+   * Gère automatiquement les sauts de page si nécessaire
+   * @returns Position Y finale après l'ajout de la ligne
    */
   private addLine(
     pdf: jsPDF,
@@ -285,35 +283,62 @@ export class PDFExportService {
   ): number {
     let currentY = yPosition
     const maxWidth = this.A4_WIDTH - 2 * margin
+    const maxY = this.A4_HEIGHT - margin // Respecter la marge du bas
 
     pdf.setFontSize(fontSize)
 
     if (line.type === 'dialogue') {
-      // Nom du personnage (gras)
+      // Nom du personnage (gras + couleur)
       pdf.setFont('helvetica', 'bold')
       const characterName = line.characterId
         ? charactersMap[line.characterId]?.name || 'Inconnu'
         : 'Inconnu'
 
+      // Générer la couleur du personnage
+      const allCharacterNames = Object.values(charactersMap).map((char) => char.name)
+      const characterColor = generateCharacterColor(characterName, allCharacterNames)
+
+      // Convertir la couleur hex en RGB
+      const rgb = this.hexToRgb(characterColor)
+      pdf.setTextColor(rgb.r, rgb.g, rgb.b)
+
+      // Vérifier si on a assez d'espace pour le nom
+      if (currentY + 6 > maxY) {
+        pdf.addPage()
+        currentY = margin + 10
+      }
+
       pdf.text(characterName, margin, currentY)
       currentY += 6
 
-      // Texte de la réplique
+      // Texte de la réplique (noir)
       pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(0, 0, 0)
       const textLines = pdf.splitTextToSize(line.text, maxWidth - 5)
 
       textLines.forEach((textLine: string) => {
+        // Vérifier si on a assez d'espace pour cette ligne
+        if (currentY + 5 > maxY) {
+          pdf.addPage()
+          currentY = margin + 10
+        }
         pdf.text(textLine, margin + 5, currentY)
         currentY += 5
       })
 
       currentY += 3 // Espacement après la réplique
     } else if (line.type === 'stage-direction') {
-      // Didascalie (italique)
+      // Didascalie (italique, noir)
       pdf.setFont('helvetica', 'italic')
+      pdf.setTextColor(0, 0, 0)
       const directionLines = pdf.splitTextToSize(line.text, maxWidth - 10)
 
       directionLines.forEach((textLine: string) => {
+        // Vérifier si on a assez d'espace pour cette ligne
+        if (currentY + 5 > maxY) {
+          pdf.addPage()
+          currentY = margin + 10
+        }
         pdf.text(textLine, margin + 5, currentY)
         currentY += 5
       })
@@ -321,7 +346,22 @@ export class PDFExportService {
       currentY += 3
     }
 
-    return currentY - yPosition
+    return currentY
+  }
+
+  /**
+   * Convertit une couleur hexadécimale en RGB
+   */
+  private hexToRgb(hex: string): { r: number; g: number; b: number } {
+    // Supprimer le # si présent
+    hex = hex.replace(/^#/, '')
+
+    // Convertir en RGB
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+
+    return { r, g, b }
   }
 
   /**

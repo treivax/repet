@@ -165,17 +165,17 @@ interface PDFExportOptions {
 
 ### Typography Hierarchy
 
-| Element | Font Size | Font Weight | Font Style |
-|---------|-----------|-------------|------------|
-| Cover Title | 28pt | Bold | Normal |
-| Cover Author | 16pt | Normal | Normal |
-| Act Title | 16pt | Bold | Normal |
-| Scene Title | 14pt | Bold | Normal |
-| Cast Section Title | 18pt | Bold | Normal |
-| Character Names | 11pt | Bold | Normal |
-| Dialogues | 11pt | Normal | Normal |
-| Stage Directions | 11pt | Normal | Italic |
-| Page Numbers | 10pt | Normal | Normal |
+| Element | Font Size | Font Weight | Font Style | Color |
+|---------|-----------|-------------|------------|-------|
+| Cover Title | 28pt | Bold | Normal | Black |
+| Cover Author | 16pt | Normal | Normal | Black |
+| Act Title | 16pt | Bold | Normal | Black |
+| Scene Title | 14pt | Bold | Normal | Black |
+| Cast Section Title | 18pt | Bold | Normal | Black |
+| Character Names | 11pt | Bold | Normal | **Generated Color** |
+| Dialogues | 11pt | Normal | Normal | Black |
+| Stage Directions | 11pt | Normal | Italic | Black |
+| Page Numbers | 10pt | Normal | Normal | Black |
 
 ### Spacing
 - **Act spacing**: New page for each act
@@ -185,8 +185,10 @@ interface PDFExportOptions {
 - **Paragraph indent**: 5mm for dialogues, 10mm for stage directions
 
 ### Page Breaks
-- Automatic page break when content exceeds page height
-- Smart breaks to avoid cutting dialogues mid-sentence
+- **Line-by-line margin checking**: Each line verifies available space before rendering
+- **Strict bottom margin respect**: 15mm margin enforced on every page
+- Automatic page break when content would exceed bottom margin
+- Long dialogues can span multiple pages (with proper margins)
 - New page for each act
 - Continuous flow for scenes within acts
 
@@ -257,6 +259,12 @@ interface PDFExportOptions {
    - Testing documentation
    - 28 test cases across 7 categories
 
+3. **fix: Respect bottom margins and add character colors** (current)
+   - Fixed margin enforcement (line-by-line checking)
+   - Added character name colors matching app display
+   - Improved page break logic for long dialogues
+   - Added hexToRgb utility for color conversion
+
 ## Testing Recommendations
 
 ### Manual Testing Priority
@@ -275,14 +283,14 @@ interface PDFExportOptions {
 ## Known Limitations
 
 ### Current Implementation
-1. **Colors**: Character colors not exported (optimized for B&W printing)
+1. **Colors**: ✅ Character names exported in color (same as app display)
 2. **Fonts**: Uses Helvetica only (standard PDF font)
 3. **Theme**: Always exports in light theme (optimal for printing)
 4. **Customization**: Limited export options (by design for simplicity)
 
 ### Future Enhancements (Optional)
 - [ ] Custom fonts support
-- [ ] Color printing option
+- [x] ~~Color printing option~~ - **DONE**: Character names now in color
 - [ ] Advanced layout options (columns, margins)
 - [ ] Bookmarks/TOC in PDF
 - [ ] Annotations support
