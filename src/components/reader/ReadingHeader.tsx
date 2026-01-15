@@ -20,6 +20,8 @@ export interface ReadingHeaderProps {
   onBack: () => void
   /** Callback pour l'export PDF (optionnel) */
   onExportPDF?: () => void
+  /** Callback pour l'export TXT (optionnel) */
+  onExportText?: () => void
   /** Test ID pour les tests */
   testId?: string
 }
@@ -34,6 +36,7 @@ export function ReadingHeader({
   modeBadge,
   onBack,
   onExportPDF,
+  onExportText,
   testId = 'reading-header',
 }: ReadingHeaderProps) {
   const { toggleHelp, toggleTheme, theme } = useUIStore()
@@ -82,6 +85,26 @@ export function ReadingHeader({
 
         {/* Droite : icônes export, aide et thème */}
         <div className="flex items-center gap-1">
+          {/* Icône Export TXT (uniquement si onExportText est fourni) */}
+          {onExportText && (
+            <button
+              onClick={onExportText}
+              className="flex items-center justify-center w-10 h-10 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Exporter en TXT"
+              title="Enregistrer sous (.txt)"
+              data-testid="export-text-button"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                />
+              </svg>
+            </button>
+          )}
+
           {/* Icône Export PDF (uniquement si onExportPDF est fourni) */}
           {onExportPDF && (
             <button

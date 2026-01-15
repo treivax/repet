@@ -38,6 +38,7 @@ import type {
 } from '../core/models/types'
 
 import { pdfExportService } from '../core/export/pdfExportService'
+import { downloadPlayAsText } from '../core/export/textExportService'
 
 /**
  * Écran de lecture audio
@@ -1283,6 +1284,22 @@ export function PlayScreen() {
     }
   }, [currentPlay, startLoading, stopLoading, addError])
 
+  // Handler pour l'export TXT
+  const handleExportText = useCallback(() => {
+    if (!currentPlay) return
+
+    try {
+      const fileName = getPlayTitle(currentPlay)
+      downloadPlayAsText(currentPlay.ast, fileName, {
+        includeSpacing: true,
+        maxLineWidth: 0, // Pas de limite de largeur
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export TXT:", error)
+      addError("Erreur lors de l'export TXT")
+    }
+  }, [currentPlay, addError])
+
   // Rendu
   if (!currentPlay) {
     return (
@@ -1337,6 +1354,7 @@ export function PlayScreen() {
         }
         onBack={handleClose}
         onExportPDF={handleExportPDF}
+        onExportText={handleExportText}
         testId="play-header"
       />
 

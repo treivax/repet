@@ -22,6 +22,7 @@ import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
 
 import { pdfExportService } from '../core/export/pdfExportService'
+import { downloadPlayAsText } from '../core/export/textExportService'
 
 /**
  * Écran de lecture focalisée (mode lecteur)
@@ -194,6 +195,22 @@ export function ReaderScreen() {
     }
   }
 
+  // Handler pour l'export TXT
+  const handleExportText = () => {
+    if (!currentPlay) return
+
+    try {
+      const fileName = getPlayTitle(currentPlay)
+      downloadPlayAsText(currentPlay.ast, fileName, {
+        includeSpacing: true,
+        maxLineWidth: 0, // Pas de limite de largeur
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export TXT:", error)
+      addError("Erreur lors de l'export TXT")
+    }
+  }
+
   // Fonction pour naviguer vers l'écran de sélection de méthode de lecture
   const handleReadingModeClick = () => {
     if (playId) {
@@ -285,6 +302,7 @@ export function ReaderScreen() {
         }
         onBack={handleClose}
         onExportPDF={handleExportPDF}
+        onExportText={handleExportText}
         testId="reader-header"
       />
 
