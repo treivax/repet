@@ -101,6 +101,12 @@ export function PlayScreen() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Fonction pour mettre en pause/reprendre
+  // Callback pour activer/désactiver le flag de scroll programmatique
+  const setScrollingProgrammatically = useCallback((isScrolling: boolean) => {
+    isScrollingProgrammaticallyRef.current = isScrolling
+  }, [])
+
+  // Fonction pour mettre en pause/reprendre
   const pausePlayback = useCallback(() => {
     if (ttsEngine.isSpeaking() && !isPaused) {
       ttsEngine.pause()
@@ -1588,6 +1594,7 @@ export function PlayScreen() {
             elapsedTime={elapsedTime}
             estimatedDuration={estimatedDuration}
             containerRef={containerRef}
+            setScrollingProgrammatically={setScrollingProgrammatically}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

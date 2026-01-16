@@ -82,6 +82,9 @@ interface Props {
 
   /** Ref externe pour le container (pour IntersectionObserver) */
   containerRef?: React.RefObject<HTMLDivElement>
+
+  /** Callback pour activer/désactiver le flag de scroll programmatique */
+  setScrollingProgrammatically?: (isScrolling: boolean) => void
 }
 
 /**
@@ -110,6 +113,7 @@ export function PlaybackDisplay({
   estimatedDuration,
   isGenerating,
   containerRef: externalContainerRef,
+  setScrollingProgrammatically,
 }: Props) {
   const internalContainerRef = useRef<HTMLDivElement>(null)
   const currentItemRef = useRef<HTMLDivElement>(null)
@@ -126,6 +130,9 @@ export function PlaybackDisplay({
     if (!activeContainerRef.current) {
       return
     }
+
+    // Activer le flag pour désactiver l'Observer pendant le scroll
+    setScrollingProgrammatically?.(true)
 
     // Petit délai pour s'assurer que le DOM est rendu
     const scrollTimer = setTimeout(() => {
@@ -164,7 +171,7 @@ export function PlaybackDisplay({
         // Position cible : centrer l'élément dans le container
         const targetScroll = elementAbsoluteTop - containerHeight / 2 + elementHeight / 2
 
-        console.log('[PlaybackDisplay] 📜 Auto-scroll:', {
+        console.warn('[PlaybackDisplay] 📜 Auto-scroll:', {
           playbackIndex: currentPlaybackIndex,
           containerHeight,
           elementHeight,
@@ -180,17 +187,28 @@ export function PlaybackDisplay({
           top: targetScroll,
           behavior: 'smooth',
         })
+
+        // Désactiver le flag après le scroll (avec délai pour l'animation)
+        setTimeout(() => {
+          setScrollingProgrammatically?.(false)
+        }, 1000)
       } else {
         console.warn('[PlaybackDisplay] ⚠️ Impossible de scroller:', {
           playbackIndex: currentPlaybackIndex,
           hasElement: !!targetElement,
           hasContainer: !!activeContainerRef.current,
         })
+        // Si on ne peut pas scroller, désactiver le flag immédiatement
+        setScrollingProgrammatically?.(false)
       }
     }, 150)
 
-    return () => clearTimeout(scrollTimer)
-  }, [currentPlaybackIndex, activeContainerRef])
+    return () => {
+      clearTimeout(scrollTimer)
+      // Nettoyer le flag si le composant unmount
+      setScrollingProgrammatically?.(false)
+    }
+  }, [currentPlaybackIndex, activeContainerRef, setScrollingProgrammatically])
 
   if (playbackSequence.length === 0) {
     return (
