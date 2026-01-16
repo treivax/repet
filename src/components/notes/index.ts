@@ -4,5 +4,4 @@
  * See LICENSE file in the project root for full license text
  */
 
-export * from './useFrenchVoices'
-export * from './useNotes'
+export { NotesProvider } from './NotesProvider'
