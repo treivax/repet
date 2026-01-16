@@ -5,3 +5,5 @@
  */
 
 export { NotesProvider } from './NotesProvider'
+export { Note } from './Note'
+export { NoteIcon } from './NoteIcon'

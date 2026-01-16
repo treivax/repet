@@ -6,3 +6,4 @@
 
 export * from './useFrenchVoices'
 export * from './useNotes'
+export * from './useLongPress'
