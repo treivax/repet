@@ -27,7 +27,12 @@
 ## Vue d'ensemble
 
 ### Objectif
-Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel élément d'une pièce de théâtre (structure, annotations hors réplique, répliques) pour enrichir leur expérience de lecture et de mémorisation.
+Permettre aux utilisateurs d'ajouter des notes personnelles sur **n'importe quel élément** d'une pièce de théâtre pour enrichir leur expérience de lecture et de mémorisation. Les notes peuvent être attachées à :
+- **Éléments de structure** : titre, actes, scènes
+- **Annotations hors réplique** : didascalies, présentation
+- **Répliques** : dialogues des personnages
+
+Les comportements, le design et les interactions sont **identiques pour tous les types d'éléments**.
 
 ### Principes de conception
 - **Visuel**: Notes style "sticky note" jaune pastel, non intrusives
@@ -37,14 +42,16 @@ Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel �
 - **UX**: Interactions simples et intuitives (long-press pour créer, clic pour ouvrir/fermer)
 
 ### Portée fonctionnelle
-- ✅ Création de notes sur éléments de structure (titre, acte, scène)
-- ✅ Création de notes sur annotations hors réplique (didascalies, présentation)
-- ✅ Création de notes sur répliques
+- ✅ **Création de notes sur tous les éléments** :
+  - Éléments de structure (titre, acte, scène)
+  - Annotations hors réplique (didascalies, présentation)
+  - Répliques (dialogues)
+- ✅ **Comportement unifié** : mêmes interactions pour tous les types d'éléments
 - ✅ Édition du contenu textuel des notes
 - ✅ Minimisation/maximisation individuelle
 - ✅ Minimisation/maximisation globale (toutes les notes)
 - ✅ Suppression avec confirmation
-- ✅ Persistance locale (localStorage/IndexedDB)
+- ✅ Persistance locale (IndexedDB)
 - ✅ Export PDF avec notes
 - ❌ Partage de notes entre utilisateurs (hors scope v1)
 - ❌ Notes audio/vidéo (hors scope v1)
@@ -67,18 +74,20 @@ Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel �
 
 ## Cas d'usage
 
-### UC-1: Créer une note sur une réplique
+### UC-1: Créer une note sur un élément
 **Acteur**: Utilisateur  
 **Préconditions**: L'utilisateur lit une pièce dans PlayScreen ou ReaderScreen  
 **Flux principal**:
-1. L'utilisateur fait un long-press sur une réplique
+1. L'utilisateur fait un long-press sur **n'importe quel élément** (structure, didascalie, ou réplique)
 2. Le système crée une note vide maximisée
-3. La note apparaît juste au-dessus de la réplique, décalée à droite
+3. La note apparaît juste au-dessus de l'élément, décalée à droite
 4. Le curseur est automatiquement placé dans le champ de texte
 5. L'utilisateur saisit son texte
 6. Le système sauvegarde automatiquement lors de la perte de focus
 
-**Résultat**: Une note est créée et associée à la réplique
+**Résultat**: Une note est créée et associée à l'élément
+
+**Note**: Le comportement est identique quel que soit le type d'élément (structure, didascalie, réplique).
 
 ### UC-2: Modifier une note existante
 **Acteur**: Utilisateur  
@@ -95,11 +104,13 @@ Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel �
 **Acteur**: Utilisateur  
 **Préconditions**: Une note est maximisée  
 **Flux principal**:
-1. L'utilisateur fait un long-press sur la note OU clique sur la zone de la note (hors champ texte et bouton supprimer)
+1. L'utilisateur fait un **long-press n'importe où sur la note**
 2. Le système minimise la note
 3. La note disparaît et une icône apparaît en bas à droite de l'élément qui précède
 
 **Résultat**: La note est minimisée
+
+**Note**: Seul le long-press minimise la note. Un clic simple dans le champ texte permet l'édition.
 
 ### UC-4: Maximiser une note
 **Acteur**: Utilisateur  
@@ -154,15 +165,15 @@ Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel �
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Réplique normale]                     │
+│  [Élément : structure/didascalie/réplique]
 │                                         │
-│              ┌──────────────────────┐ × │  ← Icône supprimer
-│              │ 📝                   │   │
+│              ┌──────────────────────┐   │
+│              │ 📝                 × │   │  ← Icône supprimer (dans la note)
 │              │ Texte de la note en  │   │
 │              │ gris italique...     │   │
 │              │                      │   │
 │              └──────────────────────┘   │
-│  [Réplique suivante]                    │
+│  [Élément suivant]                      │
 └─────────────────────────────────────────┘
 ```
 
@@ -176,15 +187,15 @@ Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel �
 - **Padding**: Généreux pour l'aspect "note adhésive" (`p-3` ou `p-4`)
 - **Ombre**: Légère ombre portée (`shadow-md`)
 - **Largeur**: Maximum 80% de l'élément parent, décalage margin-left
-- **Bouton supprimer**: Icône 'x' en haut à droite, hover:text-red-600
+- **Bouton supprimer**: Icône 'x' **dans la note** en haut à droite, hover:text-red-600
 
 ### Note minimisée
 
 ```
 ┌─────────────────────────────────────────┐
-│  [Réplique avec note]              [📝] │  ← Icône compacte
+│  [Élément avec note]               [📝] │  ← Icône compacte
 │                                         │
-│  [Réplique suivante]                    │
+│  [Élément suivant]                      │
 └─────────────────────────────────────────┘
 ```
 
@@ -217,31 +228,33 @@ Permettre aux utilisateurs d'ajouter des notes personnelles sur n'importe quel �
 
 | Action utilisateur | Élément cible | Résultat | Durée/Type |
 |-------------------|---------------|----------|------------|
-| Long-press | Élément attachable sans note | Créer note maximisée | >500ms |
-| Long-press | Note maximisée | Minimiser la note | >500ms |
+| Long-press | **Tout élément** (structure/didascalie/réplique) sans note | Créer note maximisée | >500ms |
+| Long-press | **Note maximisée** (n'importe où sur la note) | Minimiser la note | >500ms |
 | Clic | Icône note minimisée | Maximiser la note | Instantané |
-| Clic | Zone note maximisée (hors textarea/bouton) | Minimiser la note | Instantané |
 | Clic | Champ texte de la note | Éditer le texte | Instantané |
-| Clic | Bouton 'x' | Confirmer puis supprimer | Instantané |
+| Clic | Bouton 'x' (dans la note) | Confirmer puis supprimer | Instantané |
 | Toggle switch | Menu → "Minimiser/Maximiser notes" | Appliquer à toutes les notes | Instantané |
 
 ### Gestion des événements
 
 **Priorités pour éviter les conflits** :
-1. **Long-press sur élément** : Priorité création de note
-2. **Scroll manuel** : Ne doit PAS déclencher de long-press
-3. **Clic simple** : 
+1. **Long-press sur élément** : Priorité création de note (structure/didascalie/réplique)
+2. **Long-press sur note** : Minimise la note uniquement
+3. **Scroll manuel** : Ne doit PAS déclencher de long-press
+4. **Clic simple** : 
    - Sur réplique en mode audio → lecture TTS
    - Sur icône note → maximiser
-   - Sur note → minimiser (sauf si sur textarea ou bouton)
-4. **IntersectionObserver** : Ne doit PAS être affecté par les notes
+   - Sur champ texte → éditer
+   - Sur bouton 'x' → supprimer
+5. **IntersectionObserver** : Ne doit PAS être affecté par les notes
 
 **Implémentation technique** :
 - Utiliser `onTouchStart` / `onTouchEnd` / `onTouchMove` pour détecter long-press
 - Si `onTouchMove` détecté → annuler le long-press (c'est un scroll)
 - Timer de 500ms pour différencier clic et long-press
-- `stopPropagation()` sur les événements de la note pour éviter propagation
+- `stopPropagation()` sur les événements de la note pour éviter propagation aux éléments parents
 - Flag `isScrolling` pour désactiver long-press pendant scroll
+- **Long-press sur note** : détecté uniquement sur la zone de la note (pas sur textarea ni bouton 'x')
 
 ### Feedback visuel
 
@@ -603,8 +616,13 @@ Ajouter une option dans la modale d'export :
    - Solution : Exclure les notes de l'observation (pas de `data-playback-index`)
 
 3. **Conflit long-press / click**
-   - Le long-press empêchait le clic simple (lecture TTS)
-   - Solution : Timer et gestion fine des événements
+   - Le long-press empêchait le clic simple (lecture TTS, édition texte)
+   - Solution : Timer et gestion fine des événements, `stopPropagation()` sur les notes
+
+4. **Minimisation de la note**
+   - Initialement : clic en dehors du textarea/bouton
+   - Problème : conflit avec les clics sur les éléments parents
+   - **Solution retenue** : long-press sur la note uniquement
 
 4. **Performance avec beaucoup de notes**
    - Rendu lent si trop de notes maximisées
@@ -653,7 +671,7 @@ function useLongPress(
     }
   }
 
-  const end = () => {
+  const end = (e: React.TouchEvent | React.MouseEvent) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current)
     }
@@ -666,6 +684,13 @@ function useLongPress(
     isLongPressRef.current = false
   }
 
+  const cancel = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+    }
+    isLongPressRef.current = false
+  }
+
   return {
     onTouchStart: start,
     onMouseDown: start,
@@ -673,9 +698,13 @@ function useLongPress(
     onMouseMove: move,
     onTouchEnd: end,
     onMouseUp: end,
-    onMouseLeave: end,
+    onMouseLeave: cancel,
+    onTouchCancel: cancel,
   }
 }
+
+// Utilisation pour une note :
+// Appliquer sur la zone de la note mais PAS sur le textarea ni le bouton 'x'
 ```
 
 ### Performance
@@ -724,7 +753,7 @@ function useLongPress(
 
 - [ ] Wrapper `PlayScreen` avec `NotesManager`
 - [ ] Wrapper `ReaderScreen` avec `NotesManager`
-- [ ] Ajouter long-press handlers sur éléments attachables
+- [ ] Ajouter long-press handlers sur **tous les éléments** (structure/didascalie/réplique)
 - [ ] Intégrer rendu des notes dans `PlaybackDisplay`
 - [ ] Intégrer rendu des notes dans `LineRenderer`
 - [ ] Menu : Ajouter item "Minimiser/Maximiser notes"
@@ -863,11 +892,11 @@ test('should create, edit and delete a note', async ({ page }) => {
 
 #### Fonctionnalités
 
-- [ ] Créer une note sur structure (titre/acte/scène)
-- [ ] Créer une note sur annotation hors réplique
-- [ ] Créer une note sur réplique
+- [ ] Créer une note sur structure (titre/acte/scène) - comportement identique
+- [ ] Créer une note sur annotation hors réplique (didascalie) - comportement identique
+- [ ] Créer une note sur réplique - comportement identique
 - [ ] Éditer le contenu d'une note
-- [ ] Minimiser une note (long-press)
+- [ ] Minimiser une note (long-press n'importe où sur la note)
 - [ ] Maximiser une note (clic icône)
 - [ ] Supprimer une note avec confirmation
 - [ ] Toggle global minimiser/maximiser
@@ -902,7 +931,7 @@ test('should create, edit and delete a note', async ({ page }) => {
 
 #### Accessibilité
 
-- [ ] Navigation clavier fonctionnelle
+- [ ] Navigation clavier fonctionnelle (Tab pour focus, Escape pour minimiser)
 - [ ] Focus visible
 - [ ] ARIA labels présents
 - [ ] Screen reader compatible
