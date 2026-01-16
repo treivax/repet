@@ -9,6 +9,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
+import { useAnnotationsStore } from '../state/annotationsStore'
 
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts'
@@ -55,6 +56,19 @@ export function ReaderScreen() {
   const { getPlaySettings } = usePlaySettingsStore()
   const playSettings = playId ? getPlaySettings(playId) : null
 
+  // Annotations
+  const {
+    loadAnnotations,
+    getAnnotations,
+    addAnnotation,
+    updateAnnotation,
+    toggleAnnotation,
+    deleteAnnotation,
+    toggleAllAnnotations,
+    areAllExpanded,
+  } = useAnnotationsStore()
+  const annotations = playId ? getAnnotations(playId) : []
+
   const [isPlaying, setIsPlaying] = useState(false)
   const [playingLineIndex, setPlayingLineIndex] = useState<number | undefined>()
   const [showSummary, setShowSummary] = useState(false)
@@ -83,6 +97,9 @@ export function ReaderScreen() {
         }
         loadPlay(play)
 
+        // Charger les annotations
+        loadAnnotations(playId, play.annotations || [])
+
         // Charger le personnage utilisateur depuis les settings
         const settings = getPlaySettings(playId)
         if (settings.userCharacterId && play.ast?.characters) {
@@ -110,6 +127,7 @@ export function ReaderScreen() {
     addError,
     getPlaySettings,
     setUserCharacter,
+    loadAnnotations,
   ])
 
   // Construire la séquence de lecture quand la pièce ou les settings changent
@@ -299,6 +317,58 @@ export function ReaderScreen() {
   // Déterminer le mode
   const isSilentMode = playSettings?.readingMode === 'silent'
 
+  // Handlers pour les annotations
+  const handleAnnotationCreate = async (lineId: string) => {
+    if (!playId) return
+    try {
+      await addAnnotation(playId, lineId, '')
+    } catch (error) {
+      console.error("Erreur lors de la création de l'annotation:", error)
+      addError("Erreur lors de la création de l'annotation")
+    }
+  }
+
+  const handleAnnotationUpdate = async (annotationId: string, content: string) => {
+    if (!playId) return
+    try {
+      await updateAnnotation(playId, annotationId, content)
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de l'annotation:", error)
+      addError("Erreur lors de la mise à jour de l'annotation")
+    }
+  }
+
+  const handleAnnotationToggle = async (annotationId: string) => {
+    if (!playId) return
+    try {
+      await toggleAnnotation(playId, annotationId)
+    } catch (error) {
+      console.error("Erreur lors du toggle de l'annotation:", error)
+      addError("Erreur lors du toggle de l'annotation")
+    }
+  }
+
+  const handleAnnotationDelete = async (annotationId: string) => {
+    if (!playId) return
+    try {
+      await deleteAnnotation(playId, annotationId)
+    } catch (error) {
+      console.error("Erreur lors de la suppression de l'annotation:", error)
+      addError("Erreur lors de la suppression de l'annotation")
+    }
+  }
+
+  const handleToggleAllAnnotations = async () => {
+    if (!playId) return
+    try {
+      const nextState = !areAllExpanded[playId]
+      await toggleAllAnnotations(playId, nextState)
+    } catch (error) {
+      console.error('Erreur lors du toggle de toutes les annotations:', error)
+      addError('Erreur lors du toggle de toutes les annotations')
+    }
+  }
+
   // Fonction pour obtenir le label du tag de méthode de lecture
   const getReadingModeLabel = () => {
     if (!playSettings) return ''
@@ -433,6 +503,23 @@ export function ReaderScreen() {
         menuItems={
           [
             {
+              id: 'toggle-annotations',
+              label: areAllExpanded[playId || '']
+                ? 'Minimiser toutes les notes'
+                : 'Étendre toutes les notes',
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                  />
+                </svg>
+              ),
+              onClick: handleToggleAllAnnotations,
+            },
+            {
               id: 'export-text',
               label: 'Enregistrer sous (.txt)',
               icon: (
@@ -525,6 +612,11 @@ export function ReaderScreen() {
             onLineClick={undefined}
             onLongPress={undefined}
             containerRef={containerRef}
+            annotations={annotations}
+            onAnnotationCreate={handleAnnotationCreate}
+            onAnnotationUpdate={handleAnnotationUpdate}
+            onAnnotationToggle={handleAnnotationToggle}
+            onAnnotationDelete={handleAnnotationDelete}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
