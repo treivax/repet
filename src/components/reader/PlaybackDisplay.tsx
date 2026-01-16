@@ -62,10 +62,8 @@ interface Props {
   onLineClick?: (lineIndex: number) => void
 
   /** Callback pour le clic sur une carte */
+  /** Callback for clicking on a card */
   onCardClick?: (playbackIndex: number) => void
-
-  /** Callback pour l'appui long sur une ligne (mode audio/italiennes) */
-  onLongPress?: (lineIndex: number) => void
 
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
@@ -106,7 +104,6 @@ export function PlaybackDisplay({
   playTitle,
   onLineClick,
   onCardClick,
-  onLongPress,
   isPaused,
   progressPercentage,
   elapsedTime,
@@ -274,7 +271,6 @@ export function PlaybackDisplay({
                     hasBeenRead={hasBeenRead}
                     charactersMap={charactersMap}
                     onClick={onLineClick ? () => onLineClick(lineItem.lineIndex) : undefined}
-                    onLongPress={onLongPress ? () => onLongPress(lineItem.lineIndex) : undefined}
                     isPaused={isPaused}
                     progressPercentage={isPlaying ? progressPercentage : 0}
                     elapsedTime={isPlaying ? elapsedTime : 0}

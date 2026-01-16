@@ -9,7 +9,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
-import { globalLineIndexToPosition } from '../core/models/playHelpers'
 
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts/engine'
@@ -176,9 +175,16 @@ export function PlayScreen() {
   }, [currentPlay, playSettings])
 
   // Calculer currentPlaybackIndex basé sur currentLineIndex / currentActIndex / currentSceneIndex
+  // UNIQUEMENT pendant la lecture (ne pas sélectionner de carte à l'ouverture)
   useEffect(() => {
     if (!playbackSequence.length) {
       setCurrentPlaybackIndex(undefined)
+      return
+    }
+
+    // Ne calculer currentPlaybackIndex que si on est en train de lire
+    // (évite de sélectionner une carte automatiquement à l'ouverture)
+    if (!isPlayingRef.current) {
       return
     }
 
@@ -1303,33 +1309,6 @@ export function PlayScreen() {
     }
   }
 
-  // Handler pour l'appui long sur une ligne en cours de lecture
-  const handleLongPress = (globalLineIndex: number) => {
-    if (!currentPlay || !playId || !playSettings) return
-
-    // Ne gérer l'appui long que si on est en mode audio ou italiennes
-    if (playSettings.readingMode !== 'audio' && playSettings.readingMode !== 'italian') return
-
-    // Arrêter la lecture en cours
-    stopPlayback()
-
-    // Basculer vers le mode silencieux
-    const { updatePlaySettings } = usePlaySettingsStore.getState()
-    updatePlaySettings(playId, {
-      readingMode: 'silent',
-    })
-
-    // Calculer la position de la ligne pour le ReaderScreen
-    const position = globalLineIndexToPosition(currentPlay.ast.acts, globalLineIndex)
-    if (position) {
-      const { goToScene } = usePlayStore.getState()
-      goToScene(position.actIndex, position.sceneIndex)
-    }
-
-    // Naviguer vers le ReaderScreen
-    navigate(`/reader/${playId}`)
-  }
-
   // Handler pour le clic en dehors d'une ligne
 
   const handleGoToScene = useCallback(
@@ -1591,11 +1570,6 @@ export function PlayScreen() {
             onCardClick={
               playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
                 ? handleCardClick
-                : undefined
-            }
-            onLongPress={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleLongPress
                 : undefined
             }
             isPaused={isPaused}
