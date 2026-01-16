@@ -11,10 +11,11 @@
 #### ✅ Test 1 : Navigation par sommaire (1 min)
 1. Ouvrez une pièce
 2. Cliquez sur l'icône de navigation (sommaire)
-3. Cliquez sur une scène différente
+3. Cliquez sur une scène différente (de préférence au milieu de la pièce)
 4. **Vérifiez** : La vue scroll automatiquement vers cette scène
+5. **Vérifiez** : La carte de scène est **exactement centrée** verticalement
 
-**Comportement attendu** : Scroll fluide et centré sur la carte de scène
+**Comportement attendu** : Scroll fluide, carte de scène mathématiquement centrée dans la fenêtre
 
 ---
 
@@ -23,8 +24,9 @@
 2. Cliquez sur une ligne pour lancer la lecture
 3. Attendez que 5-6 lignes soient lues automatiquement
 4. **Vérifiez** : Chaque ligne en cours reste toujours visible à l'écran
+5. **Vérifiez** : Les lignes sont **centrées** dans la vue (pas en haut ou en bas)
 
-**Comportement attendu** : Scroll automatique à chaque nouvelle ligne, pas de saccades
+**Comportement attendu** : Scroll automatique à chaque nouvelle ligne, centrage précis, pas de saccades
 
 ---
 
@@ -41,19 +43,21 @@
 
 ---
 
-## ⚠️ Problèmes connus AVANT le fix
+## ⚠️ Problèmes connus AVANT les fixes
 
-Si vous testez sur une version AVANT ce correctif, vous devriez observer :
+Si vous testez sur une version AVANT ces correctifs, vous devriez observer :
 
 ❌ **Test 1** : Cliquer sur une scène ne scroll pas → il faut scroller manuellement
 ❌ **Test 2** : Scrolls saccadés, parfois la ligne sort de l'écran
 ❌ **Test 3** : Les cartes ne scrollent pas automatiquement (uniquement les lignes)
+❌ **Positionnement** : Éléments hors de la vue, décalés vers le haut ou le bas
 
-## ✅ Comportements attendus APRÈS le fix
+## ✅ Comportements attendus APRÈS les fixes
 
-✅ **Test 1** : Scroll automatique et fluide vers la scène sélectionnée
-✅ **Test 2** : Scroll fluide, ligne toujours visible, pas de saccades
+✅ **Test 1** : Scroll automatique et fluide, scène exactement centrée
+✅ **Test 2** : Scroll fluide, ligne toujours visible et centrée, pas de saccades
 ✅ **Test 3** : Scroll automatique pour lignes ET cartes uniformément
+✅ **Positionnement** : Chaque élément mathématiquement centré dans la vue (±5px)
 
 ---
 
@@ -61,28 +65,44 @@ Si vous testez sur une version AVANT ce correctif, vous devriez observer :
 
 ### Méthode 1 : Vérifier le commit
 ```bash
-git log --oneline -1
+git log --oneline -3
 ```
 
 Devrait afficher :
 ```
+d661720 fix: Améliorer le calcul de position du scroll automatique
 c7da143 docs: Ajouter checklist de tests pour le scroll automatique
 ecb0484 fix: Centraliser et améliorer le scroll automatique dans PlayScreen
 ```
 
 ### Méthode 2 : Vérifier le code
-Ouvrez `src/screens/PlayScreen.tsx` et cherchez la fonction `speakLine`.
+Ouvrez `src/components/reader/PlaybackDisplay.tsx` et cherchez le `useEffect` de scroll.
 
-**Avant le fix** (❌ mauvais) :
+**Avant les fixes** (❌ mauvais) :
 ```typescript
-// Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
-scrollToLine(globalLineIndex)
+if (targetElement) {
+  targetElement.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+  })
+}
 ```
 
-**Après le fix** (✅ bon) :
+**Après les fixes** (✅ bon) :
 ```typescript
-// Note: Le scroll automatique est géré par PlaybackDisplay via currentPlaybackIndex
-// pour éviter les conflits entre plusieurs systèmes de scroll
+if (targetElement && activeContainerRef.current) {
+  const containerRect = activeContainerRef.current.getBoundingClientRect()
+  const elementRect = targetElement.getBoundingClientRect()
+  const containerHeight = containerRect.height
+  const elementHeight = elementRect.height
+  const elementTop = targetElement.offsetTop
+  const targetScroll = elementTop - containerHeight / 2 + elementHeight / 2
+
+  activeContainerRef.current.scrollTo({
+    top: targetScroll,
+    behavior: 'smooth',
+  })
+}
 ```
 
 ---
@@ -106,6 +126,8 @@ scrollToLine(globalLineIndex)
 - ❌ Scrolls multiples successifs (saccades)
 - ❌ Erreur dans la console
 - ❌ L'élément en cours sort de l'écran pendant la lecture
+- ❌ Élément décalé (pas centré) : trop haut ou trop bas
+- ❌ Scroll s'arrête avant d'atteindre l'élément cible
 
 ---
 
@@ -126,18 +148,20 @@ Si au moins 1 test échoue :
 
 Pour aller plus loin :
 - **Tests complets** : `AUTOSCROLL_TESTS.md` (10 tests détaillés)
-- **Détails techniques** : `AUTOSCROLL_FIX.md` (explications du code)
+- **Détails techniques** : `AUTOSCROLL_FIX.md` (première correction - centralisation)
+- **Positionnement** : `SCROLL_POSITIONING_FIX.md` (seconde correction - calcul précis)
 - **Résumé** : `AUTOSCROLL_SUMMARY.md` (vue d'ensemble)
 
 ---
 
 ## 🎯 Objectif final
 
-Après ce fix, l'expérience utilisateur devrait être :
+Après ces fixes, l'expérience utilisateur devrait être :
 - 🎭 Fluide : Pas de saccades, scrolls smooth
-- 🎯 Précise : L'élément en cours toujours visible et centré
+- 🎯 Précise : L'élément en cours toujours visible et **mathématiquement centré**
 - 🔄 Cohérente : Même comportement pour lignes, cartes, structure
 - 🧭 Intuitive : Navigation par sommaire avec scroll automatique
+- 📐 Exacte : Centrage à ±5px (au lieu de ±200px)
 
 **Temps estimé pour validation complète** : 5 minutes (tests essentiels) + 30 minutes (tests détaillés)
 
