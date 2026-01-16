@@ -139,24 +139,43 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 
 ---
 
-## ⏳ PHASE 3 : Intégration Écrans de Lecture (À FAIRE)
+## ✅ PHASE 3 : Intégration Écrans de Lecture (TERMINÉE)
 
-### Étape 3.1 : Wrapper PlayScreen
-- [ ] Identifier écran de lecture actuel
-- [ ] Wrapper avec `<NotesProvider playId={...}>`
+**Commit**: `e8f11a7` - Phase 3: Intégration Écrans de Lecture - Notes sur tous éléments
 
-### Étape 3.2 : Long-Press sur Éléments
-- [ ] Intégrer `useLongPress` dans composants:
-  - [ ] Répliques (Line)
-  - [ ] Titres (Structure)
-  - [ ] Didascalies (Annotation)
-- [ ] Créer note au long-press
-- [ ] Afficher note existante
+### Étape 3.1 : Wrapper PlayScreen ✅
+- [x] Identifier écran de lecture actuel (PlayScreen.tsx)
+- [x] Wrapper avec `<NotesProvider playId={currentPlay.id}>`
+- [x] Création composant PlayScreenInner pour accès context
+- [x] Check null currentPlay avant wrapper
 
-### Étape 3.3 : Menu Global
-- [ ] Bouton "Minimiser/Maximiser toutes les notes"
-- [ ] Intégration dans menu existant
-- [ ] Icône + texte dynamique
+### Étape 3.2 : Long-Press sur Éléments ✅
+- [x] Extraction composants séparés (fix React hooks rules):
+  - [x] PresentationItemRenderer (présentation)
+  - [x] StructureItemRenderer (titres/actes/scènes)
+  - [x] StageDirectionItemRenderer (didascalies)
+  - [x] LineItemRenderer (répliques)
+- [x] Intégrer `useLongPress` dans tous composants
+- [x] Créer note au long-press (500ms)
+- [x] Afficher note existante (maximisée/minimisée)
+- [x] Gestion update/toggle/delete avec confirmation
+- [x] Pas d'interference avec IntersectionObserver
+
+### Étape 3.3 : Menu Global ✅
+- [x] Bouton "Minimiser/Maximiser toutes les notes"
+- [x] Intégration dans menu existant (Header)
+- [x] Icône SVG notes
+- [x] Texte dynamique selon état
+- [x] Callback setAllNotesDisplayState
+
+### Validations Phase 3 ✅
+- [x] Type-check: 0 erreur
+- [x] Lint: 0 erreur
+- [x] Compilation: OK
+- [x] Pas de hardcoding
+- [x] Types stricts (pas de any)
+- [x] React hooks rules respectées
+- [x] Composants extraits pour hooks au top-level
 
 ---
 
@@ -229,25 +248,26 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 |-------|--------|----------|-------|
 | Phase 1 | ✅ DONE | 7 fichiers créés, 5 modifiés | Type-check ✅ Lint ✅ |
 | Phase 2 | ✅ DONE | 4 fichiers créés, 2 modifiés | Type-check ✅ Lint ✅ |
-| Phase 3 | ⏳ TODO | 0/3 | - |
+| Phase 3 | ✅ DONE | 2 fichiers modifiés (4 composants) | Type-check ✅ Lint ✅ |
 | Phase 4 | ⏳ TODO | 0/2 | - |
 | Phase 5 | ⏳ TODO | 0/1 | - |
 | Phase 6 | ⏳ TODO | - | 0/20 tests |
 | Phase 7 | ⏳ TODO | 0/3 | - |
 
-**Total**: 2/7 phases complétées (29%)
+**Total**: 3/7 phases complétées (43%)
 
 ---
 
 ## 🎯 Prochaine Étape
 
-**PHASE 3 : Intégration Écrans de Lecture**
+**PHASE 4 : Interactions Avancées**
 
-1. Identifier et wrapper PlayScreen avec NotesProvider
-2. Intégrer useLongPress dans les composants de ligne/structure/annotation
-3. Ajouter menu global "Minimiser/Maximiser toutes les notes"
-4. Valider compilation, lint, tests manuels
-5. Commit Phase 3
+1. Créer composant ConfirmDialog pour confirmation suppression
+2. Intégrer ConfirmDialog dans composant Note
+3. Optimiser avec React.memo (Note, NoteIcon)
+4. Profiling performance si nécessaire
+5. Valider compilation, lint, tests manuels
+6. Commit Phase 4
 
 ---
 
@@ -261,11 +281,12 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 - Pas de tests automatisés (tests manuels uniquement)
 
 ### Points d'Attention
-- Long-press: attention aux conflits avec scroll mobile
-- Auto-save: debounce obligatoire (éviter DB spam)
-- Cleanup: useEffect cleanup pour timers/listeners
-- Performance: React.memo si nécessaire (Phase 4)
-- PDF: attention au positionnement des notes
+- ✅ Long-press: conflits avec scroll évités (threshold 10px)
+- ✅ Auto-save: debounce 500ms implémenté
+- ✅ Cleanup: useEffect cleanup pour timers OK
+- ⏳ Performance: React.memo à ajouter (Phase 4)
+- ⏳ PDF: positionnement des notes (Phase 5)
+- ✅ Composants séparés pour respecter React hooks rules
 
 ### Compatibilité
 - Dexie: compatible tous navigateurs modernes
