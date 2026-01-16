@@ -147,15 +147,44 @@ export function PlaybackDisplay({
         // Calculer le scroll nécessaire pour centrer l'élément
         const containerHeight = containerRect.height
         const elementHeight = elementRect.height
-        const elementTop = targetElement.offsetTop
+
+        // Position actuelle de l'élément par rapport au viewport
+        const elementTop = elementRect.top
+        const containerTop = containerRect.top
+
+        // Position de l'élément par rapport au container
+        const elementRelativeTop = elementTop - containerTop
+
+        // Scroll actuel du container
+        const currentScroll = activeContainerRef.current.scrollTop
+
+        // Position absolue de l'élément dans le contenu scrollable
+        const elementAbsoluteTop = currentScroll + elementRelativeTop
 
         // Position cible : centrer l'élément dans le container
-        const targetScroll = elementTop - containerHeight / 2 + elementHeight / 2
+        const targetScroll = elementAbsoluteTop - containerHeight / 2 + elementHeight / 2
+
+        console.log('[PlaybackDisplay] 📜 Auto-scroll:', {
+          playbackIndex: currentPlaybackIndex,
+          containerHeight,
+          elementHeight,
+          currentScroll,
+          elementRelativeTop,
+          elementAbsoluteTop,
+          targetScroll,
+          usedFallback: currentItemRef.current === null,
+        })
 
         // Scroller le container directement
         activeContainerRef.current.scrollTo({
           top: targetScroll,
           behavior: 'smooth',
+        })
+      } else {
+        console.warn('[PlaybackDisplay] ⚠️ Impossible de scroller:', {
+          playbackIndex: currentPlaybackIndex,
+          hasElement: !!targetElement,
+          hasContainer: !!activeContainerRef.current,
         })
       }
     }, 150)
