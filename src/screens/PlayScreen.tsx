@@ -51,11 +51,13 @@ export function PlayScreen() {
   const {
     currentPlay,
     userCharacter,
+    currentLineIndex,
     currentActIndex,
     currentSceneIndex,
     loadPlay,
     setUserCharacter,
     goToScene,
+    goToLine,
     closePlay,
   } = usePlayStore()
 
@@ -96,6 +98,8 @@ export function PlayScreen() {
   const useBoundaryTrackingRef = useRef<boolean>(true)
   const currentSegmentIndexRef = useRef<number>(0)
   const segmentsRef = useRef<TextSegment[]>([])
+  const isScrollingProgrammaticallyRef = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Fonction pour mettre en pause/reprendre
   const pausePlayback = useCallback(() => {
@@ -170,6 +174,119 @@ export function PlayScreen() {
 
     setPlaybackSequence(sequence)
   }, [currentPlay, playSettings])
+
+  // Calculer currentPlaybackIndex basé sur currentLineIndex / currentActIndex / currentSceneIndex
+  useEffect(() => {
+    if (!playbackSequence.length) {
+      setCurrentPlaybackIndex(undefined)
+      return
+    }
+
+    // Chercher d'abord un item de type 'line' correspondant à currentLineIndex
+    let foundIndex = playbackSequence.findIndex(
+      (item) => item.type === 'line' && (item as LinePlaybackItem).lineIndex === currentLineIndex
+    )
+
+    // Si pas trouvé, chercher un item de structure (scene/act) correspondant
+    if (foundIndex === -1) {
+      foundIndex = playbackSequence.findIndex(
+        (item) =>
+          item.type === 'structure' &&
+          (item as StructurePlaybackItem).structureType === 'scene' &&
+          (item as StructurePlaybackItem).actIndex === currentActIndex &&
+          (item as StructurePlaybackItem).sceneIndex === currentSceneIndex
+      )
+    }
+
+    // Si toujours pas trouvé, chercher un item d'acte
+    if (foundIndex === -1) {
+      foundIndex = playbackSequence.findIndex(
+        (item) =>
+          item.type === 'structure' &&
+          (item as StructurePlaybackItem).structureType === 'act' &&
+          (item as StructurePlaybackItem).actIndex === currentActIndex
+      )
+    }
+
+    setCurrentPlaybackIndex(foundIndex !== -1 ? foundIndex : undefined)
+  }, [playbackSequence, currentLineIndex, currentActIndex, currentSceneIndex])
+
+  // IntersectionObserver pour détecter le scroll manuel et mettre à jour le badge
+  useEffect(() => {
+    if (!containerRef.current || !playbackSequence.length || !currentPlay) {
+      return
+    }
+
+    const observerOptions = {
+      root: containerRef.current,
+      rootMargin: '-40% 0px -40% 0px',
+      threshold: 0,
+    }
+
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      // Ne rien faire si on est en train de scroller programmatiquement
+      if (isScrollingProgrammaticallyRef.current) {
+        return
+      }
+
+      // Trouver l'élément le plus visible
+      let maxRatio = 0
+      let targetEntry: IntersectionObserverEntry | undefined
+
+      for (const entry of entries) {
+        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+          maxRatio = entry.intersectionRatio
+          targetEntry = entry
+        }
+      }
+
+      if (!targetEntry) {
+        return
+      }
+
+      const element = targetEntry.target as HTMLElement
+      const playbackIndexStr = element.getAttribute('data-playback-index')
+      const playbackType = element.getAttribute('data-playback-type')
+
+      if (playbackIndexStr === null) {
+        return
+      }
+
+      const playbackIdx = parseInt(playbackIndexStr, 10)
+      const item = playbackSequence[playbackIdx]
+
+      if (!item) {
+        return
+      }
+
+      // Mettre à jour silencieusement le store en fonction du type d'item
+      if (item.type === 'line') {
+        const lineItem = item as LinePlaybackItem
+        const lineIdx = lineItem.lineIndex
+        const line = currentPlay.ast.flatLines[lineIdx]
+        if (line) {
+          goToLine(lineIdx)
+        }
+      } else if (item.type === 'structure' && playbackType === 'structure') {
+        const structureItem = item as StructurePlaybackItem
+        const actIdx = structureItem.actIndex ?? currentActIndex
+        const sceneIdx = structureItem.sceneIndex ?? currentSceneIndex
+        if (structureItem.structureType === 'scene' && structureItem.sceneIndex !== undefined) {
+          goToScene(actIdx, sceneIdx)
+        }
+      }
+    }
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions)
+
+    // Observer tous les éléments avec data-playback-index
+    const elements = containerRef.current.querySelectorAll('[data-playback-index]')
+    elements.forEach((el) => observer.observe(el))
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [playbackSequence, currentPlay, currentActIndex, currentSceneIndex, goToLine, goToScene])
 
   // Initialiser le TTS provider avec le bon provider au montage
   useEffect(() => {
@@ -587,7 +704,7 @@ export function PlayScreen() {
   }
 
   // Fonction pour arrêter la lecture
-  const stopPlayback = () => {
+  const stopPlayback = useCallback(() => {
     ttsEngine.stop()
     utteranceRef.current = null
     isPlayingRef.current = false
@@ -595,7 +712,7 @@ export function PlayScreen() {
     setIsPaused(false)
     setIsGenerating(false)
     stopProgressTracking()
-  }
+  }, [])
 
   /**
    * Obtient l'ID de la voix narrateur/voix off
@@ -1215,11 +1332,24 @@ export function PlayScreen() {
 
   // Handler pour le clic en dehors d'une ligne
 
-  const handleGoToScene = (actIndex: number, sceneIndex: number) => {
-    stopPlayback()
-    goToScene(actIndex, sceneIndex)
-    setShowSummary(false)
-  }
+  const handleGoToScene = useCallback(
+    (actIndex: number, sceneIndex: number) => {
+      stopPlayback()
+
+      // Activer le flag de scroll programmatique
+      isScrollingProgrammaticallyRef.current = true
+
+      // Mettre à jour le store
+      goToScene(actIndex, sceneIndex)
+      setShowSummary(false)
+
+      // Désactiver le flag après un délai pour permettre le scroll
+      setTimeout(() => {
+        isScrollingProgrammaticallyRef.current = false
+      }, 1500)
+    },
+    [stopPlayback, goToScene]
+  )
 
   const handleClose = () => {
     stopPlayback()
@@ -1473,6 +1603,7 @@ export function PlayScreen() {
             progressPercentage={progressPercentage}
             elapsedTime={elapsedTime}
             estimatedDuration={estimatedDuration}
+            containerRef={containerRef}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

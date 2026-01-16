@@ -81,6 +81,9 @@ interface Props {
 
   /** Audio en cours de génération (synthèse) */
   isGenerating?: boolean
+
+  /** Ref externe pour le container (pour IntersectionObserver) */
+  containerRef?: React.RefObject<HTMLDivElement>
 }
 
 /**
@@ -109,19 +112,38 @@ export function PlaybackDisplay({
   elapsedTime,
   estimatedDuration,
   isGenerating,
+  containerRef: externalContainerRef,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const internalContainerRef = useRef<HTMLDivElement>(null)
   const currentItemRef = useRef<HTMLDivElement>(null)
+
+  // Utiliser la ref externe si fournie, sinon la ref interne
+  const activeContainerRef = externalContainerRef || internalContainerRef
 
   // Auto-scroll vers l'item courant
   useEffect(() => {
-    if (currentItemRef.current && containerRef.current) {
-      currentItemRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
+    if (currentPlaybackIndex === undefined) {
+      return
     }
-  }, [currentPlaybackIndex])
+
+    if (!currentItemRef.current) {
+      return
+    }
+
+    if (!activeContainerRef.current) {
+      return
+    }
+
+    // Petit délai pour s'assurer que le DOM est rendu
+    setTimeout(() => {
+      if (currentItemRef.current) {
+        currentItemRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        })
+      }
+    }, 100)
+  }, [currentPlaybackIndex, activeContainerRef])
 
   if (playbackSequence.length === 0) {
     return (
@@ -135,7 +157,7 @@ export function PlaybackDisplay({
 
   return (
     <div
-      ref={containerRef}
+      ref={activeContainerRef}
       className="h-full overflow-y-auto px-6 py-8"
       style={{ scrollBehavior: 'smooth' }}
       data-testid="playback-display"
