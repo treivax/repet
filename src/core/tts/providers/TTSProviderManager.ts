@@ -89,6 +89,13 @@ export class TTSProviderManager {
   /**
    * Libère toutes les ressources
    */
+  /**
+   * Vérifie si le provider est initialisé
+   */
+  isInitialized(): boolean {
+    return this.initialized
+  }
+
   async dispose(): Promise<void> {
     await this.provider.dispose()
     this.initialized = false

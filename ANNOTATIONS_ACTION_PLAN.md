@@ -9,6 +9,7 @@ Permettre aux utilisateurs d'annoter les répliques des pièces avec des notes p
 - **Création** : Clic long sur une réplique → sticky note apparaît
 - **Affichage** : Note étendue (texte visible) OU minimisée (icône uniquement)
 - **Édition** : Texte modifiable dans la note
+- **Support universel** : Annotations sur tous les types de cartes (répliques, didascalies, structure, présentation)
 - **Persistance** : Notes sauvegardées avec la pièce
 - **Contrôle global** : Menu permettant d'étendre/minimiser toutes les notes
 
@@ -24,7 +25,7 @@ Permettre aux utilisateurs d'annoter les répliques des pièces avec des notes p
 ```typescript
 export interface Annotation {
   id: string                    // UUID unique
-  lineId: string                // Référence vers Line.id
+  playbackItemIndex: number     // Référence vers l'index du PlaybackItem dans la séquence
   content: string               // Texte de l'annotation
   isExpanded: boolean           // État d'affichage (étendu/minimisé)
   createdAt: Date              // Date de création
@@ -100,7 +101,7 @@ interface AnnotationsState {
   areAllExpanded: Record<string, boolean>    // état global par pièce
   
   // Actions
-  addAnnotation: (playId: string, lineId: string, content: string) => Promise<void>
+  addAnnotation: (playId: string, playbackItemIndex: number, content: string) => Promise<void>
   updateAnnotation: (playId: string, annotationId: string, content: string) => Promise<void>
   deleteAnnotation: (playId: string, annotationId: string) => Promise<void>
   toggleAnnotation: (playId: string, annotationId: string) => Promise<void>
@@ -156,8 +157,9 @@ interface Props {
   - Bordure subtile
   - Décalage à droite (`ml-8` ou `ml-12`)
   - `textarea` éditable (auto-resize)
-  - Icône fermeture en haut à droite (×)
-  - Sauvegarde automatique (debounce 500ms) ou bouton "Enregistrer"
+  - **Appui long (500ms) sur la note** → minimise l'annotation
+  - Bouton suppression (icône poubelle) en haut à droite
+  - Sauvegarde automatique (debounce 500ms)
 
 **Design** :
 ```
@@ -172,7 +174,7 @@ interface Props {
 │  Texte de la réplique...            │
 └─────────────────────────────────────┘
     ┌─────────────────────────────┐
-    │ [×]                         │  ← État étendu
+    │ 📝 Note personnelle    [🗑] │  ← État étendu (appui long pour minimiser)
     │ ┌─────────────────────────┐ │
     │ │ Texte de l'annotation   │ │
     │ │ ...                     │ │
@@ -190,16 +192,20 @@ interface Props {
 
 **Changements** :
 1. Ajouter props :
+   **Nouvelles Props** (ajoutées à tous les composants de cartes) :
    ```typescript
-   annotation?: Annotation
-   onAnnotationCreate?: () => void
-   onAnnotationUpdate?: (content: string) => void
-   onAnnotationToggle?: () => void
+      annotation?: Annotation
+      onAnnotationCreate?: () => void
+      onAnnotationUpdate?: (content: string) => void
+      onAnnotationToggle?: () => void
+      onAnnotationDelete?: () => void
    ```
 
-2. Modifier le `onLongPress` existant :
-   - Si `annotation` existe : ne rien faire (déjà annotée)
-   - Sinon : appeler `onAnnotationCreate()`
+2. Ajouter des handlers d'appui long (500ms) :
+   - `handleMouseDown` / `handleTouchStart` : démarrer le timer
+   - `handleMouseUp` / `handleTouchEnd` : annuler le timer
+   - Si `annotation` existe : ne pas créer de nouveau
+   - Sinon : appeler `onAnnotationCreate()` après 500ms
 
 3. Rendre `<AnnotationNote>` si annotation existe :
    ```tsx
@@ -224,16 +230,20 @@ interface Props {
 
 **Note** : L'icône minimisée doit être positionnée en `absolute` par rapport au conteneur de la réplique.
 
+**Interaction** : L'appui long (500ms) sur la note étendue permet de la minimiser. Les événements doivent utiliser `stopPropagation()` pour éviter les conflits avec les handlers d'appui long du parent (`LineRenderer`).
+
 #### 3.3 Modification : `PlaybackDisplay`
 **Fichier** : `src/components/reader/PlaybackDisplay.tsx`
 
 **Changements** :
 1. Recevoir props annotations :
+   **Nouvelles Props** :
    ```typescript
-   annotations: Annotation[]
-   onAnnotationCreate: (lineId: string) => void
-   onAnnotationUpdate: (annotationId: string, content: string) => void
-   onAnnotationToggle: (annotationId: string) => void
+      annotations?: Annotation[]
+      onAnnotationCreate: (playbackItemIndex: number) => void
+      onAnnotationUpdate: (annotationId: string, content: string) => void
+      onAnnotationToggle: (annotationId: string) => void
+      onAnnotationDelete: (annotationId: string) => void
    ```
 
 2. Pour chaque `LinePlaybackItem`, trouver l'annotation correspondante :
@@ -316,15 +326,19 @@ async updateAllAnnotations(playId: string, annotations: Annotation[]): Promise<v
 #### 5.1 Création d'une Annotation
 
 ```
-User (clic long sur réplique)
+User (appui long 500ms sur n'importe quelle carte)
     ↓
-LineRenderer.onLongPress()
+[Card Component].handleMouseDown/handleTouchStart (timer démarre)
     ↓
-onAnnotationCreate(lineId) [prop passée par parent]
+Après 500ms → onAnnotationCreate() [prop passée par parent]
     ↓
-annotationsStore.addAnnotation(playId, lineId, "")
+PlaybackDisplay → onAnnotationCreate(item.index)
     ↓
-Créer nouvel objet Annotation { id: uuid(), lineId, content: "", isExpanded: true, ... }
+ReaderScreen/PlayScreen → handleAnnotationCreate(playbackItemIndex)
+    ↓
+annotationsStore.addAnnotation(playId, playbackItemIndex, "")
+    ↓
+Créer nouvel objet Annotation { id: uuid(), playbackItemIndex, content: "", isExpanded: true, ... }
     ↓
 playsRepository.addAnnotation(playId, annotation)
     ↓

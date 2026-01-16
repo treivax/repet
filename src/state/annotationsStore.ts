@@ -27,9 +27,9 @@ interface AnnotationsState {
   loadAnnotations: (playId: string, annotations: Annotation[]) => void
 
   /**
-   * Crée une nouvelle annotation pour une ligne
+   * Crée une nouvelle annotation pour un élément de lecture (playback item)
    */
-  addAnnotation: (playId: string, lineId: string, content?: string) => Promise<void>
+  addAnnotation: (playId: string, playbackItemIndex: number, content?: string) => Promise<void>
 
   /**
    * Met à jour le contenu d'une annotation
@@ -62,9 +62,9 @@ interface AnnotationsState {
   getAnnotations: (playId: string) => Annotation[]
 
   /**
-   * Récupère une annotation spécifique pour une ligne
+   * Récupère une annotation spécifique pour un élément de lecture
    */
-  getAnnotationForLine: (playId: string, lineId: string) => Annotation | undefined
+  getAnnotationForItem: (playId: string, playbackItemIndex: number) => Annotation | undefined
 }
 
 /**
@@ -85,12 +85,12 @@ export const useAnnotationsStore = create<AnnotationsState>((set, get) => ({
     }))
   },
 
-  addAnnotation: async (playId: string, lineId: string, content = '') => {
+  addAnnotation: async (playId: string, playbackItemIndex: number, content = '') => {
     try {
       // Créer la nouvelle annotation
       const newAnnotation: Annotation = {
         id: crypto.randomUUID(),
-        lineId,
+        playbackItemIndex,
         content,
         isExpanded: true,
         createdAt: new Date(),
@@ -190,9 +190,7 @@ export const useAnnotationsStore = create<AnnotationsState>((set, get) => ({
       set((state) => {
         const annotations = state.annotations[playId] ?? []
         const updatedAnnotations = annotations.map((a) =>
-          a.id === annotationId
-            ? { ...a, isExpanded: newExpandedState, updatedAt: new Date() }
-            : a
+          a.id === annotationId ? { ...a, isExpanded: newExpandedState, updatedAt: new Date() } : a
         )
 
         return {
@@ -234,7 +232,7 @@ export const useAnnotationsStore = create<AnnotationsState>((set, get) => ({
         },
       }))
     } catch (error) {
-      console.error("Erreur lors du toggle de toutes les annotations:", error)
+      console.error('Erreur lors du toggle de toutes les annotations:', error)
       throw error
     }
   },
@@ -255,8 +253,8 @@ export const useAnnotationsStore = create<AnnotationsState>((set, get) => ({
     return get().annotations[playId] ?? []
   },
 
-  getAnnotationForLine: (playId: string, lineId: string) => {
+  getAnnotationForItem: (playId: string, playbackItemIndex: number) => {
     const annotations = get().annotations[playId] ?? []
-    return annotations.find((a) => a.lineId === lineId)
+    return annotations.find((a) => a.playbackItemIndex === playbackItemIndex)
   },
 }))

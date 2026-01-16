@@ -133,6 +133,8 @@ export class PiperWASMProvider implements TTSProvider {
   private downloadProgress: Map<string, number> = new Map()
   private isPaused = false
   private activeBlobUrls: Set<string> = new Set()
+  private synthesisCounter = 0
+  private currentSynthesisId: number | null = null
 
   /**
    * Cache de sessions TtsSession par voix pour éviter de recharger les modèles
@@ -380,6 +382,11 @@ export class PiperWASMProvider implements TTSProvider {
     let sessionLoadTime: number | undefined
     let inferenceTime = 0
 
+    // Assigner un ID unique à cette synthèse
+    const synthesisId = ++this.synthesisCounter
+    this.currentSynthesisId = synthesisId
+    console.warn(`[PiperWASM] 🎤 Synthèse #${synthesisId} démarrée - voiceId: ${options.voiceId}`)
+
     console.warn('[PiperWASM] synthesize() appelé avec voiceId:', options.voiceId)
 
     // Détecter si c'est un profil vocal
@@ -410,6 +417,17 @@ export class PiperWASMProvider implements TTSProvider {
         console.warn(
           `[PiperWASM] ✅ Audio trouvé dans le cache pour voiceId="${options.voiceId}" (${cachedBlob.size} bytes)`
         )
+
+        // Vérifier si cette synthèse a été annulée
+        if (this.currentSynthesisId !== synthesisId) {
+          console.warn(`[PiperWASM] ⏭️ Synthèse #${synthesisId} annulée (cache)`)
+          return {
+            audio: new Audio(),
+            duration: 0,
+            fromCache: true,
+          }
+        }
+
         // Utiliser l'audio en cache
         const blobUrl = URL.createObjectURL(cachedBlob)
         this.activeBlobUrls.add(blobUrl)
@@ -566,6 +584,16 @@ export class PiperWASMProvider implements TTSProvider {
       console.warn(`[PiperWASM] ✅ Audio mis en cache avec succès`)
 
       // Créer l'élément audio
+      // Vérifier si cette synthèse a été annulée pendant la génération
+      if (this.currentSynthesisId !== synthesisId) {
+        console.warn(`[PiperWASM] ⏭️ Synthèse #${synthesisId} annulée (après génération)`)
+        return {
+          audio: new Audio(),
+          duration: 0,
+          fromCache: false,
+        }
+      }
+
       const blobUrl = URL.createObjectURL(audioBlob)
       this.activeBlobUrls.add(blobUrl)
       const audio = new Audio(blobUrl)
@@ -724,6 +752,10 @@ export class PiperWASMProvider implements TTSProvider {
    * Arrête la lecture en cours
    */
   stop(): void {
+    // Invalider toutes les synthèses en cours
+    this.currentSynthesisId = null
+    console.warn(`[PiperWASM] ⏹️ STOP appelé - invalidation des synthèses en cours`)
+
     if (this.currentAudio) {
       const audioState = {
         paused: this.currentAudio.paused,
@@ -732,7 +764,7 @@ export class PiperWASMProvider implements TTSProvider {
         duration: this.currentAudio.duration,
         src: this.currentAudio.src?.substring(0, 50),
       }
-      console.warn(`[PiperWASM] ⏹️ STOP appelé - état audio:`, audioState)
+      console.warn(`[PiperWASM] ⏹️ STOP - état audio:`, audioState)
 
       // Si l'audio est déjà terminé, ne rien faire - le nettoyage a déjà eu lieu via l'événement 'ended'
       if (this.currentAudio.ended) {
@@ -748,11 +780,19 @@ export class PiperWASMProvider implements TTSProvider {
       this.currentAudio.pause()
       this.currentAudio.currentTime = 0
 
-      // Ne pas supprimer les événements ni révoquer l'URL blob ici
-      // Les événements 'ended' ou 'error' s'occuperont du nettoyage
-      // Cela permet à l'événement 'ended' de se déclencher naturellement
-
+      // Supprimer les event listeners pour éviter qu'ils se déclenchent
+      const oldAudio = this.currentAudio
       this.currentAudio = null
+
+      // Essayer de nettoyer complètement l'audio
+      try {
+        oldAudio.src = ''
+        oldAudio.load()
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (e) {
+        // Ignorer les erreurs de nettoyage
+      }
+
       console.warn(`[PiperWASM] ⏹️ STOP terminé - currentAudio = null`)
     }
     this.isPaused = false

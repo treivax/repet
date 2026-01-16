@@ -100,9 +100,11 @@ interface AnnotationsState {
 - ✅ **État étendu** : Textarea éditable avec fond jaune clair
 - ✅ **Auto-save** : Debounce 500ms sur les modifications
 - ✅ **Auto-resize** : Textarea s'adapte au contenu
-- ✅ **Boutons** : Supprimer (poubelle) et Minimiser (×)
+- ✅ **Bouton suppression** : Icône poubelle en haut à droite
+- ✅ **Appui long (500ms)** : Sur la note étendue pour minimiser
 - ✅ **Animations** : Fade-in/slide-in à l'apparition
 - ✅ **Feedback** : Indicateur "Sauvegarde..." pendant l'enregistrement
+- ✅ **Gestion des conflits** : `stopPropagation()` sur les événements de la note pour éviter les conflits avec les handlers d'appui long du parent
 - ✅ **Accessibilité** : 
   - `role="note"` sur le container
   - `aria-label` sur les boutons et textarea
@@ -228,9 +230,10 @@ onAnnotationDelete?: (annotationId: string) => void
 - **Réactivité** : Mise à jour immédiate dans le store et la DB
 
 ### ✅ Toggle Individuel
-- **Minimiser** : Clic sur bouton × → Réduit à l'icône
+- **Minimiser** : Appui long (500ms) sur la note étendue → Réduit à l'icône
 - **Étendre** : Clic sur icône → Affiche le textarea
 - **État persisté** : Sauvegardé en DB
+- **Gestion des événements** : Les événements d'appui long sur la note utilisent `stopPropagation()` pour éviter les conflits avec les handlers du parent (LineRenderer)
 
 ### ✅ Toggle Global
 - **Emplacement** : Menu header (3 points)

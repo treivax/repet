@@ -350,10 +350,10 @@ export function ReaderScreen() {
   const isSilentMode = playSettings?.readingMode === 'silent'
 
   // Handlers pour les annotations
-  const handleAnnotationCreate = async (lineId: string) => {
+  const handleAnnotationCreate = async (playbackItemIndex: number) => {
     if (!playId) return
     try {
-      await addAnnotation(playId, lineId, '')
+      await addAnnotation(playId, playbackItemIndex, '')
     } catch (error) {
       console.error("Erreur lors de la création de l'annotation:", error)
       addError("Erreur lors de la création de l'annotation")
@@ -642,7 +642,6 @@ export function ReaderScreen() {
             playTitle={getPlayTitle(currentPlay)}
             onCardClick={undefined}
             onLineClick={undefined}
-            onLongPress={undefined}
             containerRef={containerRef}
             annotations={annotations}
             onAnnotationCreate={handleAnnotationCreate}

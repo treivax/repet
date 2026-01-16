@@ -10,7 +10,6 @@ import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
 import { useAnnotationsStore } from '../state/annotationsStore'
-import { globalLineIndexToPosition } from '../core/models/playHelpers'
 
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts/engine'
@@ -90,6 +89,7 @@ export function PlayScreen() {
   const [readLinesSet, setReadLinesSet] = useState<Set<number>>(new Set())
   const [showSummary, setShowSummary] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [ttsInitialized, setTtsInitialized] = useState(false)
 
   // États pour le tracking du temps de lecture
   const [estimatedDuration, setEstimatedDuration] = useState<number>(0) // en secondes
@@ -105,6 +105,7 @@ export function PlayScreen() {
   // Refs pour gérer la lecture audio
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const isPlayingRef = useRef(false)
+  const isPausedRef = useRef(false)
   const startTimeRef = useRef<number>(0)
   const progressIntervalRef = useRef<number | null>(null)
   const estimatedDurationRef = useRef<number>(0)
@@ -116,16 +117,41 @@ export function PlayScreen() {
   const isScrollingProgrammaticallyRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const observerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const playbackSequenceRef = useRef<PlaybackItem[]>([])
+  const autoScrollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const lastScrollTargetRef = useRef<number | null>(null)
 
   // Fonction pour mettre en pause/reprendre
   const pausePlayback = useCallback(() => {
-    if (ttsEngine.isSpeaking() && !isPaused) {
+    // Utiliser l'état du moteur TTS comme source de vérité
+    const engineIsSpeaking = ttsEngine.isSpeaking()
+    const engineIsPaused = ttsEngine.isPaused()
+
+    console.warn('[PlayScreen] pausePlayback appelé', {
+      engineIsSpeaking,
+      engineIsPaused,
+      isPausedState: isPaused,
+    })
+
+    if (engineIsSpeaking) {
+      // En cours de lecture : mettre en pause
+      console.warn('[PlayScreen] Mise en pause')
       ttsEngine.pause()
+      pauseProgressTracking()
+      isPausedRef.current = true
       setIsPaused(true)
-    } else if (isPaused) {
+    } else if (engineIsPaused) {
+      // En pause : reprendre
+      console.warn('[PlayScreen] Reprise')
       ttsEngine.resume()
+      resumeProgressTracking()
+      isPausedRef.current = false
       setIsPaused(false)
+    } else {
+      console.warn('[PlayScreen] Moteur idle/generating - aucune action')
     }
+    // Sinon (idle/generating) : ne rien faire
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPaused])
 
   // Charger la pièce au montage
@@ -179,10 +205,26 @@ export function PlayScreen() {
     loadAnnotations,
   ])
 
+  // Cleanup: nettoyer tous les timeouts au démontage
+  useEffect(() => {
+    return () => {
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current)
+      }
+      if (observerTimeoutRef.current) {
+        clearTimeout(observerTimeoutRef.current)
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current)
+      }
+    }
+  }, [])
+
   // Construire la séquence de lecture quand le play ou les settings changent
   useEffect(() => {
     if (!currentPlay || !playSettings) {
       setPlaybackSequence([])
+      playbackSequenceRef.current = []
       return
     }
 
@@ -193,6 +235,7 @@ export function PlayScreen() {
     })
 
     setPlaybackSequence(sequence)
+    playbackSequenceRef.current = sequence
   }, [currentPlay, playSettings])
 
   // Calculer currentPlaybackIndex basé sur currentLineIndex / currentActIndex / currentSceneIndex
@@ -345,6 +388,7 @@ export function PlayScreen() {
 
       try {
         await ttsProviderManager.initialize()
+        setTtsInitialized(true)
         console.warn(`TTS Provider initialisé: Piper WASM`)
 
         // Générer automatiquement les assignations de voix si elles sont vides
@@ -686,6 +730,33 @@ export function PlayScreen() {
     setProgressPercentage(0)
   }
 
+  /**
+   * Met en pause le tracking de progression (conserve les valeurs)
+   */
+  const pauseProgressTracking = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+      progressIntervalRef.current = null
+    }
+  }
+
+  /**
+   * Reprend le tracking de progression
+   */
+  const resumeProgressTracking = () => {
+    // Recalculer le temps de départ basé sur le temps écoulé
+    const elapsedMs = elapsedTime * 1000
+    startTimeRef.current = performance.now() - elapsedMs
+
+    // Nettoyer l'ancien interval s'il existe
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current)
+    }
+
+    // Mettre à jour la progression toutes les 100ms
+    progressIntervalRef.current = window.setInterval(updateProgress, 100)
+  }
+
   // Nettoyer l'interval au démontage
   useEffect(() => {
     return () => {
@@ -745,17 +816,30 @@ export function PlayScreen() {
 
   // Fonction pour scroller vers une ligne
   const scrollToLine = (lineIndex: number) => {
+    // Éviter les scrolls redondants vers la même cible
+    if (lastScrollTargetRef.current === lineIndex) {
+      return
+    }
+
     const element = document.querySelector(`[data-line-index="${lineIndex}"]`)
     if (element) {
+      lastScrollTargetRef.current = lineIndex
       element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+      // Réinitialiser après le scroll pour permettre un nouveau scroll si nécessaire
+      setTimeout(() => {
+        lastScrollTargetRef.current = null
+      }, 500)
     }
   }
 
   // Fonction pour arrêter la lecture
   const stopPlayback = useCallback(() => {
+    console.warn('[PlayScreen] 🛑 stopPlayback appelé')
     ttsEngine.stop()
     utteranceRef.current = null
     isPlayingRef.current = false
+    isPausedRef.current = false
     setPlayingLineIndex(undefined)
     setIsPaused(false)
     setIsGenerating(false)
@@ -809,16 +893,16 @@ export function PlayScreen() {
         setIsGenerating(false)
       },
       onEnd: () => {
-        if (!isPlayingRef.current) return
+        if (!isPlayingRef.current || isPausedRef.current) return
         onSegmentEnd()
       },
       onError: (error) => {
         console.error('Erreur de lecture TTS segment', error)
-        if (!isPlayingRef.current) return
+        if (!isPlayingRef.current || isPausedRef.current) return
         stopPlayback()
       },
       onProgress: (charIndex) => {
-        if (!isPlayingRef.current) return
+        if (!isPlayingRef.current || isPausedRef.current) return
         // Mettre à jour les mots prononcés pour le segment actuel
         const textSoFar = segment.content.substring(0, charIndex)
         const wordsInSegment = countWords(textSoFar)
@@ -858,16 +942,21 @@ export function PlayScreen() {
     currentSegmentIndexRef.current = 0
 
     const speakNextSegment = (): void => {
-      if (!isPlayingRef.current) return
+      if (!isPlayingRef.current || isPausedRef.current) return
 
       const segmentIndex = currentSegmentIndexRef.current
       if (segmentIndex >= segments.length) {
         // Tous les segments ont été lus
+        console.warn('[PlayScreen] 📝 Tous les segments lus', {
+          globalLineIndex,
+          hasOnComplete: !!onComplete,
+        })
         stopProgressTracking()
         setIsGenerating(false)
 
         // Appeler le callback si fourni, sinon comportement par défaut (ligne suivante)
         if (onComplete) {
+          console.warn('[PlayScreen] 📞 Appel du callback onComplete')
           onComplete()
         } else {
           // Comportement par défaut : passer à la ligne suivante
@@ -922,6 +1011,8 @@ export function PlayScreen() {
 
     setCurrentPlaybackIndex(item.index)
     setPlayedItems((prev) => new Set(prev).add(item.index))
+    // Désélectionner toute ligne en cours
+    setPlayingLineIndex(undefined)
 
     // Si shouldRead est false, passer directement au suivant sans lire
     if (item.shouldRead === false) {
@@ -932,6 +1023,11 @@ export function PlayScreen() {
 
     const narratorVoiceId = getNarratorVoiceId()
     if (!narratorVoiceId) return
+
+    // Marquer comme en cours de lecture
+    isPlayingRef.current = true
+    isPausedRef.current = false
+    setIsPaused(false)
 
     const rate = playSettings.defaultSpeed * 0.9 // Didascalies légèrement plus lentes
 
@@ -957,23 +1053,32 @@ export function PlayScreen() {
   }
 
   /**
-   * Lit une carte de structure (titre/acte/scène)
+   * Lit une carte de structure (acte, scène, titre)
    */
   const playStructure = (item: StructurePlaybackItem) => {
     if (!playSettings) return
 
     setCurrentPlaybackIndex(item.index)
     setPlayedItems((prev) => new Set(prev).add(item.index))
+    // Désélectionner toute ligne en cours
+    setPlayingLineIndex(undefined)
 
     // Si shouldRead est false, passer directement au suivant sans lire
     if (item.shouldRead === false) {
-      console.warn(`[PlayScreen] ⏭️  Structure non lue (toggle désactivé): "${item.text}"`)
+      console.warn(
+        `[PlayScreen] ⏭️  Structure non lue (toggle désactivé): "${item.structureType}" - "${item.text}"`
+      )
       playNextPlaybackItem(item.index)
       return
     }
 
     const narratorVoiceId = getNarratorVoiceId()
     if (!narratorVoiceId) return
+
+    // Marquer comme en cours de lecture
+    isPlayingRef.current = true
+    isPausedRef.current = false
+    setIsPaused(false)
 
     const rate = playSettings.defaultSpeed * 0.9
 
@@ -999,23 +1104,30 @@ export function PlayScreen() {
   }
 
   /**
-   * Lit la carte de présentation (Cast)
+   * Lit une carte de présentation (Cast)
    */
   const playPresentation = (item: PresentationPlaybackItem) => {
     if (!playSettings) return
 
     setCurrentPlaybackIndex(item.index)
     setPlayedItems((prev) => new Set(prev).add(item.index))
+    // Désélectionner toute ligne en cours
+    setPlayingLineIndex(undefined)
 
     // Si shouldRead est false, passer directement au suivant sans lire
     if (item.shouldRead === false) {
-      console.warn('[PlayScreen] ⏭️  Présentation non lue (toggle désactivé)')
+      console.warn(`[PlayScreen] ⏭️  Présentation non lue (toggle désactivé)`)
       playNextPlaybackItem(item.index)
       return
     }
 
     const narratorVoiceId = getNarratorVoiceId()
     if (!narratorVoiceId) return
+
+    // Marquer comme en cours de lecture
+    isPlayingRef.current = true
+    isPausedRef.current = false
+    setIsPaused(false)
 
     const rate = playSettings.defaultSpeed
 
@@ -1044,45 +1156,70 @@ export function PlayScreen() {
    * Lit l'élément suivant dans la séquence de lecture
    */
   const playNextPlaybackItem = (currentIndex: number) => {
-    const nextItem = playbackSequence.find((item) => item.index === currentIndex + 1)
+    console.warn('[PlayScreen] 🔄 playNextPlaybackItem appelé', {
+      currentIndex,
+      nextIndex: currentIndex + 1,
+      playbackSequenceLength: playbackSequenceRef.current.length,
+    })
+    const nextItem = playbackSequenceRef.current.find((item) => item.index === currentIndex + 1)
+    console.warn('[PlayScreen] nextItem trouvé?', {
+      found: !!nextItem,
+      nextItem: nextItem ? { index: nextItem.index, type: nextItem.type } : null,
+    })
     if (nextItem) {
+      console.warn('[PlayScreen] ▶️ Lecture du nextItem:', nextItem.index)
       playPlaybackItem(nextItem)
     } else {
       // Fin de la séquence
+      console.warn('[PlayScreen] ✅ Fin de la séquence de lecture (pas de nextItem)')
       setCurrentPlaybackIndex(undefined)
       setPlayingLineIndex(undefined)
       setIsPaused(false)
       isPlayingRef.current = false
-      console.warn('[PlayScreen] ✅ Fin de la séquence de lecture')
     }
   }
 
   /**
    * Dispatcher pour lire n'importe quel type d'élément de lecture
    */
-  const playPlaybackItem = (item: PlaybackItem) => {
-    // Arrêter toute lecture en cours
-    ttsEngine.stop()
-    stopProgressTracking()
+  const playPlaybackItem = useCallback(
+    (item: PlaybackItem) => {
+      console.warn('[PlayScreen] 🎬 playPlaybackItem appelé', {
+        itemIndex: item.index,
+        itemType: item.type,
+      })
+      // Arrêter toute lecture en cours
+      ttsEngine.stop()
+      stopProgressTracking()
 
-    switch (item.type) {
-      case 'line':
-        speakLine((item as LinePlaybackItem).lineIndex)
-        break
-      case 'stage-direction':
-        playStageDirection(item as StageDirectionPlaybackItem)
-        break
-      case 'structure':
-        playStructure(item as StructurePlaybackItem)
-        break
-      case 'presentation':
-        playPresentation(item as PresentationPlaybackItem)
-        break
-    }
-  }
+      switch (item.type) {
+        case 'line':
+          console.warn(
+            '[PlayScreen] → Appel speakLine pour lineIndex:',
+            (item as LinePlaybackItem).lineIndex
+          )
+          speakLine((item as LinePlaybackItem).lineIndex)
+          break
+        case 'stage-direction':
+          console.warn('[PlayScreen] → Appel playStageDirection')
+          playStageDirection(item as StageDirectionPlaybackItem)
+          break
+        case 'structure':
+          console.warn('[PlayScreen] → Appel playStructure')
+          playStructure(item as StructurePlaybackItem)
+          break
+        case 'presentation':
+          console.warn('[PlayScreen] → Appel playPresentation')
+          playPresentation(item as PresentationPlaybackItem)
+          break
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [playStageDirection, playStructure, playPresentation]
+  )
 
   // Fonction pour lire une ligne (avec index global)
-  const speakLine = (globalLineIndex: number) => {
+  const speakLine = useCallback((globalLineIndex: number) => {
     if (!playSettings || !currentPlay) return
 
     const coords = getLineCoordinates(globalLineIndex)
@@ -1099,23 +1236,28 @@ export function PlayScreen() {
     }
 
     // Trouver l'item de playback correspondant et mettre à jour currentPlaybackIndex
-    const currentItem = playbackSequence.find(
+    const currentItem = playbackSequenceRef.current.find(
       (item) => item.type === 'line' && (item as LinePlaybackItem).lineIndex === globalLineIndex
     )
     if (currentItem) {
       setCurrentPlaybackIndex(currentItem.index)
 
-      // Activer l'auto-scroll pour scroller vers la ligne en cours de lecture
+      // Annuler tout timeout précédent et activer l'auto-scroll
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current)
+      }
       setShouldAutoScroll(true)
-      setTimeout(() => {
+      autoScrollTimeoutRef.current = setTimeout(() => {
         setShouldAutoScroll(false)
-      }, 800)
+        autoScrollTimeoutRef.current = null
+      }, 1000)
     }
 
     setPlayingLineIndex(globalLineIndex)
     setIsPaused(false)
     setReadLinesSet((prev) => new Set(prev).add(globalLineIndex))
     isPlayingRef.current = true
+    isPausedRef.current = false
     setIsGenerating(true) // Indiquer qu'on génère l'audio
 
     // === Gestion des répliques multi-personnages ===
@@ -1274,12 +1416,31 @@ export function PlayScreen() {
 
     // Lire les segments séquentiellement avec callback pour passer à l'élément suivant
     speakLineSegments(segments, voiceId, narratorVoiceId, rate, volume, globalLineIndex, () => {
+      console.warn('[PlayScreen] 🎯 Ligne terminée, callback onComplete appelé', {
+        globalLineIndex,
+        playbackSequenceLength: playbackSequenceRef.current.length,
+      })
       // Une fois la ligne terminée, passer à l'élément suivant de la séquence
-      const currentItem = playbackSequence.find(
+      const currentItem = playbackSequenceRef.current.find(
         (item) => item.type === 'line' && (item as LinePlaybackItem).lineIndex === globalLineIndex
       )
+      console.warn('[PlayScreen] currentItem trouvé?', {
+        found: !!currentItem,
+        currentItem: currentItem ? { index: currentItem.index, type: currentItem.type } : null,
+      })
       if (currentItem) {
+        console.warn('[PlayScreen] Appel playNextPlaybackItem avec index:', currentItem.index)
         playNextPlaybackItem(currentItem.index)
+      } else {
+        // Pas de currentItem = lecture isolée d'une ligne (mode italiennes)
+        // Réinitialiser l'état pour permettre un nouveau clic
+        console.warn('[PlayScreen] ✅ Lecture isolée terminée - réinitialisation état')
+        setPlayingLineIndex(undefined)
+        isPlayingRef.current = false
+        isPausedRef.current = false
+        setIsPaused(false)
+        setIsGenerating(false)
+        stopProgressTracking()
       }
 
       // Phase 1 Optimization: Prefetch des 2-3 prochaines répliques
@@ -1289,10 +1450,10 @@ export function PlayScreen() {
         // Collecter les 2-3 prochaines répliques de type 'line'
         for (
           let i = currentItem.index + 1;
-          i < Math.min(currentItem.index + 4, playbackSequence.length);
+          i < Math.min(currentItem.index + 4, playbackSequenceRef.current.length);
           i++
         ) {
-          const nextItem = playbackSequence[i]
+          const nextItem = playbackSequenceRef.current[i]
           if (nextItem.type === 'line') {
             const lineItem = nextItem as LinePlaybackItem
             const coords = getLineCoordinates(lineItem.lineIndex)
@@ -1322,73 +1483,133 @@ export function PlayScreen() {
       }
     })
 
+    // Activer le flag de scroll programmatique avant de scroller
+    isScrollingProgrammaticallyRef.current = true
+
     // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
     scrollToLine(globalLineIndex)
-  }
+
+    // Désactiver le flag après le scroll
+    setTimeout(() => {
+      isScrollingProgrammaticallyRef.current = false
+    }, 800)
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /**
    * Handler pour le clic sur une carte (didascalie, structure, présentation)
    */
-  const handleCardClick = (playbackIndex: number) => {
-    const item = playbackSequence.find((item) => item.index === playbackIndex)
-    if (!item) return
+  const handleCardClick = useCallback(
+    (playbackIndex: number) => {
+      // Vérifier que le TTS est initialisé
+      if (!ttsInitialized) {
+        console.warn('[PlayScreen] ⚠️ TTS non initialisé, click ignoré')
+        return
+      }
 
-    // Si c'est l'élément en cours de lecture
-    if (currentPlaybackIndex === playbackIndex) {
-      // Toggle pause/resume
-      pausePlayback()
-    } else {
-      // Activer l'auto-scroll pour scroller vers l'élément en cours de lecture
-      setShouldAutoScroll(true)
-      setTimeout(() => {
-        setShouldAutoScroll(false)
-      }, 800)
+      console.warn('[PlayScreen] handleCardClick appelé', {
+        playbackIndex,
+        currentPlaybackIndex,
+        playbackSequenceLength: playbackSequence.length,
+      })
+      const item = playbackSequence.find((item) => item.index === playbackIndex)
+      if (!item) {
+        console.error('[PlayScreen] Item non trouvé pour playbackIndex:', playbackIndex)
+        return
+      }
 
-      // Démarrer la lecture de cet élément
-      playPlaybackItem(item)
-    }
-  }
+      console.warn('[PlayScreen] Item trouvé:', item)
+
+      // Si c'est l'élément en cours de lecture
+      if (currentPlaybackIndex === playbackIndex) {
+        console.warn('[PlayScreen] Toggle pause/resume')
+        // Toggle pause/resume
+        pausePlayback()
+      } else {
+        console.warn('[PlayScreen] Démarrage lecture de cet élément')
+        // Annuler tout timeout précédent et activer l'auto-scroll
+        if (autoScrollTimeoutRef.current) {
+          clearTimeout(autoScrollTimeoutRef.current)
+        }
+        setShouldAutoScroll(true)
+        autoScrollTimeoutRef.current = setTimeout(() => {
+          setShouldAutoScroll(false)
+          autoScrollTimeoutRef.current = null
+        }, 1000)
+
+        // Démarrer la lecture de cet élément
+        playPlaybackItem(item)
+      }
+    },
+    [playbackSequence, currentPlaybackIndex, pausePlayback, playPlaybackItem, ttsInitialized]
+  )
 
   // Handler pour le clic sur une ligne (reçoit l'index global)
-  const handleLineClick = (globalLineIndex: number) => {
-    if (!currentPlay) return
+  const handleLineClick = useCallback(
+    (globalLineIndex: number) => {
+      // Vérifier que le TTS est initialisé
+      if (!ttsInitialized) {
+        console.warn('[PlayScreen] ⚠️ TTS non initialisé, click ignoré')
+        return
+      }
 
-    // Si c'est la ligne en cours de lecture
-    if (playingLineIndex === globalLineIndex) {
-      // Toggle pause/resume
-      pausePlayback()
-    } else {
-      // Démarrer la nouvelle lecture (speakLine gère l'arrêt de l'ancienne)
-      speakLine(globalLineIndex)
-    }
-  }
+      if (!currentPlay || !playSettings) return
 
-  // Handler pour l'appui long sur une ligne en cours de lecture
-  const handleLongPress = (globalLineIndex: number) => {
-    if (!currentPlay || !playId || !playSettings) return
+      // Si c'est la ligne en cours de lecture
+      if (playingLineIndex === globalLineIndex) {
+        // Toggle pause/resume
+        pausePlayback()
+        return
+      }
 
-    // Ne gérer l'appui long que si on est en mode audio ou italiennes
-    if (playSettings.readingMode !== 'audio' && playSettings.readingMode !== 'italian') return
+      // Construire la playbackSequence complète pour permettre l'enchaînement automatique
+      const sequence = buildPlaybackSequence(currentPlay.ast, {
+        includeStageDirections: playSettings.readStageDirections,
+        includeStructure: playSettings.readStructure,
+        includePresentation: playSettings.readPresentation,
+      })
 
-    // Arrêter la lecture en cours
-    stopPlayback()
+      // Trouver l'item correspondant à cette ligne
+      const lineItem = sequence.find(
+        (item): item is LinePlaybackItem =>
+          item.type === 'line' && (item as LinePlaybackItem).lineIndex === globalLineIndex
+      )
 
-    // Basculer vers le mode silencieux
-    const { updatePlaySettings } = usePlaySettingsStore.getState()
-    updatePlaySettings(playId, {
-      readingMode: 'silent',
-    })
+      if (!lineItem) {
+        console.error(
+          '[PlayScreen] handleLineClick: Item non trouvé pour globalLineIndex:',
+          globalLineIndex
+        )
+        return
+      }
 
-    // Calculer la position de la ligne pour le ReaderScreen
-    const position = globalLineIndexToPosition(currentPlay.ast.acts, globalLineIndex)
-    if (position) {
-      const { goToScene } = usePlayStore.getState()
-      goToScene(position.actIndex, position.sceneIndex)
-    }
+      console.warn('[PlayScreen] handleLineClick: Item trouvé', {
+        globalLineIndex,
+        playbackIndex: lineItem.index,
+        sequenceLength: sequence.length,
+      })
 
-    // Naviguer vers le ReaderScreen
-    navigate(`/reader/${playId}`)
-  }
+      // Mettre à jour la séquence de lecture
+      setPlaybackSequence(sequence)
+      playbackSequenceRef.current = sequence
+      setCurrentPlaybackIndex(lineItem.index)
+
+      // Annuler tout timeout précédent et activer l'auto-scroll
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current)
+      }
+      setShouldAutoScroll(true)
+      autoScrollTimeoutRef.current = setTimeout(() => {
+        setShouldAutoScroll(false)
+        autoScrollTimeoutRef.current = null
+      }, 1000)
+
+      // Démarrer la lecture de cette ligne (qui enchaînera automatiquement)
+      playPlaybackItem(lineItem)
+    },
+    [currentPlay, playSettings, playingLineIndex, pausePlayback, playPlaybackItem, ttsInitialized]
+  )
 
   // Handler pour le clic en dehors d'une ligne
 
@@ -1400,6 +1621,11 @@ export function PlayScreen() {
 
       // Activer le flag de scroll programmatique ET l'auto-scroll
       isScrollingProgrammaticallyRef.current = true
+
+      // Annuler tout timeout précédent et activer l'auto-scroll
+      if (autoScrollTimeoutRef.current) {
+        clearTimeout(autoScrollTimeoutRef.current)
+      }
       setShouldAutoScroll(true)
 
       // Mettre à jour le store
@@ -1407,10 +1633,11 @@ export function PlayScreen() {
       setShowSummary(false)
 
       // Désactiver le flag après un délai pour permettre le scroll
-      setTimeout(() => {
+      autoScrollTimeoutRef.current = setTimeout(() => {
         isScrollingProgrammaticallyRef.current = false
         setShouldAutoScroll(false)
-      }, 800)
+        autoScrollTimeoutRef.current = null
+      }, 1000)
     },
     [stopPlayback, goToScene]
   )
@@ -1422,10 +1649,10 @@ export function PlayScreen() {
   }
 
   // Handlers pour les annotations
-  const handleAnnotationCreate = async (lineId: string) => {
+  const handleAnnotationCreate = async (playbackItemIndex: number) => {
     if (!playId) return
     try {
-      await addAnnotation(playId, lineId, '')
+      await addAnnotation(playId, playbackItemIndex, '')
     } catch (error) {
       console.error("Erreur lors de la création de l'annotation:", error)
       addError("Erreur lors de la création de l'annotation")
@@ -1702,48 +1929,46 @@ export function PlayScreen() {
       {/* Main content */}
       <div className="flex-1 overflow-hidden" data-testid="text-display-container">
         {currentPlay && playSettings && playbackSequence.length > 0 ? (
-          <PlaybackDisplay
-            playbackSequence={playbackSequence}
-            flatLines={currentPlay.ast.flatLines}
-            readingMode={playSettings.readingMode}
-            userCharacterId={userCharacter?.id}
-            hideUserLines={playSettings.hideUserLines}
-            showBefore={playSettings.showBefore}
-            showAfter={playSettings.showAfter}
-            currentPlaybackIndex={currentPlaybackIndex}
-            playingLineIndex={playingLineIndex}
-            playedItems={playedItems}
-            readLinesSet={readLinesSet}
-            charactersMap={charactersMap}
-            playTitle={getPlayTitle(currentPlay)}
-            onLineClick={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleLineClick
-                : undefined
-            }
-            onCardClick={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleCardClick
-                : undefined
-            }
-            onLongPress={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleLongPress
-                : undefined
-            }
-            isPaused={isPaused}
-            isGenerating={isGenerating}
-            progressPercentage={progressPercentage}
-            elapsedTime={elapsedTime}
-            annotations={annotations}
-            onAnnotationCreate={handleAnnotationCreate}
-            onAnnotationUpdate={handleAnnotationUpdate}
-            onAnnotationToggle={handleAnnotationToggle}
-            onAnnotationDelete={handleAnnotationDelete}
-            shouldAutoScroll={shouldAutoScroll}
-            estimatedDuration={estimatedDuration}
-            containerRef={containerRef}
-          />
+          <>
+            {console.warn('[PlayScreen] Rendu PlaybackDisplay', {
+              readingMode: playSettings.readingMode,
+              hasOnCardClick: !!(
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+              ),
+              hasOnLineClick: !!(
+                playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
+              ),
+            })}
+            <PlaybackDisplay
+              playbackSequence={playbackSequence}
+              flatLines={currentPlay.ast.flatLines}
+              readingMode={playSettings.readingMode}
+              userCharacterId={userCharacter?.id}
+              hideUserLines={playSettings.hideUserLines}
+              showBefore={playSettings.showBefore}
+              showAfter={playSettings.showAfter}
+              currentPlaybackIndex={currentPlaybackIndex}
+              playingLineIndex={playingLineIndex}
+              playedItems={playedItems}
+              readLinesSet={readLinesSet}
+              charactersMap={charactersMap}
+              playTitle={getPlayTitle(currentPlay)}
+              onLineClick={handleLineClick}
+              onCardClick={handleCardClick}
+              isPaused={isPaused}
+              isGenerating={isGenerating}
+              progressPercentage={progressPercentage}
+              elapsedTime={elapsedTime}
+              annotations={annotations}
+              onAnnotationCreate={handleAnnotationCreate}
+              onAnnotationUpdate={handleAnnotationUpdate}
+              onAnnotationToggle={handleAnnotationToggle}
+              onAnnotationDelete={handleAnnotationDelete}
+              shouldAutoScroll={shouldAutoScroll}
+              estimatedDuration={estimatedDuration}
+              containerRef={containerRef}
+            />
+          </>
         ) : (
           <div className="flex items-center justify-center h-full">
             <Spinner size="lg" />

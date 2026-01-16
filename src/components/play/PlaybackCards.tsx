@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { Character } from '../../core/models/Character'
 import type {
   PlaybackItem,
@@ -12,7 +12,9 @@ import type {
   StructurePlaybackItem,
   PresentationPlaybackItem,
 } from '../../core/models/types'
+import type { Annotation } from '../../core/models/Annotation'
 import { generateCharacterColor } from '../../utils/colors'
+import { AnnotationNote } from '../reader/AnnotationNote'
 
 /**
  * Props communes pour toutes les cartes de lecture
@@ -21,6 +23,11 @@ interface BaseCardProps {
   isPlaying?: boolean
   hasBeenPlayed?: boolean
   onClick?: () => void
+  annotation?: Annotation
+  onAnnotationCreate?: () => void
+  onAnnotationUpdate?: (content: string) => void
+  onAnnotationToggle?: () => void
+  onAnnotationDelete?: () => void
 }
 
 /**
@@ -40,9 +47,25 @@ export function StageDirectionCard({
   hasBeenPlayed: _hasBeenPlayed = false,
   onClick,
   testId,
+  annotation,
+  onAnnotationCreate,
+  onAnnotationUpdate,
+  onAnnotationToggle,
+  onAnnotationDelete,
 }: StageDirectionCardProps) {
   const displayText = text || item?.text || ''
   const [isClicked, setIsClicked] = useState(false)
+  const longPressTimer = useRef<number | null>(null)
+  const longPressTriggered = useRef(false)
+
+  // Nettoyage du timer lors du démontage
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+      }
+    }
+  }, [])
 
   const cardClasses = `
     my-4 px-4 py-3 rounded-lg transition-all text-left w-full
@@ -72,41 +95,90 @@ export function StageDirectionCard({
   )
 
   const handleMouseDown = () => {
-    setIsClicked(true)
+    console.warn('[StageDirectionCard] handleMouseDown', {
+      hasOnAnnotationCreate: !!onAnnotationCreate,
+      hasAnnotation: !!annotation,
+    })
+    longPressTriggered.current = false
+    if (onAnnotationCreate && !annotation) {
+      const timer = window.setTimeout(() => {
+        longPressTriggered.current = true
+        onAnnotationCreate()
+      }, 500)
+      longPressTimer.current = timer
+    } else {
+      setIsClicked(true)
+    }
   }
 
   const handleMouseUp = () => {
+    console.warn('[StageDirectionCard] handleMouseUp', {
+      hadTimer: !!longPressTimer.current,
+      longPressTriggered: longPressTriggered.current,
+    })
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
     setIsClicked(false)
   }
 
   const handleTouchStart = () => {
-    setIsClicked(true)
+    longPressTriggered.current = false
+    if (onAnnotationCreate && !annotation) {
+      const timer = window.setTimeout(() => {
+        longPressTriggered.current = true
+        onAnnotationCreate()
+      }, 500)
+      longPressTimer.current = timer
+    } else {
+      setIsClicked(true)
+    }
   }
 
   const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
     setIsClicked(false)
   }
 
-  if (!onClick) {
-    return (
-      <div
-        className={cardClasses}
-        data-testid={testId}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-      >
-        {content}
-      </div>
-    )
-  }
-
-  return (
+  const cardContent = !onClick ? (
+    <div
+      className={cardClasses}
+      data-testid={testId}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      {content}
+    </div>
+  ) : (
     <button
-      onClick={onClick}
+      onClick={(_e) => {
+        console.warn('[StageDirectionCard] onClick déclenché', {
+          hasTimer: !!longPressTimer.current,
+          longPressTriggered: longPressTriggered.current,
+          hasOnClick: !!onClick,
+        })
+        // Si un timer d'appui long est actif, c'est un clic court : annuler le timer
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current)
+          longPressTimer.current = null
+        }
+        // Ne pas appeler onClick si l'appui long a déjà déclenché l'annotation
+        if (!longPressTriggered.current) {
+          console.warn('[StageDirectionCard] Appel de onClick()')
+          onClick()
+        } else {
+          console.warn('[StageDirectionCard] onClick ignoré car long press déclenché')
+        }
+        longPressTriggered.current = false
+      }}
       className={cardClasses}
       aria-label={`Didascalie: ${displayText}`}
       data-testid={testId}
@@ -125,6 +197,20 @@ export function StageDirectionCard({
     >
       {content}
     </button>
+  )
+
+  return (
+    <div className="relative">
+      {cardContent}
+      {annotation && (
+        <AnnotationNote
+          annotation={annotation}
+          onUpdate={onAnnotationUpdate || (() => {})}
+          onToggle={onAnnotationToggle || (() => {})}
+          onDelete={onAnnotationDelete}
+        />
+      )}
+    </div>
   )
 }
 
@@ -149,10 +235,26 @@ export function StructureCard({
   hasBeenPlayed: _hasBeenPlayed = false,
   onClick,
   testId,
+  annotation,
+  onAnnotationCreate,
+  onAnnotationUpdate,
+  onAnnotationToggle,
+  onAnnotationDelete,
 }: StructureCardProps) {
   const structureType = type || item?.structureType || 'title'
   const displayText = text || item?.text || ''
   const [isClicked, setIsClicked] = useState(false)
+  const longPressTimer = useRef<number | null>(null)
+  const longPressTriggered = useRef(false)
+
+  // Nettoyage du timer lors du démontage
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+      }
+    }
+  }, [])
 
   // Déterminer les classes de typographie selon le type de structure
   const getTypographyClasses = () => {
@@ -203,41 +305,74 @@ export function StructureCard({
   )
 
   const handleMouseDown = () => {
-    setIsClicked(true)
+    longPressTriggered.current = false
+    if (onAnnotationCreate && !annotation) {
+      const timer = window.setTimeout(() => {
+        longPressTriggered.current = true
+        onAnnotationCreate()
+      }, 500)
+      longPressTimer.current = timer
+    } else {
+      setIsClicked(true)
+    }
   }
 
   const handleMouseUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
     setIsClicked(false)
   }
 
   const handleTouchStart = () => {
-    setIsClicked(true)
+    longPressTriggered.current = false
+    if (onAnnotationCreate && !annotation) {
+      const timer = window.setTimeout(() => {
+        longPressTriggered.current = true
+        onAnnotationCreate()
+      }, 500)
+      longPressTimer.current = timer
+    } else {
+      setIsClicked(true)
+    }
   }
 
   const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
     setIsClicked(false)
   }
 
-  if (!onClick) {
-    return (
-      <div
-        className={cardClasses}
-        data-testid={testId}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-      >
-        {content}
-      </div>
-    )
-  }
-
-  return (
+  const cardContent = !onClick ? (
+    <div
+      className={cardClasses}
+      data-testid={testId}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      {content}
+    </div>
+  ) : (
     <button
-      onClick={onClick}
+      onClick={(_e) => {
+        // Si un timer d'appui long est actif, c'est un clic court : annuler le timer
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current)
+          longPressTimer.current = null
+        }
+        // Ne pas appeler onClick si l'appui long a déjà déclenché l'annotation
+        if (!longPressTriggered.current) {
+          onClick()
+        }
+        longPressTriggered.current = false
+      }}
       className={cardClasses}
       aria-label={`${structureType}: ${displayText}`}
       data-testid={testId}
@@ -256,6 +391,20 @@ export function StructureCard({
     >
       {content}
     </button>
+  )
+
+  return (
+    <div className="relative">
+      {cardContent}
+      {annotation && (
+        <AnnotationNote
+          annotation={annotation}
+          onUpdate={onAnnotationUpdate || (() => {})}
+          onToggle={onAnnotationToggle || (() => {})}
+          onDelete={onAnnotationDelete}
+        />
+      )}
+    </div>
   )
 }
 
@@ -276,8 +425,24 @@ export function PresentationCard({
   onClick,
   charactersMap,
   testId,
+  annotation,
+  onAnnotationCreate,
+  onAnnotationUpdate,
+  onAnnotationToggle,
+  onAnnotationDelete,
 }: PresentationCardProps) {
   const [isClicked, setIsClicked] = useState(false)
+  const longPressTimer = useRef<number | null>(null)
+  const longPressTriggered = useRef(false)
+
+  // Nettoyage du timer lors du démontage
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+      }
+    }
+  }, [])
 
   const cardClasses = `
     my-4 px-4 py-3 rounded-lg transition-all text-left w-full
@@ -364,41 +529,74 @@ export function PresentationCard({
   )
 
   const handleMouseDown = () => {
-    setIsClicked(true)
+    longPressTriggered.current = false
+    if (onAnnotationCreate && !annotation) {
+      const timer = window.setTimeout(() => {
+        longPressTriggered.current = true
+        onAnnotationCreate()
+      }, 500)
+      longPressTimer.current = timer
+    } else {
+      setIsClicked(true)
+    }
   }
 
   const handleMouseUp = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
     setIsClicked(false)
   }
 
   const handleTouchStart = () => {
-    setIsClicked(true)
+    longPressTriggered.current = false
+    if (onAnnotationCreate && !annotation) {
+      const timer = window.setTimeout(() => {
+        longPressTriggered.current = true
+        onAnnotationCreate()
+      }, 500)
+      longPressTimer.current = timer
+    } else {
+      setIsClicked(true)
+    }
   }
 
   const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
     setIsClicked(false)
   }
 
-  if (!onClick) {
-    return (
-      <div
-        className={cardClasses}
-        data-testid={testId}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-      >
-        {content}
-      </div>
-    )
-  }
-
-  return (
+  const cardContent = !onClick ? (
+    <div
+      className={cardClasses}
+      data-testid={testId}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      {content}
+    </div>
+  ) : (
     <button
-      onClick={onClick}
+      onClick={(_e) => {
+        // Si un timer d'appui long est actif, c'est un clic court : annuler le timer
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current)
+          longPressTimer.current = null
+        }
+        // Ne pas appeler onClick si l'appui long a déjà déclenché l'annotation
+        if (!longPressTriggered.current) {
+          onClick()
+        }
+        longPressTriggered.current = false
+      }}
       className={cardClasses}
       aria-label="Section de présentation (Cast)"
       data-testid={testId}
@@ -417,6 +615,20 @@ export function PresentationCard({
     >
       {content}
     </button>
+  )
+
+  return (
+    <div className="relative">
+      {cardContent}
+      {annotation && (
+        <AnnotationNote
+          annotation={annotation}
+          onUpdate={onAnnotationUpdate || (() => {})}
+          onToggle={onAnnotationToggle || (() => {})}
+          onDelete={onAnnotationDelete}
+        />
+      )}
+    </div>
   )
 }
 

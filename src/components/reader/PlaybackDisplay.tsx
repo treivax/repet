@@ -65,9 +65,6 @@ interface Props {
   /** Callback pour le clic sur une carte */
   onCardClick?: (playbackIndex: number) => void
 
-  /** Callback pour l'appui long sur une ligne (mode audio/italiennes) */
-  onLongPress?: (lineIndex: number) => void
-
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
 
@@ -93,7 +90,7 @@ interface Props {
   annotations?: Annotation[]
 
   /** Callback pour créer une annotation */
-  onAnnotationCreate?: (lineId: string) => void
+  onAnnotationCreate?: (playbackItemIndex: number) => void
 
   /** Callback pour mettre à jour une annotation */
   onAnnotationUpdate?: (annotationId: string, content: string) => void
@@ -125,7 +122,6 @@ export function PlaybackDisplay({
   playTitle,
   onLineClick,
   onCardClick,
-  onLongPress,
   isPaused,
   progressPercentage,
   elapsedTime,
@@ -209,20 +205,40 @@ export function PlaybackDisplay({
           switch (item.type) {
             case 'presentation': {
               const presentationItem = item as PresentationPlaybackItem
+              const itemAnnotation = annotations.find((a) => a.playbackItemIndex === item.index)
+
               return (
                 <div
                   key={`playback-${item.index}`}
                   ref={wrapperRef}
                   data-playback-index={item.index}
                   data-playback-type="presentation"
-                  className="mb-6"
+                  className="mb-4"
                 >
                   <PresentationCard
                     item={presentationItem}
                     isPlaying={isCurrentItem}
                     hasBeenPlayed={hasBeenPlayed}
                     onClick={onCardClick ? () => onCardClick(item.index) : undefined}
-                    charactersMap={charactersMap}
+                    annotation={itemAnnotation}
+                    onAnnotationCreate={
+                      onAnnotationCreate ? () => onAnnotationCreate(item.index) : undefined
+                    }
+                    onAnnotationUpdate={
+                      onAnnotationUpdate && itemAnnotation
+                        ? (content) => onAnnotationUpdate(itemAnnotation.id, content)
+                        : undefined
+                    }
+                    onAnnotationToggle={
+                      onAnnotationToggle && itemAnnotation
+                        ? () => onAnnotationToggle(itemAnnotation.id)
+                        : undefined
+                    }
+                    onAnnotationDelete={
+                      onAnnotationDelete && itemAnnotation
+                        ? () => onAnnotationDelete(itemAnnotation.id)
+                        : undefined
+                    }
                   />
                 </div>
               )
@@ -230,20 +246,40 @@ export function PlaybackDisplay({
 
             case 'structure': {
               const structureItem = item as StructurePlaybackItem
+              const itemAnnotation = annotations.find((a) => a.playbackItemIndex === item.index)
+
               return (
                 <div
                   key={`playback-${item.index}`}
                   ref={wrapperRef}
                   data-playback-index={item.index}
                   data-playback-type="structure"
-                  data-structure-type={structureItem.structureType}
-                  className="mb-6"
+                  className="mb-4"
                 >
                   <StructureCard
                     item={structureItem}
                     isPlaying={isCurrentItem}
                     hasBeenPlayed={hasBeenPlayed}
                     onClick={onCardClick ? () => onCardClick(item.index) : undefined}
+                    annotation={itemAnnotation}
+                    onAnnotationCreate={
+                      onAnnotationCreate ? () => onAnnotationCreate(item.index) : undefined
+                    }
+                    onAnnotationUpdate={
+                      onAnnotationUpdate && itemAnnotation
+                        ? (content) => onAnnotationUpdate(itemAnnotation.id, content)
+                        : undefined
+                    }
+                    onAnnotationToggle={
+                      onAnnotationToggle && itemAnnotation
+                        ? () => onAnnotationToggle(itemAnnotation.id)
+                        : undefined
+                    }
+                    onAnnotationDelete={
+                      onAnnotationDelete && itemAnnotation
+                        ? () => onAnnotationDelete(itemAnnotation.id)
+                        : undefined
+                    }
                   />
                 </div>
               )
@@ -251,6 +287,8 @@ export function PlaybackDisplay({
 
             case 'stage-direction': {
               const stageDirectionItem = item as StageDirectionPlaybackItem
+              const itemAnnotation = annotations.find((a) => a.playbackItemIndex === item.index)
+
               return (
                 <div
                   key={`playback-${item.index}`}
@@ -264,6 +302,25 @@ export function PlaybackDisplay({
                     isPlaying={isCurrentItem}
                     hasBeenPlayed={hasBeenPlayed}
                     onClick={onCardClick ? () => onCardClick(item.index) : undefined}
+                    annotation={itemAnnotation}
+                    onAnnotationCreate={
+                      onAnnotationCreate ? () => onAnnotationCreate(item.index) : undefined
+                    }
+                    onAnnotationUpdate={
+                      onAnnotationUpdate && itemAnnotation
+                        ? (content) => onAnnotationUpdate(itemAnnotation.id, content)
+                        : undefined
+                    }
+                    onAnnotationToggle={
+                      onAnnotationToggle && itemAnnotation
+                        ? () => onAnnotationToggle(itemAnnotation.id)
+                        : undefined
+                    }
+                    onAnnotationDelete={
+                      onAnnotationDelete && itemAnnotation
+                        ? () => onAnnotationDelete(itemAnnotation.id)
+                        : undefined
+                    }
                   />
                 </div>
               )
@@ -282,8 +339,8 @@ export function PlaybackDisplay({
                 playingLineIndex !== undefined && lineItem.lineIndex === playingLineIndex
               const hasBeenRead = readLinesSet.has(lineItem.lineIndex)
 
-              // Trouver l'annotation pour cette ligne
-              const lineAnnotation = annotations.find((a) => a.lineId === line.id)
+              // Trouver l'annotation pour cet élément de lecture
+              const itemAnnotation = annotations.find((a) => a.playbackItemIndex === item.index)
 
               return (
                 <div
@@ -307,29 +364,28 @@ export function PlaybackDisplay({
                     hasBeenRead={hasBeenRead}
                     charactersMap={charactersMap}
                     onClick={onLineClick ? () => onLineClick(lineItem.lineIndex) : undefined}
-                    onLongPress={onLongPress ? () => onLongPress(lineItem.lineIndex) : undefined}
                     isPaused={isPaused}
                     progressPercentage={isPlaying ? progressPercentage : 0}
                     elapsedTime={isPlaying ? elapsedTime : 0}
                     estimatedDuration={isPlaying ? estimatedDuration : 0}
                     isGenerating={isPlaying ? isGenerating : false}
-                    annotation={lineAnnotation}
+                    annotation={itemAnnotation}
                     onAnnotationCreate={
-                      onAnnotationCreate ? () => onAnnotationCreate(line.id) : undefined
+                      onAnnotationCreate ? () => onAnnotationCreate(item.index) : undefined
                     }
                     onAnnotationUpdate={
-                      onAnnotationUpdate && lineAnnotation
-                        ? (content) => onAnnotationUpdate(lineAnnotation.id, content)
+                      onAnnotationUpdate && itemAnnotation
+                        ? (content) => onAnnotationUpdate(itemAnnotation.id, content)
                         : undefined
                     }
                     onAnnotationToggle={
-                      onAnnotationToggle && lineAnnotation
-                        ? () => onAnnotationToggle(lineAnnotation.id)
+                      onAnnotationToggle && itemAnnotation
+                        ? () => onAnnotationToggle(itemAnnotation.id)
                         : undefined
                     }
                     onAnnotationDelete={
-                      onAnnotationDelete && lineAnnotation
-                        ? () => onAnnotationDelete(lineAnnotation.id)
+                      onAnnotationDelete && itemAnnotation
+                        ? () => onAnnotationDelete(itemAnnotation.id)
                         : undefined
                     }
                   />

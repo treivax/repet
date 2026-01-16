@@ -5,14 +5,15 @@
  */
 
 /**
- * Représente une annotation utilisateur sur une réplique
+ * Représente une annotation utilisateur sur n'importe quel élément de lecture
+ * (réplique, didascalie, structure, présentation)
  */
 export interface Annotation {
   /** Identifiant unique de l'annotation (UUID) */
   id: string
 
-  /** Référence vers l'ID de la ligne annotée */
-  lineId: string
+  /** Référence vers l'index du PlaybackItem annoté dans la séquence de lecture */
+  playbackItemIndex: number
 
   /** Contenu textuel de l'annotation */
   content: string

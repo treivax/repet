@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { Line } from '../../core/models/Line'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
@@ -44,9 +44,6 @@ interface Props {
 
   /** Callback optionnel pour le clic (mode audio) */
   onClick?: () => void
-
-  /** Callback optionnel pour l'appui long (mode audio/italiennes) */
-  onLongPress?: () => void
 
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
@@ -94,7 +91,6 @@ export function LineRenderer({
   hasBeenRead,
   charactersMap,
   onClick,
-  onLongPress,
   isPaused,
   progressPercentage = 0,
   elapsedTime = 0,
@@ -140,6 +136,7 @@ export function LineRenderer({
 
   // État pour gérer l'appui long
   const [longPressTimer, setLongPressTimer] = useState<number | null>(null)
+  const longPressTriggered = useRef(false)
 
   // Rendu selon le type de ligne
   if (line.type === 'stage-direction') {
@@ -193,15 +190,19 @@ export function LineRenderer({
       )
 
       const handleHiddenClick = () => {
-        if (onClick) {
+        // Ne pas appeler onClick si l'appui long a déjà déclenché l'annotation
+        if (onClick && !longPressTriggered.current) {
           onClick()
         }
+        longPressTriggered.current = false
       }
 
       const handleHiddenMouseDown = () => {
-        if (onLongPress) {
+        longPressTriggered.current = false
+        if (onAnnotationCreate && !annotation) {
           const timer = window.setTimeout(() => {
-            onLongPress()
+            longPressTriggered.current = true
+            onAnnotationCreate()
           }, 500) // 500ms pour l'appui long
           setLongPressTimer(timer)
         }
@@ -215,9 +216,11 @@ export function LineRenderer({
       }
 
       const handleHiddenTouchStart = () => {
-        if (onLongPress) {
+        longPressTriggered.current = false
+        if (onAnnotationCreate && !annotation) {
           const timer = window.setTimeout(() => {
-            onLongPress()
+            longPressTriggered.current = true
+            onAnnotationCreate()
           }, 500)
           setLongPressTimer(timer)
         }
@@ -356,14 +359,11 @@ export function LineRenderer({
 
     // Handlers pour l'appui long
     const handleMouseDown = () => {
-      if (onLongPress) {
-        const timer = window.setTimeout(() => {
-          onLongPress()
-        }, 500) // 500ms pour l'appui long
-        setLongPressTimer(timer)
-      } else if (onAnnotationCreate && !annotation) {
+      longPressTriggered.current = false
+      if (onAnnotationCreate && !annotation) {
         // Appui long pour créer une annotation si elle n'existe pas
         const timer = window.setTimeout(() => {
+          longPressTriggered.current = true
           onAnnotationCreate()
         }, 500)
         setLongPressTimer(timer)
@@ -382,15 +382,12 @@ export function LineRenderer({
       }
     }
 
-    const handleTouchStart = () => {
-      if (onLongPress) {
-        const timer = window.setTimeout(() => {
-          onLongPress()
-        }, 500)
-        setLongPressTimer(timer)
-      } else if (onAnnotationCreate && !annotation) {
+    const handleTouchStart = (_e: React.TouchEvent) => {
+      longPressTriggered.current = false
+      if (onAnnotationCreate && !annotation) {
         // Appui long pour créer une annotation si elle n'existe pas
         const timer = window.setTimeout(() => {
+          longPressTriggered.current = true
           onAnnotationCreate()
         }, 500)
         setLongPressTimer(timer)
@@ -399,7 +396,7 @@ export function LineRenderer({
       }
     }
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (_e: React.TouchEvent) => {
       if (longPressTimer) {
         clearTimeout(longPressTimer)
         setLongPressTimer(null)
@@ -415,7 +412,16 @@ export function LineRenderer({
           className={cardClasses}
           onClick={(e) => {
             e.stopPropagation()
-            handleClick()
+            // Si un timer d'appui long est actif, c'est un clic court : annuler le timer et exécuter le clic
+            if (longPressTimer) {
+              clearTimeout(longPressTimer)
+              setLongPressTimer(null)
+            }
+            // Ne pas appeler handleClick si l'appui long a déjà déclenché l'annotation
+            if (!longPressTriggered.current) {
+              handleClick()
+            }
+            longPressTriggered.current = false
           }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}

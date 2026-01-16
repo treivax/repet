@@ -23,25 +23,13 @@ interface AnnotationNoteProps {
 
 /**
  * Composant d'affichage et d'édition d'une annotation
- *
- * États :
- * - Minimisé : Icône 📝 cliquable (bottom-right de la réplique)
- * - Étendu : Textarea éditable avec bouton de suppression
- *
- * Interactions :
- * - Clic sur l'icône minimisée → Étend la note
- * - Appui long (500ms) sur la note étendue → Minimise la note
- * - Auto-save avec debounce 500ms lors de l'édition
- *
- * Note : Les événements utilisent stopPropagation() pour éviter les conflits
- * avec les handlers d'appui long du parent (LineRenderer)
+ * Peut être minimisé (icône uniquement) ou étendu (textarea éditable)
  */
 export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: AnnotationNoteProps) {
   const [localContent, setLocalContent] = useState(annotation.content)
   const [isSaving, setIsSaving] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveTimeoutRef = useRef<NodeJS.Timeout>()
-  const longPressTimerRef = useRef<NodeJS.Timeout>()
 
   // Auto-focus sur le textarea quand la note s'étend
   useEffect(() => {
@@ -80,39 +68,11 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
     }, 500)
   }
 
-  // Gestion de la suppression avec confirmation
-  const handleDelete = () => {
-    if (onDelete) {
-      const confirmed = window.confirm('Voulez-vous vraiment supprimer cette note ?')
-      if (confirmed) {
-        onDelete()
-      }
-    }
-  }
-
-  // Gestion de l'appui long pour minimiser
-  const handleLongPressStart = () => {
-    const timer = setTimeout(() => {
-      onToggle()
-    }, 500) // 500ms pour l'appui long
-    longPressTimerRef.current = timer
-  }
-
-  const handleLongPressEnd = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current)
-      longPressTimerRef.current = undefined
-    }
-  }
-
-  // Nettoyage des timeouts lors du démontage
+  // Nettoyage du timeout lors du démontage
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
-      }
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current)
       }
     }
   }, [])
@@ -135,27 +95,7 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
 
   // État étendu : afficher le textarea
   return (
-    <div
-      className="mt-2 ml-8 animate-in fade-in slide-in-from-top-2 duration-150"
-      onMouseDown={(e) => {
-        e.stopPropagation()
-        handleLongPressStart()
-      }}
-      onMouseUp={(e) => {
-        e.stopPropagation()
-        handleLongPressEnd()
-      }}
-      onMouseLeave={handleLongPressEnd}
-      onTouchStart={(e) => {
-        e.stopPropagation()
-        handleLongPressStart()
-      }}
-      onTouchEnd={(e) => {
-        e.stopPropagation()
-        handleLongPressEnd()
-      }}
-      onTouchCancel={handleLongPressEnd}
-    >
+    <div className="mt-2 ml-8 animate-in fade-in slide-in-from-top-2 duration-150">
       <div
         className="relative bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 shadow-md"
         role="note"
@@ -173,11 +113,11 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
             )}
           </div>
 
-          {/* Bouton supprimer */}
-          {onDelete && (
-            <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1">
+            {/* Bouton supprimer */}
+            {onDelete && (
               <button
-                onClick={handleDelete}
+                onClick={onDelete}
                 className="p-1 text-yellow-700 dark:text-yellow-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
                 aria-label="Supprimer l'annotation"
                 title="Supprimer"
@@ -195,8 +135,29 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
                   />
                 </svg>
               </button>
-            </div>
-          )}
+            )}
+
+            {/* Bouton minimiser */}
+            <button
+              onClick={onToggle}
+              className="p-1 text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100 hover:bg-yellow-100 dark:hover:bg-yellow-800/30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              aria-label="Minimiser l'annotation"
+              title="Minimiser"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Textarea éditable */}
