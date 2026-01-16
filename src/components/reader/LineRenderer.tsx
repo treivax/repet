@@ -43,9 +43,6 @@ interface Props {
   /** Callback optionnel pour le clic (mode audio) */
   onClick?: () => void
 
-  /** Callback optionnel pour l'appui long (mode audio/italiennes) */
-  onLongPress?: () => void
-
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
 
@@ -77,7 +74,6 @@ export function LineRenderer({
   hasBeenRead,
   charactersMap,
   onClick,
-  onLongPress,
   isPaused,
   progressPercentage = 0,
   elapsedTime = 0,
@@ -115,9 +111,6 @@ export function LineRenderer({
 
   // État local pour savoir si la carte est cliquée/active
   const [isClicked, setIsClicked] = useState(false)
-
-  // État pour gérer l'appui long
-  const [longPressTimer, setLongPressTimer] = useState<number | null>(null)
 
   // Rendu selon le type de ligne
   if (line.type === 'stage-direction') {
@@ -176,50 +169,8 @@ export function LineRenderer({
         }
       }
 
-      const handleHiddenMouseDown = () => {
-        if (onLongPress) {
-          const timer = window.setTimeout(() => {
-            onLongPress()
-          }, 500) // 500ms pour l'appui long
-          setLongPressTimer(timer)
-        }
-      }
-
-      const handleHiddenMouseUp = () => {
-        if (longPressTimer) {
-          clearTimeout(longPressTimer)
-          setLongPressTimer(null)
-        }
-      }
-
-      const handleHiddenTouchStart = () => {
-        if (onLongPress) {
-          const timer = window.setTimeout(() => {
-            onLongPress()
-          }, 500)
-          setLongPressTimer(timer)
-        }
-      }
-
-      const handleHiddenTouchEnd = () => {
-        if (longPressTimer) {
-          clearTimeout(longPressTimer)
-          setLongPressTimer(null)
-        }
-      }
-
       return (
-        <button
-          onClick={handleHiddenClick}
-          onMouseDown={handleHiddenMouseDown}
-          onMouseUp={handleHiddenMouseUp}
-          onMouseLeave={handleHiddenMouseUp}
-          onTouchStart={handleHiddenTouchStart}
-          onTouchEnd={handleHiddenTouchEnd}
-          onTouchCancel={handleHiddenTouchEnd}
-          className={hiddenCardClasses}
-          data-testid="hidden-line"
-        >
+        <button onClick={handleHiddenClick} className={hiddenCardClasses} data-testid="hidden-line">
           <div className="flex items-center justify-between">
             <div className="font-bold uppercase" style={{ color: characterColor }}>
               {characterDisplay}
@@ -334,45 +285,23 @@ export function LineRenderer({
 
     // Handlers pour l'appui long
     const handleMouseDown = () => {
-      if (onLongPress) {
-        const timer = window.setTimeout(() => {
-          onLongPress()
-        }, 500) // 500ms pour l'appui long
-        setLongPressTimer(timer)
-      } else if (!onClick) {
+      if (!onClick) {
         setIsClicked(true)
       }
     }
 
     const handleMouseUp = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer)
-        setLongPressTimer(null)
-      }
-      if (!onClick) {
-        setIsClicked(false)
-      }
+      setIsClicked(false)
     }
 
     const handleTouchStart = () => {
-      if (onLongPress) {
-        const timer = window.setTimeout(() => {
-          onLongPress()
-        }, 500)
-        setLongPressTimer(timer)
-      } else if (!onClick) {
+      if (!onClick) {
         setIsClicked(true)
       }
     }
 
     const handleTouchEnd = () => {
-      if (longPressTimer) {
-        clearTimeout(longPressTimer)
-        setLongPressTimer(null)
-      }
-      if (!onClick) {
-        setIsClicked(false)
-      }
+      setIsClicked(false)
     }
 
     return (

@@ -523,7 +523,6 @@ export function ReaderScreen() {
             playTitle={getPlayTitle(currentPlay)}
             onCardClick={undefined}
             onLineClick={undefined}
-            onLongPress={undefined}
             containerRef={containerRef}
           />
         ) : (

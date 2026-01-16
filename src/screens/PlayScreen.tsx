@@ -9,7 +9,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { usePlayStore } from '../state/playStore'
 import { usePlaySettingsStore } from '../state/playSettingsStore'
 import { useUIStore } from '../state/uiStore'
-import { globalLineIndexToPosition } from '../core/models/playHelpers'
 
 import { playsRepository } from '../core/storage/plays'
 import { ttsEngine } from '../core/tts/engine'
@@ -102,6 +101,12 @@ export function PlayScreen() {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Fonction pour mettre en pause/reprendre
+  // Callback pour activer/désactiver le flag de scroll programmatique
+  const setScrollingProgrammatically = useCallback((isScrolling: boolean) => {
+    isScrollingProgrammaticallyRef.current = isScrolling
+  }, [])
+
+  // Fonction pour mettre en pause/reprendre
   const pausePlayback = useCallback(() => {
     if (ttsEngine.isSpeaking() && !isPaused) {
       ttsEngine.pause()
@@ -176,9 +181,16 @@ export function PlayScreen() {
   }, [currentPlay, playSettings])
 
   // Calculer currentPlaybackIndex basé sur currentLineIndex / currentActIndex / currentSceneIndex
+  // UNIQUEMENT pendant la lecture (ne pas sélectionner de carte à l'ouverture)
   useEffect(() => {
     if (!playbackSequence.length) {
       setCurrentPlaybackIndex(undefined)
+      return
+    }
+
+    // Ne calculer currentPlaybackIndex que si on est en train de lire
+    // (évite de sélectionner une carte automatiquement à l'ouverture)
+    if (!isPlayingRef.current) {
       return
     }
 
@@ -696,12 +708,6 @@ export function PlayScreen() {
   }
 
   // Fonction pour scroller vers une ligne
-  const scrollToLine = (lineIndex: number) => {
-    const element = document.querySelector(`[data-line-index="${lineIndex}"]`)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
 
   // Fonction pour arrêter la lecture
   const stopPlayback = useCallback(() => {
@@ -1268,8 +1274,8 @@ export function PlayScreen() {
       }
     })
 
-    // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
-    scrollToLine(globalLineIndex)
+    // Note: Le scroll automatique est géré par PlaybackDisplay via currentPlaybackIndex
+    // pour éviter les conflits entre plusieurs systèmes de scroll
   }
 
   /**
@@ -1303,33 +1309,6 @@ export function PlayScreen() {
     }
   }
 
-  // Handler pour l'appui long sur une ligne en cours de lecture
-  const handleLongPress = (globalLineIndex: number) => {
-    if (!currentPlay || !playId || !playSettings) return
-
-    // Ne gérer l'appui long que si on est en mode audio ou italiennes
-    if (playSettings.readingMode !== 'audio' && playSettings.readingMode !== 'italian') return
-
-    // Arrêter la lecture en cours
-    stopPlayback()
-
-    // Basculer vers le mode silencieux
-    const { updatePlaySettings } = usePlaySettingsStore.getState()
-    updatePlaySettings(playId, {
-      readingMode: 'silent',
-    })
-
-    // Calculer la position de la ligne pour le ReaderScreen
-    const position = globalLineIndexToPosition(currentPlay.ast.acts, globalLineIndex)
-    if (position) {
-      const { goToScene } = usePlayStore.getState()
-      goToScene(position.actIndex, position.sceneIndex)
-    }
-
-    // Naviguer vers le ReaderScreen
-    navigate(`/reader/${playId}`)
-  }
-
   // Handler pour le clic en dehors d'une ligne
 
   const handleGoToScene = useCallback(
@@ -1343,12 +1322,28 @@ export function PlayScreen() {
       goToScene(actIndex, sceneIndex)
       setShowSummary(false)
 
+      // Trouver le premier élément de playback de la scène sélectionnée
+      const firstSceneItem = playbackSequence.find((item) => {
+        if (item.type === 'structure') {
+          const structItem = item as StructurePlaybackItem
+          return structItem.actIndex === actIndex && structItem.sceneIndex === sceneIndex
+        }
+        return false
+      })
+
+      // Mettre à jour currentPlaybackIndex pour déclencher le scroll dans PlaybackDisplay
+      if (firstSceneItem) {
+        setTimeout(() => {
+          setCurrentPlaybackIndex(firstSceneItem.index)
+        }, 100)
+      }
+
       // Désactiver le flag après un délai pour permettre le scroll
       setTimeout(() => {
         isScrollingProgrammaticallyRef.current = false
       }, 1500)
     },
-    [stopPlayback, goToScene]
+    [stopPlayback, goToScene, playbackSequence]
   )
 
   const handleClose = () => {
@@ -1593,17 +1588,13 @@ export function PlayScreen() {
                 ? handleCardClick
                 : undefined
             }
-            onLongPress={
-              playSettings.readingMode === 'audio' || playSettings.readingMode === 'italian'
-                ? handleLongPress
-                : undefined
-            }
             isPaused={isPaused}
             isGenerating={isGenerating}
             progressPercentage={progressPercentage}
             elapsedTime={elapsedTime}
             estimatedDuration={estimatedDuration}
             containerRef={containerRef}
+            setScrollingProgrammatically={setScrollingProgrammatically}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

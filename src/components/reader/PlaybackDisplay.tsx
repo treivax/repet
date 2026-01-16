@@ -62,10 +62,8 @@ interface Props {
   onLineClick?: (lineIndex: number) => void
 
   /** Callback pour le clic sur une carte */
+  /** Callback for clicking on a card */
   onCardClick?: (playbackIndex: number) => void
-
-  /** Callback pour l'appui long sur une ligne (mode audio/italiennes) */
-  onLongPress?: (lineIndex: number) => void
 
   /** La lecture est-elle en pause (mode audio) */
   isPaused?: boolean
@@ -84,6 +82,9 @@ interface Props {
 
   /** Ref externe pour le container (pour IntersectionObserver) */
   containerRef?: React.RefObject<HTMLDivElement>
+
+  /** Callback pour activer/désactiver le flag de scroll programmatique */
+  setScrollingProgrammatically?: (isScrolling: boolean) => void
 }
 
 /**
@@ -106,13 +107,13 @@ export function PlaybackDisplay({
   playTitle,
   onLineClick,
   onCardClick,
-  onLongPress,
   isPaused,
   progressPercentage,
   elapsedTime,
   estimatedDuration,
   isGenerating,
   containerRef: externalContainerRef,
+  setScrollingProgrammatically,
 }: Props) {
   const internalContainerRef = useRef<HTMLDivElement>(null)
   const currentItemRef = useRef<HTMLDivElement>(null)
@@ -126,24 +127,88 @@ export function PlaybackDisplay({
       return
     }
 
-    if (!currentItemRef.current) {
-      return
-    }
-
     if (!activeContainerRef.current) {
       return
     }
 
+    // Activer le flag pour désactiver l'Observer pendant le scroll
+    setScrollingProgrammatically?.(true)
+
     // Petit délai pour s'assurer que le DOM est rendu
-    setTimeout(() => {
-      if (currentItemRef.current) {
-        currentItemRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-        })
+    const scrollTimer = setTimeout(() => {
+      // Essayer d'abord avec la ref, sinon chercher l'élément par data-attribute
+      let targetElement: HTMLDivElement | HTMLElement | null = currentItemRef.current
+
+      if (!targetElement) {
+        // Fallback: chercher par data-playback-index
+        targetElement = activeContainerRef.current?.querySelector(
+          `[data-playback-index="${currentPlaybackIndex}"]`
+        ) as HTMLDivElement | null
       }
-    }, 100)
-  }, [currentPlaybackIndex, activeContainerRef])
+
+      if (targetElement && activeContainerRef.current) {
+        // Calculer la position de l'élément par rapport au container
+        const containerRect = activeContainerRef.current.getBoundingClientRect()
+        const elementRect = targetElement.getBoundingClientRect()
+
+        // Calculer le scroll nécessaire pour centrer l'élément
+        const containerHeight = containerRect.height
+        const elementHeight = elementRect.height
+
+        // Position actuelle de l'élément par rapport au viewport
+        const elementTop = elementRect.top
+        const containerTop = containerRect.top
+
+        // Position de l'élément par rapport au container
+        const elementRelativeTop = elementTop - containerTop
+
+        // Scroll actuel du container
+        const currentScroll = activeContainerRef.current.scrollTop
+
+        // Position absolue de l'élément dans le contenu scrollable
+        const elementAbsoluteTop = currentScroll + elementRelativeTop
+
+        // Position cible : centrer l'élément dans le container
+        const targetScroll = elementAbsoluteTop - containerHeight / 2 + elementHeight / 2
+
+        console.warn('[PlaybackDisplay] 📜 Auto-scroll:', {
+          playbackIndex: currentPlaybackIndex,
+          containerHeight,
+          elementHeight,
+          currentScroll,
+          elementRelativeTop,
+          elementAbsoluteTop,
+          targetScroll,
+          usedFallback: currentItemRef.current === null,
+        })
+
+        // Scroller le container directement
+        activeContainerRef.current.scrollTo({
+          top: targetScroll,
+          behavior: 'smooth',
+        })
+
+        // Désactiver le flag après le scroll (avec délai pour l'animation)
+        setTimeout(() => {
+          setScrollingProgrammatically?.(false)
+        }, 1000)
+      } else {
+        console.warn('[PlaybackDisplay] ⚠️ Impossible de scroller:', {
+          playbackIndex: currentPlaybackIndex,
+          hasElement: !!targetElement,
+          hasContainer: !!activeContainerRef.current,
+        })
+        // Si on ne peut pas scroller, désactiver le flag immédiatement
+        setScrollingProgrammatically?.(false)
+      }
+    }, 150)
+
+    return () => {
+      clearTimeout(scrollTimer)
+      // Nettoyer le flag si le composant unmount
+      setScrollingProgrammatically?.(false)
+    }
+  }, [currentPlaybackIndex, activeContainerRef, setScrollingProgrammatically])
 
   if (playbackSequence.length === 0) {
     return (
@@ -274,7 +339,6 @@ export function PlaybackDisplay({
                     hasBeenRead={hasBeenRead}
                     charactersMap={charactersMap}
                     onClick={onLineClick ? () => onLineClick(lineItem.lineIndex) : undefined}
-                    onLongPress={onLongPress ? () => onLongPress(lineItem.lineIndex) : undefined}
                     isPaused={isPaused}
                     progressPercentage={isPlaying ? progressPercentage : 0}
                     elapsedTime={isPlaying ? elapsedTime : 0}
