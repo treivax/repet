@@ -126,7 +126,7 @@ export class PDFExportService {
 
     titleLines.forEach((line: string, index: number) => {
       const textWidth = pdf.getTextWidth(line)
-      pdf.text(line, centerX - textWidth / 2, titleY + index * 10)
+      pdf.text(line, centerX - textWidth / 2, titleY + index * 10, { align: 'left', charSpace: 0 })
     })
 
     // Auteur (sous le titre)
@@ -135,7 +135,7 @@ export class PDFExportService {
       pdf.setFont('helvetica', 'normal')
       const authorY = titleY + titleLines.length * 10 + 20
       const authorWidth = pdf.getTextWidth(author)
-      pdf.text(author, centerX - authorWidth / 2, authorY)
+      pdf.text(author, centerX - authorWidth / 2, authorY, { align: 'left', charSpace: 0 })
     }
 
     // Pied de page (application)
@@ -143,7 +143,10 @@ export class PDFExportService {
     pdf.setFont('helvetica', 'italic')
     const footerText = 'Généré avec Répét'
     const footerWidth = pdf.getTextWidth(footerText)
-    pdf.text(footerText, centerX - footerWidth / 2, pageHeight - margin)
+    pdf.text(footerText, centerX - footerWidth / 2, pageHeight - margin, {
+      align: 'left',
+      charSpace: 0,
+    })
   }
 
   /**
@@ -161,7 +164,7 @@ export class PDFExportService {
     // Titre "Distribution des rôles"
     pdf.setFontSize(18)
     pdf.setFont('helvetica', 'bold')
-    pdf.text('Distribution des rôles', margin, yPosition)
+    pdf.text('Distribution des rôles', margin, yPosition, { align: 'left', charSpace: 0 })
     yPosition += 15
 
     pdf.setFontSize(fontSize)
@@ -180,7 +183,7 @@ export class PDFExportService {
 
         pdf.setFont('helvetica', 'italic')
         lines.forEach((line: string) => {
-          pdf.text(line, margin, yPosition)
+          pdf.text(line, margin, yPosition, { align: 'left', charSpace: 0 })
           yPosition += 5
         })
         yPosition += 5
@@ -198,7 +201,7 @@ export class PDFExportService {
 
         // Nom du personnage (gras)
         pdf.setFont('helvetica', 'bold')
-        pdf.text(presentation.characterName, margin + 5, yPosition)
+        pdf.text(presentation.characterName, margin + 5, yPosition, { align: 'left', charSpace: 0 })
         yPosition += 6
 
         // Description (italique)
@@ -214,7 +217,7 @@ export class PDFExportService {
               pdf.addPage()
               yPosition = margin + 10
             }
-            pdf.text(line, margin + 10, yPosition)
+            pdf.text(line, margin + 10, yPosition, { align: 'left', charSpace: 0 })
             yPosition += 5
           })
         }
@@ -240,7 +243,7 @@ export class PDFExportService {
     pdf.setFont('helvetica', 'bold')
     pdf.setTextColor(0, 0, 0) // Reset to black
     const actTitle = `Acte ${act.actNumber}${act.title ? ' : ' + act.title : ''}`
-    pdf.text(actTitle, margin, yPosition)
+    pdf.text(actTitle, margin, yPosition, { align: 'left', charSpace: 0 })
     yPosition += 12
 
     // Parcourir les scènes
@@ -256,7 +259,7 @@ export class PDFExportService {
       pdf.setFont('helvetica', 'bold')
       pdf.setTextColor(0, 0, 0) // Reset to black
       const sceneTitle = `Scène ${scene.sceneNumber}${scene.title ? ' - ' + scene.title : ''}`
-      pdf.text(sceneTitle, margin, yPosition)
+      pdf.text(sceneTitle, margin, yPosition, { align: 'left', charSpace: 0 })
       yPosition += 10
 
       // Parcourir les lignes
@@ -317,7 +320,7 @@ export class PDFExportService {
 
       // Écrire le nom du personnage
       pdf.setTextColor(rgb.r, rgb.g, rgb.b)
-      pdf.text(characterName, margin, currentY)
+      pdf.text(characterName, margin, currentY, { align: 'left', charSpace: 0 })
       currentY += 6
 
       // Afficher chaque segment
@@ -488,7 +491,7 @@ export class PDFExportService {
       const x = (this.A4_WIDTH - textWidth) / 2
       const y = this.A4_HEIGHT - 10
 
-      pdf.text(pageNumber, x, y)
+      pdf.text(pageNumber, x, y, { align: 'left', charSpace: 0 })
     }
   }
 
