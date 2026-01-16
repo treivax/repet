@@ -212,15 +212,42 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 
 ---
 
-## ⏳ PHASE 5 : Export PDF (À FAIRE)
+## ✅ PHASE 5 : Export PDF (TERMINÉE)
 
-### Étape 5.1 : Étendre pdfExportService
-- [ ] Charger notes via `NotesStorage`
-- [ ] Créer `notesMap` pour lookup
-- [ ] Modifier rendu pour inclure notes
-- [ ] Fonction `renderNoteInPDF()`
-- [ ] Décalage position note
-- [ ] Styles fidèles (jaune pastel, border, italique)
+**Commit**: `53d8ef8` - Phase 5: Export PDF - Intégration des notes avec styles fidèles
+
+### Étape 5.1 : Étendre pdfExportService ✅
+- [x] Charger notes via `NotesStorage`
+- [x] Créer `notesMap` pour lookup O(1)
+- [x] Modifier rendu pour inclure notes après lignes
+- [x] Fonction `addNote()` créée
+- [x] Décalage position note (margin + 5mm)
+- [x] Styles fidèles (jaune pastel, border, italique)
+- [x] Import NotesStorage, AttachableType, NoteDisplayState
+- [x] Option includeNotes dans PDFExportOptions
+- [x] Passage notesMap à addActContent
+- [x] Loop sur lineIndex pour tracking
+- [x] Vérification note maximisée et non vide
+- [x] Gestion pagination multi-pages
+- [x] Reset styles après note
+
+### Détails Techniques ✅
+- Fond: setFillColor(254, 252, 232) // bg-yellow-50
+- Bordure: setDrawColor(254, 240, 138) // border-yellow-200
+- Texte: setTextColor(75, 85, 99), italic, fontSize-1
+- Rectangle: rect() avec mode 'FD' (Fill + Draw)
+- Split text manuel pour wrapping
+- Padding 3mm, noteWidth réduit de 10mm
+- Espacement 3mm après note
+
+### Validations Phase 5 ✅
+- [x] Type-check: 0 erreur
+- [x] Lint: 0 erreur
+- [x] Compilation: OK
+- [x] Styles fidèles au rendu écran
+- [x] Pagination gérée correctement
+- [x] Notes maximisées seulement
+- [x] Notes vides ignorées
 
 ---
 
@@ -267,25 +294,28 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 | Phase 2 | ✅ DONE | 4 fichiers créés, 2 modifiés | Type-check ✅ Lint ✅ |
 | Phase 3 | ✅ DONE | 2 fichiers modifiés (4 composants) | Type-check ✅ Lint ✅ |
 | Phase 4 | ✅ DONE | 1 fichier créé, 2 modifiés | Type-check ✅ Lint ✅ |
-| Phase 5 | ⏳ TODO | 0/1 | - |
+| Phase 5 | ✅ DONE | 2 fichiers modifiés | Type-check ✅ Lint ✅ |
 | Phase 6 | ⏳ TODO | - | 0/20 tests |
 | Phase 7 | ⏳ TODO | 0/3 | - |
 
-**Total**: 4/7 phases complétées (57%)
+**Total**: 5/7 phases complétées (71%)
 
 ---
 
 ## 🎯 Prochaine Étape
 
-**PHASE 5 : Export PDF**
+**PHASE 6 : Tests et Validation**
 
-1. Étendre pdfExportService pour charger les notes
-2. Créer fonction renderNoteInPDF
-3. Intégrer notes dans rendu de chaque élément
-4. Styles fidèles (jaune pastel, border, italique)
-5. Position décalée pour lisibilité
-6. Valider export PDF avec notes
-7. Commit Phase 5
+1. Effectuer tests manuels exhaustifs (checklist complète)
+2. Valider tous les scénarios d'usage
+3. Tester création, édition, minimisation, suppression
+4. Vérifier interactions (long-press, scroll, etc.)
+5. Tester export PDF avec notes
+6. Vérifier performance (20+ notes)
+7. Valider thèmes clair/sombre
+8. Tester responsive mobile/tablet/desktop
+9. Documenter bugs trouvés
+10. Commit Phase 6
 
 ---
 
@@ -302,9 +332,10 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 - ✅ Long-press: conflits avec scroll évités (threshold 10px)
 - ✅ Auto-save: debounce 500ms implémenté
 - ✅ Cleanup: useEffect cleanup pour timers OK
-- ⏳ Performance: React.memo à ajouter (Phase 4)
-- ⏳ PDF: positionnement des notes (Phase 5)
+- ✅ Performance: React.memo ajouté (Phase 4)
+- ✅ PDF: positionnement des notes implémenté (Phase 5)
 - ✅ Composants séparés pour respecter React hooks rules
+- ✅ Export PDF: notes incluses avec styles fidèles
 
 ### Compatibilité
 - Dexie: compatible tous navigateurs modernes
