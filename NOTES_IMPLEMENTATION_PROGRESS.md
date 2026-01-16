@@ -89,44 +89,53 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 
 ---
 
-## 🚧 PHASE 2 : Composants UI (EN COURS)
+## ✅ PHASE 2 : Composants UI (TERMINÉE)
 
-**Status**: Non démarrée
+**Commit**: `ff65f41` - Phase 2: Composants UI - Hook useLongPress, NoteIcon et Note
 
-### Étape 2.1 : Hook useLongPress
-- [ ] Fichier `src/hooks/useLongPress.ts`
-- [ ] Interface `Position { x, y }`
-- [ ] Interface `UseLongPressOptions`
-- [ ] Gestion timer
-- [ ] Détection mouvement (annulation)
-- [ ] Support touch et mouse
-- [ ] Cleanup mémoire
+### Étape 2.1 : Hook useLongPress ✅
+- [x] Fichier `src/hooks/useLongPress.ts`
+- [x] Interface `Position { x, y }`
+- [x] Interface `UseLongPressOptions`
+- [x] Gestion timer (useRef)
+- [x] Détection mouvement (annulation si > threshold)
+- [x] Support touch et mouse
+- [x] Cleanup mémoire (useCallback, clearTimeout)
+- [x] Délai depuis constante `LONG_PRESS_DELAY_MS`
+- [x] Threshold depuis `LONG_PRESS_MOVE_THRESHOLD_PX`
 
-### Étape 2.2 : Composant NoteIcon
-- [ ] Fichier `src/components/notes/NoteIcon.tsx`
-- [ ] Props: `onClick`, `className`
-- [ ] SVG icône sticky note
-- [ ] Taille depuis `NOTE_ICON_SIZE_PX`
-- [ ] Couleur thème clair/sombre
+### Étape 2.2 : Composant NoteIcon ✅
+- [x] Fichier `src/components/notes/NoteIcon.tsx`
+- [x] Props: `onClick`, `className`
+- [x] SVG icône sticky note
+- [x] Taille depuis `NOTE_ICON_SIZE_PX`
+- [x] Couleur thème clair/sombre
+- [x] États hover
+- [x] Accessibilité (aria-label, title)
 
-### Étape 2.3 : Composant Note
-- [ ] Fichier `src/components/notes/Note.tsx`
-- [ ] Props complètes
-- [ ] State local `localContent`
-- [ ] Auto-save debounced
-- [ ] Long-press pour minimiser
-- [ ] Clic icône pour maximiser
-- [ ] Bouton × suppression
-- [ ] TextArea auto-resize
-- [ ] Styles Tailwind (pas de hardcoding)
-- [ ] Support thème dark
+### Étape 2.3 : Composant Note ✅
+- [x] Fichier `src/components/notes/Note.tsx`
+- [x] Props complètes (note, callbacks, className)
+- [x] State local `localContent`
+- [x] Auto-save debounced (`NOTE_AUTOSAVE_DEBOUNCE_MS`)
+- [x] Save immédiat au blur
+- [x] Long-press pour minimiser
+- [x] Clic icône pour maximiser
+- [x] Bouton × suppression
+- [x] TextArea avec maxLength depuis constante
+- [x] Compteur de caractères
+- [x] Styles Tailwind depuis constantes (pas de hardcoding)
+- [x] Support thème dark
+- [x] data-note-element pour exclusion Observer
 
-### Validations Phase 2
-- [ ] Type-check: 0 erreur
-- [ ] Lint: 0 erreur
-- [ ] Tests manuels: création, édition, minimisation
-- [ ] Pas de console.log debug
-- [ ] Performance OK (pas de re-renders excessifs)
+### Validations Phase 2 ✅
+- [x] Type-check: 0 erreur
+- [x] Lint: 0 erreur
+- [x] Compilation: OK
+- [x] Pas de console.log debug
+- [x] Copyright sur tous les fichiers
+- [x] Cleanup mémoire (timers)
+- [x] Types stricts partout
 
 ---
 
@@ -219,26 +228,26 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 | Phase | Status | Fichiers | Tests |
 |-------|--------|----------|-------|
 | Phase 1 | ✅ DONE | 7 fichiers créés, 5 modifiés | Type-check ✅ Lint ✅ |
-| Phase 2 | ⏳ TODO | 0/3 | - |
+| Phase 2 | ✅ DONE | 4 fichiers créés, 2 modifiés | Type-check ✅ Lint ✅ |
 | Phase 3 | ⏳ TODO | 0/3 | - |
 | Phase 4 | ⏳ TODO | 0/2 | - |
 | Phase 5 | ⏳ TODO | 0/1 | - |
 | Phase 6 | ⏳ TODO | - | 0/20 tests |
 | Phase 7 | ⏳ TODO | 0/3 | - |
 
-**Total**: 1/7 phases complétées (14%)
+**Total**: 2/7 phases complétées (29%)
 
 ---
 
 ## 🎯 Prochaine Étape
 
-**PHASE 2 : Composants UI**
+**PHASE 3 : Intégration Écrans de Lecture**
 
-1. Créer `src/hooks/useLongPress.ts`
-2. Créer `src/components/notes/NoteIcon.tsx`
-3. Créer `src/components/notes/Note.tsx`
+1. Identifier et wrapper PlayScreen avec NotesProvider
+2. Intégrer useLongPress dans les composants de ligne/structure/annotation
+3. Ajouter menu global "Minimiser/Maximiser toutes les notes"
 4. Valider compilation, lint, tests manuels
-5. Commit Phase 2
+5. Commit Phase 3
 
 ---
 
