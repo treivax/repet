@@ -24,6 +24,7 @@ interface AnnotationNoteProps {
 /**
  * Composant d'affichage et d'édition d'une annotation
  * Peut être minimisé (icône uniquement) ou étendu (textarea éditable)
+ * La minimisation se fait par appui long sur la note (géré par le parent)
  */
 export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: AnnotationNoteProps) {
   const [localContent, setLocalContent] = useState(annotation.content)
@@ -66,6 +67,16 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
       onUpdate(newContent)
       setIsSaving(false)
     }, 500)
+  }
+
+  // Gestion de la suppression avec confirmation
+  const handleDelete = () => {
+    if (onDelete) {
+      const confirmed = window.confirm('Voulez-vous vraiment supprimer cette note ?')
+      if (confirmed) {
+        onDelete()
+      }
+    }
   }
 
   // Nettoyage du timeout lors du démontage
@@ -113,36 +124,13 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
             )}
           </div>
 
-          <div className="flex items-center gap-1">
-            {/* Bouton supprimer */}
-            {onDelete && (
-              <button
-                onClick={onDelete}
-                className="p-1 text-yellow-700 dark:text-yellow-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-                aria-label="Supprimer l'annotation"
-                title="Supprimer"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            )}
-
-            {/* Bouton minimiser */}
+          {/* Bouton supprimer avec icône croix */}
+          {onDelete && (
             <button
-              onClick={onToggle}
-              className="p-1 text-yellow-700 dark:text-yellow-300 hover:text-yellow-900 dark:hover:text-yellow-100 hover:bg-yellow-100 dark:hover:bg-yellow-800/30 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-yellow-400"
-              aria-label="Minimiser l'annotation"
-              title="Minimiser"
+              onClick={handleDelete}
+              className="p-1 text-yellow-700 dark:text-yellow-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
+              aria-label="Supprimer l'annotation"
+              title="Supprimer"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -157,7 +145,7 @@ export function AnnotationNote({ annotation, onUpdate, onToggle, onDelete }: Ann
                 />
               </svg>
             </button>
-          </div>
+          )}
         </div>
 
         {/* Textarea éditable */}
