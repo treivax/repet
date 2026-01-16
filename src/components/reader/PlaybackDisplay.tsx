@@ -139,10 +139,23 @@ export function PlaybackDisplay({
         ) as HTMLDivElement | null
       }
 
-      if (targetElement) {
-        targetElement.scrollIntoView({
+      if (targetElement && activeContainerRef.current) {
+        // Calculer la position de l'élément par rapport au container
+        const containerRect = activeContainerRef.current.getBoundingClientRect()
+        const elementRect = targetElement.getBoundingClientRect()
+
+        // Calculer le scroll nécessaire pour centrer l'élément
+        const containerHeight = containerRect.height
+        const elementHeight = elementRect.height
+        const elementTop = targetElement.offsetTop
+
+        // Position cible : centrer l'élément dans le container
+        const targetScroll = elementTop - containerHeight / 2 + elementHeight / 2
+
+        // Scroller le container directement
+        activeContainerRef.current.scrollTo({
+          top: targetScroll,
           behavior: 'smooth',
-          block: 'center',
         })
       }
     }, 150)

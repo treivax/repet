@@ -1325,19 +1325,11 @@ export function PlayScreen() {
         return false
       })
 
-      // Si trouvé, scroller vers cet élément
+      // Mettre à jour currentPlaybackIndex pour déclencher le scroll dans PlaybackDisplay
       if (firstSceneItem) {
         setTimeout(() => {
-          const element = document.querySelector(
-            `[data-playback-index="${firstSceneItem.index}"]`
-          ) as HTMLElement
-          if (element) {
-            element.scrollIntoView({
-              behavior: 'smooth',
-              block: 'center',
-            })
-          }
-        }, 200)
+          setCurrentPlaybackIndex(firstSceneItem.index)
+        }, 100)
       }
 
       // Désactiver le flag après un délai pour permettre le scroll
