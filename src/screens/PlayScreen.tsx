@@ -24,6 +24,10 @@ import { SceneSummary } from '../components/reader/SceneSummary'
 import { getPlayTitle, getPlayAuthor } from '../core/models/playHelpers'
 import type { Character } from '../core/models/Character'
 import type { Line } from '../core/models/Line'
+import type { Play } from '../core/models/Play'
+import { NotesProvider } from '../components/notes'
+import { useNotes } from '../hooks/useNotes'
+import { NoteDisplayState } from '../core/models/note'
 
 import { parseTextWithStageDirections, type TextSegment } from '../utils/textParser'
 import { buildPlaybackSequence } from '../utils/playbackSequence'
@@ -1486,6 +1490,142 @@ export function PlayScreen() {
     },
   ]
 
+  // Si pas de pièce chargée, ne pas wrapper avec NotesProvider
+  if (!currentPlay) {
+    return (
+      <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="play-screen">
+        <div className="flex items-center justify-center h-full">
+          <Spinner size="lg" />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <NotesProvider playId={currentPlay.id}>
+      <PlayScreenInner
+        currentPlay={currentPlay}
+        userCharacter={userCharacter}
+        currentActIndex={currentActIndex}
+        currentSceneIndex={currentSceneIndex}
+        playSettings={playSettings}
+        showSummary={showSummary}
+        setShowSummary={setShowSummary}
+        playbackSequence={playbackSequence}
+        currentPlaybackIndex={currentPlaybackIndex}
+        playingLineIndex={playingLineIndex}
+        playedItems={playedItems}
+        readLinesSet={readLinesSet}
+        charactersMap={charactersMap}
+        isPaused={isPaused}
+        isGenerating={isGenerating}
+        progressPercentage={progressPercentage}
+        elapsedTime={elapsedTime}
+        estimatedDuration={estimatedDuration}
+        containerRef={containerRef}
+        setScrollingProgrammatically={setScrollingProgrammatically}
+        handleClose={handleClose}
+        handleReadingModeClick={handleReadingModeClick}
+        getReadingModeLabel={getReadingModeLabel}
+        menuItems={menuItems}
+        handleGoToScene={handleGoToScene}
+        handleLineClick={handleLineClick}
+        handleCardClick={handleCardClick}
+      />
+    </NotesProvider>
+  )
+}
+
+/**
+ * Composant interne qui a accès au NotesProvider
+ */
+function PlayScreenInner({
+  currentPlay,
+  userCharacter,
+  currentActIndex,
+  currentSceneIndex,
+  playSettings,
+  showSummary,
+  setShowSummary,
+  playbackSequence,
+  currentPlaybackIndex,
+  playingLineIndex,
+  playedItems,
+  readLinesSet,
+  charactersMap,
+  isPaused,
+  isGenerating,
+  progressPercentage,
+  elapsedTime,
+  estimatedDuration,
+  containerRef,
+  setScrollingProgrammatically,
+  handleClose,
+  handleReadingModeClick,
+  getReadingModeLabel,
+  menuItems,
+  handleGoToScene,
+  handleLineClick,
+  handleCardClick,
+}: {
+  currentPlay: Play
+  userCharacter: Character | null
+  currentActIndex: number
+  currentSceneIndex: number
+  playSettings: ReturnType<typeof usePlaySettingsStore.getState>['playSettings'][string] | null
+  showSummary: boolean
+  setShowSummary: (show: boolean) => void
+  playbackSequence: PlaybackItem[]
+  currentPlaybackIndex?: number
+  playingLineIndex?: number
+  playedItems: Set<number>
+  readLinesSet: Set<number>
+  charactersMap: Record<string, Character>
+  isPaused: boolean
+  isGenerating: boolean
+  progressPercentage: number
+  elapsedTime: number
+  estimatedDuration: number
+  containerRef: React.RefObject<HTMLDivElement>
+  setScrollingProgrammatically: (isScrolling: boolean) => void
+  handleClose: () => void
+  handleReadingModeClick: () => void
+  getReadingModeLabel: () => string
+  menuItems: HeaderMenuItem[]
+  handleGoToScene: (actIndex: number, sceneIndex: number) => void
+  handleLineClick: (lineIndex: number) => void
+  handleCardClick: (playbackIndex: number) => void
+}) {
+  // Accéder au contexte notes pour le menu
+  const { notes, setAllNotesDisplayState } = useNotes()
+
+  const areAllMinimized = notes.every((n) => n.displayState === NoteDisplayState.MINIMIZED)
+
+  const handleToggleAllNotes = async () => {
+    const newState = areAllMinimized ? NoteDisplayState.MAXIMIZED : NoteDisplayState.MINIMIZED
+    await setAllNotesDisplayState(newState)
+  }
+
+  // Ajouter l'item de menu pour les notes
+  const enhancedMenuItems: HeaderMenuItem[] = [
+    {
+      id: 'toggle-notes',
+      label: areAllMinimized ? 'Maximiser toutes les notes' : 'Minimiser toutes les notes',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+          />
+        </svg>
+      ),
+      onClick: handleToggleAllNotes,
+    },
+    ...menuItems,
+  ]
+
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900" data-testid="play-screen">
       {/* Header */}
@@ -1520,7 +1660,7 @@ export function PlayScreen() {
             )}
           </div>
         }
-        menuItems={menuItems}
+        menuItems={enhancedMenuItems}
         testId="play-header"
       />
 
