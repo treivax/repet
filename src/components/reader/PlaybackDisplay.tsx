@@ -123,6 +123,12 @@ export function PlaybackDisplay({
 
   // Auto-scroll vers l'item courant
   useEffect(() => {
+    // En mode silencieux, ne pas faire de scroll automatique
+    // (l'utilisateur scrolle manuellement et l'Observer met à jour la position)
+    if (readingMode === 'silent') {
+      return
+    }
+
     if (currentPlaybackIndex === undefined) {
       return
     }
@@ -171,17 +177,6 @@ export function PlaybackDisplay({
         // Position cible : centrer l'élément dans le container
         const targetScroll = elementAbsoluteTop - containerHeight / 2 + elementHeight / 2
 
-        console.warn('[PlaybackDisplay] 📜 Auto-scroll:', {
-          playbackIndex: currentPlaybackIndex,
-          containerHeight,
-          elementHeight,
-          currentScroll,
-          elementRelativeTop,
-          elementAbsoluteTop,
-          targetScroll,
-          usedFallback: currentItemRef.current === null,
-        })
-
         // Scroller le container directement
         activeContainerRef.current.scrollTo({
           top: targetScroll,
@@ -193,11 +188,6 @@ export function PlaybackDisplay({
           setScrollingProgrammatically?.(false)
         }, 1000)
       } else {
-        console.warn('[PlaybackDisplay] ⚠️ Impossible de scroller:', {
-          playbackIndex: currentPlaybackIndex,
-          hasElement: !!targetElement,
-          hasContainer: !!activeContainerRef.current,
-        })
         // Si on ne peut pas scroller, désactiver le flag immédiatement
         setScrollingProgrammatically?.(false)
       }
@@ -208,7 +198,7 @@ export function PlaybackDisplay({
       // Nettoyer le flag si le composant unmount
       setScrollingProgrammatically?.(false)
     }
-  }, [currentPlaybackIndex, activeContainerRef, setScrollingProgrammatically])
+  }, [currentPlaybackIndex, activeContainerRef, setScrollingProgrammatically, readingMode])
 
   if (playbackSequence.length === 0) {
     return (
