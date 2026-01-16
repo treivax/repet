@@ -86,6 +86,9 @@ interface Props {
   /** Ref externe pour le container (pour IntersectionObserver) */
   containerRef?: React.RefObject<HTMLDivElement>
 
+  /** Contrôler si l'auto-scroll doit se produire (false pour scroll manuel) */
+  shouldAutoScroll?: boolean
+
   /** Annotations pour cette pièce */
   annotations?: Annotation[]
 
@@ -134,6 +137,7 @@ export function PlaybackDisplay({
   onAnnotationUpdate,
   onAnnotationToggle,
   onAnnotationDelete,
+  shouldAutoScroll = true,
 }: Props) {
   const internalContainerRef = useRef<HTMLDivElement>(null)
   const currentItemRef = useRef<HTMLDivElement>(null)
@@ -141,8 +145,13 @@ export function PlaybackDisplay({
   // Utiliser la ref externe si fournie, sinon la ref interne
   const activeContainerRef = externalContainerRef || internalContainerRef
 
-  // Auto-scroll vers l'item courant
+  // Auto-scroll vers l'item courant (seulement si shouldAutoScroll = true)
   useEffect(() => {
+    // Ne pas auto-scroller si désactivé (scroll manuel via IntersectionObserver)
+    if (!shouldAutoScroll) {
+      return
+    }
+
     if (currentPlaybackIndex === undefined) {
       return
     }
@@ -164,7 +173,7 @@ export function PlaybackDisplay({
         })
       }
     }, 100)
-  }, [currentPlaybackIndex, activeContainerRef])
+  }, [currentPlaybackIndex, activeContainerRef, shouldAutoScroll])
 
   if (playbackSequence.length === 0) {
     return (

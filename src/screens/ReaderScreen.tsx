@@ -76,6 +76,7 @@ export function ReaderScreen() {
   const [currentPlaybackIndex, setCurrentPlaybackIndex] = useState<number | undefined>()
   const readLinesSet = new Set<number>()
   const playedItems = new Set<number>()
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false)
   const isScrollingProgrammaticallyRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const observerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -320,8 +321,9 @@ export function ReaderScreen() {
         handleStop()
       }
 
-      // Activer le flag de scroll programmatique
+      // Activer le flag de scroll programmatique ET l'auto-scroll
       isScrollingProgrammaticallyRef.current = true
+      setShouldAutoScroll(true)
 
       // Mettre à jour le store
       goToScene(actIndex, sceneIndex)
@@ -330,6 +332,7 @@ export function ReaderScreen() {
       // Désactiver le flag après un délai pour permettre le scroll
       setTimeout(() => {
         isScrollingProgrammaticallyRef.current = false
+        setShouldAutoScroll(false)
       }, 800)
     },
     [isPlaying, goToScene]
@@ -646,6 +649,7 @@ export function ReaderScreen() {
             onAnnotationUpdate={handleAnnotationUpdate}
             onAnnotationToggle={handleAnnotationToggle}
             onAnnotationDelete={handleAnnotationDelete}
+            shouldAutoScroll={shouldAutoScroll}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

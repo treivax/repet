@@ -100,6 +100,7 @@ export function PlayScreen() {
   const [playbackSequence, setPlaybackSequence] = useState<PlaybackItem[]>([])
   const [currentPlaybackIndex, setCurrentPlaybackIndex] = useState<number | undefined>()
   const [playedItems, setPlayedItems] = useState<Set<number>>(new Set())
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false)
 
   // Refs pour gérer la lecture audio
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
@@ -1103,6 +1104,12 @@ export function PlayScreen() {
     )
     if (currentItem) {
       setCurrentPlaybackIndex(currentItem.index)
+
+      // Activer l'auto-scroll pour scroller vers la ligne en cours de lecture
+      setShouldAutoScroll(true)
+      setTimeout(() => {
+        setShouldAutoScroll(false)
+      }, 800)
     }
 
     setPlayingLineIndex(globalLineIndex)
@@ -1331,6 +1338,12 @@ export function PlayScreen() {
       // Toggle pause/resume
       pausePlayback()
     } else {
+      // Activer l'auto-scroll pour scroller vers l'élément en cours de lecture
+      setShouldAutoScroll(true)
+      setTimeout(() => {
+        setShouldAutoScroll(false)
+      }, 800)
+
       // Démarrer la lecture de cet élément
       playPlaybackItem(item)
     }
@@ -1381,10 +1394,13 @@ export function PlayScreen() {
 
   const handleGoToScene = useCallback(
     (actIndex: number, sceneIndex: number) => {
-      stopPlayback()
+      if (stopPlayback) {
+        stopPlayback()
+      }
 
-      // Activer le flag de scroll programmatique
+      // Activer le flag de scroll programmatique ET l'auto-scroll
       isScrollingProgrammaticallyRef.current = true
+      setShouldAutoScroll(true)
 
       // Mettre à jour le store
       goToScene(actIndex, sceneIndex)
@@ -1393,6 +1409,7 @@ export function PlayScreen() {
       // Désactiver le flag après un délai pour permettre le scroll
       setTimeout(() => {
         isScrollingProgrammaticallyRef.current = false
+        setShouldAutoScroll(false)
       }, 800)
     },
     [stopPlayback, goToScene]
@@ -1723,6 +1740,7 @@ export function PlayScreen() {
             onAnnotationUpdate={handleAnnotationUpdate}
             onAnnotationToggle={handleAnnotationToggle}
             onAnnotationDelete={handleAnnotationDelete}
+            shouldAutoScroll={shouldAutoScroll}
             estimatedDuration={estimatedDuration}
             containerRef={containerRef}
           />
