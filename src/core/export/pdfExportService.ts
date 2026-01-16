@@ -14,6 +14,8 @@ import { parseTextWithStageDirections } from '../../utils/textParser'
 import { NotesStorage } from '../storage/notesStorage'
 import { AttachableType, NoteDisplayState } from '../models/note'
 import type { Note } from '../models/note'
+import { buildPlaybackSequence } from '../../utils/playbackSequence'
+import type { PlaybackItem } from '../models/types'
 
 /**
  * Options pour l'export PDF
@@ -81,9 +83,10 @@ export class PDFExportService {
       margin = this.DEFAULT_MARGIN,
     } = options
 
-    // Charger les notes si nécessaire
+    // Charger les notes et construire la playbackSequence si nécessaire
     let notes: Note[] = []
     let notesMap: Map<string, Note> | null = null
+    let playbackSequence: PlaybackItem[] = []
 
     if (includeNotes) {
       notes = await NotesStorage.getNotesByPlayId(play.id)
@@ -92,6 +95,13 @@ export class PDFExportService {
         const key = `${note.attachedToType}:${note.attachedToIndex}`
         notesMap.set(key, note)
       }
+
+      // Construire la playbackSequence pour mapper les index
+      playbackSequence = buildPlaybackSequence(play.ast, {
+        includeStageDirections: true,
+        includeStructure: true,
+        includePresentation: true,
+      })
     }
 
     // Créer le document PDF
@@ -103,7 +113,7 @@ export class PDFExportService {
 
     // Page de couverture
     if (includeCover) {
-      this.addCoverPage(pdf, playTitle, playAuthor, margin)
+      this.addCoverPage(pdf, playTitle, playAuthor, margin, notesMap, playbackSequence)
     }
 
     // Distribution des rôles (Cast)
@@ -117,7 +127,16 @@ export class PDFExportService {
       // Nouvelle page pour chaque acte
       pdf.addPage()
 
-      this.addActContent(pdf, act, charactersMap, margin, fontSize, notesMap)
+      this.addActContent(
+        pdf,
+        play,
+        act,
+        charactersMap,
+        margin,
+        fontSize,
+        notesMap,
+        playbackSequence
+      )
     }
 
     // Ajouter les numéros de page
@@ -133,7 +152,14 @@ export class PDFExportService {
   /**
    * Ajoute une page de couverture
    */
-  private addCoverPage(pdf: jsPDF, title: string, author: string, margin: number): void {
+  private addCoverPage(
+    pdf: jsPDF,
+    title: string,
+    author: string,
+    margin: number,
+    notesMap: Map<string, Note> | null,
+    playbackSequence: PlaybackItem[]
+  ): void {
     const pageWidth = this.A4_WIDTH
     const pageHeight = this.A4_HEIGHT
     const centerX = pageWidth / 2
@@ -167,6 +193,21 @@ export class PDFExportService {
       align: 'left',
       charSpace: 0,
     })
+
+    // Ajouter une note sur la présentation si elle existe
+    if (notesMap && playbackSequence.length > 0) {
+      // Trouver l'item de présentation dans la séquence
+      const presentationItem = playbackSequence.find((item) => item.type === 'presentation')
+      if (presentationItem) {
+        const noteKey = `${AttachableType.ANNOTATION}:${presentationItem.index}`
+        const note = notesMap.get(noteKey)
+        if (note && note.displayState === NoteDisplayState.MAXIMIZED && note.content.trim()) {
+          // Positionner la note en bas de page, au-dessus du footer
+          const noteY = pageHeight - margin - 30
+          this.addNote(pdf, note, margin, noteY, 10)
+        }
+      }
+    }
   }
 
   /**
@@ -251,11 +292,13 @@ export class PDFExportService {
    */
   private addActContent(
     pdf: jsPDF,
+    play: Play,
     act: Act,
     charactersMap: Record<string, Character>,
     margin: number,
     fontSize: number,
-    notesMap: Map<string, Note> | null
+    notesMap: Map<string, Note> | null,
+    playbackSequence: PlaybackItem[]
   ): void {
     let yPosition = margin + 10
 
@@ -267,8 +310,31 @@ export class PDFExportService {
     pdf.text(actTitle, margin, yPosition, { align: 'left', charSpace: 0 })
     yPosition += 12
 
+    // Ajouter une note sur l'acte si elle existe
+    if (notesMap && playbackSequence.length > 0) {
+      // Trouver l'item d'acte dans la séquence
+      const actItem = playbackSequence.find(
+        (item) =>
+          item.type === 'structure' &&
+          'structureType' in item &&
+          item.structureType === 'act' &&
+          'actIndex' in item &&
+          item.actIndex === act.actNumber - 1
+      )
+      if (actItem) {
+        const noteKey = `${AttachableType.STRUCTURE}:${actItem.index}`
+        const note = notesMap.get(noteKey)
+        if (note && note.displayState === NoteDisplayState.MAXIMIZED && note.content.trim()) {
+          yPosition = this.addNote(pdf, note, margin, yPosition, fontSize)
+          yPosition += 5
+        }
+      }
+    }
+
     // Parcourir les scènes
-    for (const scene of act.scenes) {
+    for (let sceneIdx = 0; sceneIdx < act.scenes.length; sceneIdx++) {
+      const scene = act.scenes[sceneIdx]
+
       // Vérifier si on a assez d'espace pour le titre de scène
       if (yPosition + 20 > this.A4_HEIGHT - margin) {
         pdf.addPage()
@@ -283,18 +349,82 @@ export class PDFExportService {
       pdf.text(sceneTitle, margin, yPosition, { align: 'left', charSpace: 0 })
       yPosition += 10
 
+      // Ajouter une note sur la scène si elle existe
+      if (notesMap && playbackSequence.length > 0) {
+        // Trouver l'item de scène dans la séquence
+        const sceneItem = playbackSequence.find(
+          (item) =>
+            item.type === 'structure' &&
+            'structureType' in item &&
+            item.structureType === 'scene' &&
+            'actIndex' in item &&
+            item.actIndex === act.actNumber - 1 &&
+            'sceneIndex' in item &&
+            item.sceneIndex === sceneIdx
+        )
+        if (sceneItem) {
+          const noteKey = `${AttachableType.STRUCTURE}:${sceneItem.index}`
+          const note = notesMap.get(noteKey)
+          if (note && note.displayState === NoteDisplayState.MAXIMIZED && note.content.trim()) {
+            yPosition = this.addNote(pdf, note, margin, yPosition, fontSize)
+            yPosition += 5
+          }
+        }
+      }
+
       // Parcourir les lignes
-      for (let lineIndex = 0; lineIndex < scene.lines.length; lineIndex++) {
-        const line = scene.lines[lineIndex]
+      for (let lineIndexInScene = 0; lineIndexInScene < scene.lines.length; lineIndexInScene++) {
+        const line = scene.lines[lineIndexInScene]
+
+        // Trouver l'item correspondant dans playbackSequence pour cette ligne
+        let playbackItem = null
+        if (playbackSequence.length > 0) {
+          if (line.type === 'dialogue') {
+            // Calculer le globalLineIndex
+            let globalLineIndex = 0
+            for (let a = 0; a < act.actNumber - 1; a++) {
+              for (const s of play.ast.acts[a].scenes) {
+                globalLineIndex += s.lines.length
+              }
+            }
+            for (let s = 0; s < sceneIdx; s++) {
+              globalLineIndex += act.scenes[s].lines.length
+            }
+            globalLineIndex += lineIndexInScene
+
+            playbackItem = playbackSequence.find(
+              (item) =>
+                item.type === 'line' && 'lineIndex' in item && item.lineIndex === globalLineIndex
+            )
+          } else if (line.type === 'stage-direction') {
+            playbackItem = playbackSequence.find(
+              (item) =>
+                item.type === 'stage-direction' &&
+                'actIndex' in item &&
+                item.actIndex === act.actNumber - 1 &&
+                'sceneIndex' in item &&
+                item.sceneIndex === sceneIdx
+            )
+          }
+        }
+
         // Vérifier l'espace disponible avant d'ajouter la ligne
         yPosition = this.addLine(pdf, line, charactersMap, margin, yPosition, fontSize)
 
         // Ajouter une note si elle existe pour cette ligne
-        if (notesMap) {
-          const noteKey = `${AttachableType.LINE}:${lineIndex}`
-          const note = notesMap.get(noteKey)
-          if (note && note.displayState === NoteDisplayState.MAXIMIZED && note.content.trim()) {
-            yPosition = this.addNote(pdf, note, margin, yPosition, fontSize)
+        if (notesMap && playbackItem) {
+          let noteKey = ''
+          if (line.type === 'dialogue' && 'lineIndex' in playbackItem) {
+            noteKey = `${AttachableType.LINE}:${playbackItem.lineIndex}`
+          } else if (line.type === 'stage-direction') {
+            noteKey = `${AttachableType.ANNOTATION}:${playbackItem.index}`
+          }
+
+          if (noteKey) {
+            const note = notesMap.get(noteKey)
+            if (note && note.displayState === NoteDisplayState.MAXIMIZED && note.content.trim()) {
+              yPosition = this.addNote(pdf, note, margin, yPosition, fontSize)
+            }
           }
         }
       }
