@@ -289,4 +289,220 @@ return () => {
 ---
 
 **Bugfix complété le** : 2025  
-**Statut** : ✅ Résolu
+**Statut** : ✅ Résolu (avec correctif supplémentaire pour le repositionnement en boucle)
+
+---
+
+## 🔄 Bugfix Supplémentaire : Repositionnement en Boucle
+
+### 📋 Problème Identifié (Après Premier Fix)
+
+Après le premier fix avec débounce, la situation s'est améliorée mais des problèmes persistaient :
+- ❌ **Repositionnement erratique** à certains moments
+- ❌ **Boucle de repositionnement** se créant spontanément
+- ❌ **Conflit avec le badge/sommaire** de positionnement
+
+### 🔍 Analyse de la Nouvelle Cause
+
+Le problème venait de l'**auto-scroll automatique** dans `PlaybackDisplay` :
+
+```typescript
+// ❌ PROBLÈME : Auto-scroll à CHAQUE changement
+useEffect(() => {
+  if (currentPlaybackIndex === undefined) return
+  
+  setTimeout(() => {
+    currentItemRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  }, 100)
+}, [currentPlaybackIndex]) // Se déclenche à CHAQUE changement !
+```
+
+### Cascade du Problème
+
+```
+1. User scroll manuellement
+   ↓
+2. IntersectionObserver détecte élément visible
+   ↓
+3. Callback débounced (150ms) → goToLine(X)
+   ↓
+4. currentLineIndex change dans le store
+   ↓
+5. useEffect recalcule currentPlaybackIndex
+   ↓
+6. currentPlaybackIndex change
+   ↓
+7. PlaybackDisplay auto-scroll se déclenche ⚠️
+   ↓
+8. scrollIntoView() déplace le scroll
+   ↓
+9. IntersectionObserver re-déclenché
+   ↓
+10. Boucle se répète → Repositionnement erratique
+```
+
+### ✅ Solution : Contrôle Granulaire de l'Auto-Scroll
+
+#### 1. Nouvelle Prop `shouldAutoScroll`
+
+```typescript
+// PlaybackDisplay.tsx
+interface Props {
+  // ... autres props
+  shouldAutoScroll?: boolean  // ✅ Nouveau contrôle
+}
+
+useEffect(() => {
+  // ✅ Ne scroller QUE si explicitement demandé
+  if (!shouldAutoScroll) {
+    return
+  }
+  
+  // ... logique auto-scroll
+}, [currentPlaybackIndex, shouldAutoScroll])
+```
+
+#### 2. State dans les Écrans
+
+```typescript
+// ReaderScreen.tsx et PlayScreen.tsx
+const [shouldAutoScroll, setShouldAutoScroll] = useState(false)
+```
+
+#### 3. Activation Sélective
+
+Auto-scroll activé **UNIQUEMENT** pour navigation programmatique :
+
+**A. Clic sur sommaire :**
+```typescript
+const handleGoToScene = (actIndex, sceneIndex) => {
+  isScrollingProgrammaticallyRef.current = true
+  setShouldAutoScroll(true) // ✅ Activer auto-scroll
+  
+  goToScene(actIndex, sceneIndex)
+  
+  setTimeout(() => {
+    isScrollingProgrammaticallyRef.current = false
+    setShouldAutoScroll(false) // ✅ Désactiver après 800ms
+  }, 800)
+}
+```
+
+**B. Démarrage lecture audio :**
+```typescript
+const speakLine = (globalLineIndex) => {
+  // ... logique de lecture
+  
+  if (currentItem) {
+    setCurrentPlaybackIndex(currentItem.index)
+    
+    // ✅ Auto-scroll vers la ligne en cours de lecture
+    setShouldAutoScroll(true)
+    setTimeout(() => {
+      setShouldAutoScroll(false)
+    }, 800)
+  }
+}
+```
+
+**C. Clic sur carte :**
+```typescript
+const handleCardClick = (playbackIndex) => {
+  // ✅ Auto-scroll vers l'élément cliqué
+  setShouldAutoScroll(true)
+  setTimeout(() => {
+    setShouldAutoScroll(false)
+  }, 800)
+  
+  playPlaybackItem(item)
+}
+```
+
+#### 4. Scroll Manuel = Pas d'Auto-Scroll
+
+Par défaut, `shouldAutoScroll = false` :
+- IntersectionObserver met à jour la position
+- `currentPlaybackIndex` change
+- **MAIS** PlaybackDisplay n'auto-scroll PAS
+- Badge de scène se met à jour sans déclencher de scroll
+- Pas de boucle
+
+### 📊 Résultats Finaux
+
+#### Avant (Premier Fix Seulement)
+- ⚠️ Scroll manuel amélioré mais parfois erratique
+- ⚠️ Repositionnement en boucle occasionnel
+- ⚠️ Conflit badge/sommaire
+
+#### Après (Fix Complet)
+- ✅ Scroll manuel 100% fluide
+- ✅ Aucun repositionnement en boucle
+- ✅ Badge se met à jour silencieusement
+- ✅ Navigation programmatique fonctionne parfaitement
+- ✅ Pas d'interférence entre scroll manuel et automatique
+
+### 🎯 Principe de la Solution
+
+**Séparation claire des responsabilités :**
+
+| Type de Navigation | Déclencheur | Auto-Scroll | IntersectionObserver |
+|-------------------|-------------|-------------|---------------------|
+| **Scroll manuel** | User | ❌ Désactivé | ✅ Actif (met à jour position) |
+| **Clic sommaire** | User | ✅ Activé 800ms | ❌ Bloqué 800ms |
+| **Lecture audio** | User | ✅ Activé 800ms | ✅ Actif après 800ms |
+
+### 📝 Commit
+
+```
+b1116c9 - fix: Éliminer le repositionnement en boucle avec contrôle de l'auto-scroll
+```
+
+### 🧪 Tests de Validation Complémentaires
+
+#### Test 1 : Scroll Manuel Pur
+1. Scroller manuellement dans le document
+2. Observer le badge de scène se mettre à jour
+3. **Attendu** : Pas de repositionnement automatique
+
+#### Test 2 : Clic Sommaire
+1. Cliquer sur une scène dans le sommaire
+2. **Attendu** : Scroll automatique vers la scène, puis stabilisation
+
+#### Test 3 : Lecture Audio
+1. Cliquer sur une réplique en mode audio
+2. **Attendu** : Scroll vers la réplique, lecture démarre
+3. Scroller manuellement pendant la lecture
+4. **Attendu** : Scroll manuel non interrompu
+
+#### Test 4 : Cycle Scroll-Sommaire
+1. Scroller manuellement
+2. Badge se met à jour
+3. Cliquer sur badge → sommaire
+4. Cliquer sur une scène
+5. **Attendu** : Navigation fluide sans boucle
+
+### 📚 Leçons Supplémentaires
+
+1. **Auto-scroll doit être intentionnel**
+   - Ne JAMAIS auto-scroller en réaction à un changement d'état causé par le scroll manuel
+   - Séparer clairement : navigation utilisateur vs mise à jour de position
+
+2. **Flag temporaires**
+   - Utiliser des timeouts pour désactiver les comportements automatiques
+   - 800ms est un bon compromis pour les animations de scroll
+
+3. **Props de contrôle**
+   - Passer des props booléennes pour contrôler les comportements complexes
+   - Mieux que des refs qui ne déclenchent pas de re-render
+
+4. **IntersectionObserver et Auto-Scroll**
+   - Ces deux mécanismes peuvent facilement créer des boucles
+   - Toujours avoir un moyen de désactiver l'un ou l'autre selon le contexte
+
+---
+
+**Bugfix repositionnement complété le** : 2025  
+**Statut** : ✅ Complètement résolu
