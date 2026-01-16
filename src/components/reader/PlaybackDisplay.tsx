@@ -8,6 +8,7 @@ import { useRef, useEffect } from 'react'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
 import type { Line } from '../../core/models/Line'
+import type { Annotation } from '../../core/models/Annotation'
 import type {
   PlaybackItem,
   LinePlaybackItem,
@@ -84,6 +85,21 @@ interface Props {
 
   /** Ref externe pour le container (pour IntersectionObserver) */
   containerRef?: React.RefObject<HTMLDivElement>
+
+  /** Annotations pour cette pièce */
+  annotations?: Annotation[]
+
+  /** Callback pour créer une annotation */
+  onAnnotationCreate?: (lineId: string) => void
+
+  /** Callback pour mettre à jour une annotation */
+  onAnnotationUpdate?: (annotationId: string, content: string) => void
+
+  /** Callback pour toggle une annotation */
+  onAnnotationToggle?: (annotationId: string) => void
+
+  /** Callback pour supprimer une annotation */
+  onAnnotationDelete?: (annotationId: string) => void
 }
 
 /**
@@ -113,6 +129,11 @@ export function PlaybackDisplay({
   estimatedDuration,
   isGenerating,
   containerRef: externalContainerRef,
+  annotations = [],
+  onAnnotationCreate,
+  onAnnotationUpdate,
+  onAnnotationToggle,
+  onAnnotationDelete,
 }: Props) {
   const internalContainerRef = useRef<HTMLDivElement>(null)
   const currentItemRef = useRef<HTMLDivElement>(null)
@@ -252,6 +273,9 @@ export function PlaybackDisplay({
                 playingLineIndex !== undefined && lineItem.lineIndex === playingLineIndex
               const hasBeenRead = readLinesSet.has(lineItem.lineIndex)
 
+              // Trouver l'annotation pour cette ligne
+              const lineAnnotation = annotations.find((a) => a.lineId === line.id)
+
               return (
                 <div
                   key={`playback-${item.index}`}
@@ -280,6 +304,25 @@ export function PlaybackDisplay({
                     elapsedTime={isPlaying ? elapsedTime : 0}
                     estimatedDuration={isPlaying ? estimatedDuration : 0}
                     isGenerating={isPlaying ? isGenerating : false}
+                    annotation={lineAnnotation}
+                    onAnnotationCreate={
+                      onAnnotationCreate ? () => onAnnotationCreate(line.id) : undefined
+                    }
+                    onAnnotationUpdate={
+                      onAnnotationUpdate && lineAnnotation
+                        ? (content) => onAnnotationUpdate(lineAnnotation.id, content)
+                        : undefined
+                    }
+                    onAnnotationToggle={
+                      onAnnotationToggle && lineAnnotation
+                        ? () => onAnnotationToggle(lineAnnotation.id)
+                        : undefined
+                    }
+                    onAnnotationDelete={
+                      onAnnotationDelete && lineAnnotation
+                        ? () => onAnnotationDelete(lineAnnotation.id)
+                        : undefined
+                    }
                   />
                 </div>
               )

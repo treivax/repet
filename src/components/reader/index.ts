@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
+export * from './AnnotationNote'
 export * from './LineRenderer'
 export * from './SceneSummary'
 export * from './SceneBadge'

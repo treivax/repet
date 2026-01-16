@@ -26,6 +26,24 @@ export class RepetDatabase extends Dexie {
       plays: 'id, title, createdAt, updatedAt',
       settings: 'id',
     })
+
+    // Version 2 : Ajout du support des annotations
+    this.version(2)
+      .stores({
+        plays: 'id, title, createdAt, updatedAt',
+        settings: 'id',
+      })
+      .upgrade((trans) => {
+        // Migration : Initialiser le champ annotations pour les pièces existantes
+        return trans
+          .table('plays')
+          .toCollection()
+          .modify((play) => {
+            if (!play.annotations) {
+              play.annotations = []
+            }
+          })
+      })
   }
 }
 

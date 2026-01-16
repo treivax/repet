@@ -4,10 +4,11 @@
  * See LICENSE file in the project root for full license text
  */
 
-export * from './types'
+export * from './Annotation'
 export * from './Character'
 export * from './ContentNode'
 export * from './Line'
 export * from './Play'
 export * from './playHelpers'
 export * from './Settings'
+export * from './types'

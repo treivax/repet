@@ -147,4 +147,138 @@ export const playsRepository = {
       )
     }
   },
+
+  /**
+   * Ajoute une annotation à une pièce
+   *
+   * @param playId - ID de la pièce
+   * @param annotation - Annotation à ajouter
+   */
+  async addAnnotation(
+    playId: string,
+    annotation: import('../models/Annotation').Annotation
+  ): Promise<void> {
+    try {
+      const play = await db.plays.get(playId)
+
+      if (!play) {
+        throw new Error(`Pièce ${playId} non trouvée`)
+      }
+
+      const annotations = play.annotations ?? []
+      annotations.push(annotation)
+
+      await db.plays.update(playId, {
+        annotations,
+        updatedAt: new Date(),
+      })
+    } catch (error) {
+      console.error(`Erreur lors de l'ajout de l'annotation:`, error)
+      throw new Error(
+        `Impossible d'ajouter l'annotation : ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      )
+    }
+  },
+
+  /**
+   * Met à jour une annotation
+   *
+   * @param playId - ID de la pièce
+   * @param annotationId - ID de l'annotation à mettre à jour
+   * @param updates - Modifications à appliquer
+   */
+  async updateAnnotation(
+    playId: string,
+    annotationId: string,
+    updates: Partial<import('../models/Annotation').Annotation>
+  ): Promise<void> {
+    try {
+      const play = await db.plays.get(playId)
+
+      if (!play) {
+        throw new Error(`Pièce ${playId} non trouvée`)
+      }
+
+      const annotations = play.annotations ?? []
+      const index = annotations.findIndex((a) => a.id === annotationId)
+
+      if (index === -1) {
+        throw new Error(`Annotation ${annotationId} non trouvée`)
+      }
+
+      annotations[index] = {
+        ...annotations[index],
+        ...updates,
+        updatedAt: new Date(),
+      }
+
+      await db.plays.update(playId, {
+        annotations,
+        updatedAt: new Date(),
+      })
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour de l'annotation:`, error)
+      throw new Error(
+        `Impossible de mettre à jour l'annotation : ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      )
+    }
+  },
+
+  /**
+   * Supprime une annotation
+   *
+   * @param playId - ID de la pièce
+   * @param annotationId - ID de l'annotation à supprimer
+   */
+  async deleteAnnotation(playId: string, annotationId: string): Promise<void> {
+    try {
+      const play = await db.plays.get(playId)
+
+      if (!play) {
+        throw new Error(`Pièce ${playId} non trouvée`)
+      }
+
+      const annotations = (play.annotations ?? []).filter((a) => a.id !== annotationId)
+
+      await db.plays.update(playId, {
+        annotations,
+        updatedAt: new Date(),
+      })
+    } catch (error) {
+      console.error(`Erreur lors de la suppression de l'annotation:`, error)
+      throw new Error(
+        `Impossible de supprimer l'annotation : ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      )
+    }
+  },
+
+  /**
+   * Remplace toutes les annotations d'une pièce
+   * Utilisé pour le toggle global
+   *
+   * @param playId - ID de la pièce
+   * @param annotations - Nouvelles annotations
+   */
+  async updateAllAnnotations(
+    playId: string,
+    annotations: import('../models/Annotation').Annotation[]
+  ): Promise<void> {
+    try {
+      const play = await db.plays.get(playId)
+
+      if (!play) {
+        throw new Error(`Pièce ${playId} non trouvée`)
+      }
+
+      await db.plays.update(playId, {
+        annotations,
+        updatedAt: new Date(),
+      })
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour des annotations:`, error)
+      throw new Error(
+        `Impossible de mettre à jour les annotations : ${error instanceof Error ? error.message : 'Erreur inconnue'}`
+      )
+    }
+  },
 }

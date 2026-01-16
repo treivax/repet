@@ -6,6 +6,7 @@
 
 import { Character } from './Character'
 import { Line } from './Line'
+import { Annotation } from './Annotation'
 
 /**
  * Présentation d'un personnage dans la section Cast
@@ -107,6 +108,9 @@ export interface Play {
 
   /** AST de la pièce */
   ast: PlayAST
+
+  /** Liste des annotations utilisateur sur les répliques */
+  annotations?: Annotation[]
 
   /** Date de création */
   createdAt: Date

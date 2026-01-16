@@ -4,6 +4,8 @@
  * See LICENSE file in the project root for full license text
  */
 
+export * from './annotationsStore'
 export * from './playStore'
+export * from './playSettingsStore'
 export * from './uiStore'
 export * from './selectors'

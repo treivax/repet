@@ -8,9 +8,11 @@ import { useState } from 'react'
 import type { Line } from '../../core/models/Line'
 import type { ReadingMode } from '../../core/tts/readingModes'
 import type { Character } from '../../core/models/Character'
+import type { Annotation } from '../../core/models/Annotation'
 import { generateCharacterColor } from '../../utils/colors'
 import { parseTextWithStageDirections } from '../../utils/textParser'
 import { StageDirectionCard } from '../play/PlaybackCards'
+import { AnnotationNote } from './AnnotationNote'
 
 interface Props {
   /** Ligne à afficher */
@@ -60,6 +62,21 @@ interface Props {
 
   /** Audio en cours de génération (synthèse) */
   isGenerating?: boolean
+
+  /** Annotation pour cette ligne (optionnel) */
+  annotation?: Annotation
+
+  /** Callback pour créer une annotation */
+  onAnnotationCreate?: () => void
+
+  /** Callback pour mettre à jour une annotation */
+  onAnnotationUpdate?: (content: string) => void
+
+  /** Callback pour toggle une annotation */
+  onAnnotationToggle?: () => void
+
+  /** Callback pour supprimer une annotation */
+  onAnnotationDelete?: () => void
 }
 
 /**
@@ -83,6 +100,11 @@ export function LineRenderer({
   elapsedTime = 0,
   estimatedDuration = 0,
   isGenerating = false,
+  annotation,
+  onAnnotationCreate,
+  onAnnotationUpdate,
+  onAnnotationToggle,
+  onAnnotationDelete,
 }: Props) {
   // Déterminer si c'est une réplique utilisateur (avec support multi-personnages)
   const isUserLine =
@@ -339,6 +361,12 @@ export function LineRenderer({
           onLongPress()
         }, 500) // 500ms pour l'appui long
         setLongPressTimer(timer)
+      } else if (onAnnotationCreate && !annotation) {
+        // Appui long pour créer une annotation si elle n'existe pas
+        const timer = window.setTimeout(() => {
+          onAnnotationCreate()
+        }, 500)
+        setLongPressTimer(timer)
       } else if (!onClick) {
         setIsClicked(true)
       }
@@ -360,6 +388,12 @@ export function LineRenderer({
           onLongPress()
         }, 500)
         setLongPressTimer(timer)
+      } else if (onAnnotationCreate && !annotation) {
+        // Appui long pour créer une annotation si elle n'existe pas
+        const timer = window.setTimeout(() => {
+          onAnnotationCreate()
+        }, 500)
+        setLongPressTimer(timer)
       } else if (!onClick) {
         setIsClicked(true)
       }
@@ -376,108 +410,120 @@ export function LineRenderer({
     }
 
     return (
-      <div
-        className={cardClasses}
-        onClick={(e) => {
-          e.stopPropagation()
-          handleClick()
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
+      <div className="relative">
+        <div
+          className={cardClasses}
+          onClick={(e) => {
             e.stopPropagation()
-            if (onClick) {
-              onClick()
-              // Ne pas modifier l'état clicked quand onClick est défini
-              // pour éviter la sélection visuelle lors de pause/resume
-            } else {
-              setIsClicked(true)
-              setTimeout(() => setIsClicked(false), 150)
+            handleClick()
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              e.stopPropagation()
+              if (onClick) {
+                onClick()
+                // Ne pas modifier l'état clicked quand onClick est défini
+                // pour éviter la sélection visuelle lors de pause/resume
+              } else {
+                setIsClicked(true)
+                setTimeout(() => setIsClicked(false), 150)
+              }
             }
-          }
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <div
-            className="font-bold uppercase"
-            style={characterColor ? { color: characterColor } : undefined}
-          >
-            {characterDisplay}
-          </div>
-          {isPlaying && (
-            <div className="flex items-center gap-2">
-              {/* Temps restant - largeur fixe pour éviter le déplacement du cercle */}
-              <div
-                className={`text-xs font-medium text-right ${
-                  isPaused
-                    ? 'text-yellow-600 dark:text-yellow-400'
-                    : 'text-blue-600 dark:text-blue-400'
-                }`}
-                style={{ minWidth: '180px' }}
-              >
-                {isGenerating
-                  ? '⏳ Génération en cours...'
-                  : isPaused
-                    ? '⏸ En pause · ' +
-                      Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) +
-                      's'
-                    : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
-              </div>
-              {/* Indicateur de progression circulaire */}
-              <svg className="h-6 w-6 -rotate-90 transform flex-shrink-0" viewBox="0 0 24 24">
-                {/* Cercle de fond */}
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  className="text-gray-300 dark:text-gray-600"
-                />
-                {/* Cercle de progression */}
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeDasharray={`${2 * Math.PI * 10}`}
-                  strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
-                  className={
-                    isPaused
-                      ? 'text-yellow-500 dark:text-yellow-400'
-                      : 'text-blue-500 dark:text-blue-400'
-                  }
-                  strokeLinecap="round"
-                />
-              </svg>
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div
+              className="font-bold uppercase"
+              style={characterColor ? { color: characterColor } : undefined}
+            >
+              {characterDisplay}
             </div>
+            {isPlaying && (
+              <div className="flex items-center gap-2">
+                {/* Temps restant - largeur fixe pour éviter le déplacement du cercle */}
+                <div
+                  className={`text-xs font-medium text-right ${
+                    isPaused
+                      ? 'text-yellow-600 dark:text-yellow-400'
+                      : 'text-blue-600 dark:text-blue-400'
+                  }`}
+                  style={{ minWidth: '180px' }}
+                >
+                  {isGenerating
+                    ? '⏳ Génération en cours...'
+                    : isPaused
+                      ? '⏸ En pause · ' +
+                        Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) +
+                        's'
+                      : Math.max(0, Math.ceil(estimatedDuration - elapsedTime)) + 's'}
+                </div>
+                {/* Indicateur de progression circulaire */}
+                <svg className="h-6 w-6 -rotate-90 transform flex-shrink-0" viewBox="0 0 24 24">
+                  {/* Cercle de fond */}
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    className="text-gray-300 dark:text-gray-600"
+                  />
+                  {/* Cercle de progression */}
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    fill="none"
+                    strokeDasharray={`${2 * Math.PI * 10}`}
+                    strokeDashoffset={`${2 * Math.PI * 10 * (1 - progressPercentage / 100)}`}
+                    className={
+                      isPaused
+                        ? 'text-yellow-500 dark:text-yellow-400'
+                        : 'text-blue-500 dark:text-blue-400'
+                    }
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+            )}
+          </div>
+          <div className={textClasses}>
+            {textSegments.map((segment, idx) => {
+              if (segment.type === 'stage-direction') {
+                return (
+                  <span key={idx} className="italic text-gray-500 dark:text-gray-500">
+                    ({segment.content})
+                  </span>
+                )
+              }
+              return <span key={idx}>{segment.content}</span>
+            })}
+          </div>
+          {shouldReveal && (
+            <div className="mt-1 text-xs text-green-600 dark:text-green-400">✓ Révélée</div>
           )}
         </div>
-        <div className={textClasses}>
-          {textSegments.map((segment, idx) => {
-            if (segment.type === 'stage-direction') {
-              return (
-                <span key={idx} className="italic text-gray-500 dark:text-gray-500">
-                  ({segment.content})
-                </span>
-              )
-            }
-            return <span key={idx}>{segment.content}</span>
-          })}
-        </div>
-        {shouldReveal && (
-          <div className="mt-1 text-xs text-green-600 dark:text-green-400">✓ Révélée</div>
+
+        {/* Annotation */}
+        {annotation && (
+          <AnnotationNote
+            annotation={annotation}
+            onUpdate={onAnnotationUpdate || (() => {})}
+            onToggle={onAnnotationToggle || (() => {})}
+            onDelete={onAnnotationDelete}
+          />
         )}
       </div>
     )
