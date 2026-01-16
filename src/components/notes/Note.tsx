@@ -4,7 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { Note as NoteType, NoteDisplayState } from '../../core/models/note'
 import {
   NOTE_BG_COLOR,
@@ -20,6 +20,7 @@ import {
 } from '../../core/models/noteConstants'
 import { useLongPress } from '../../hooks/useLongPress'
 import { NoteIcon } from './NoteIcon'
+import { ConfirmDialog } from '../common/ConfirmDialog'
 
 interface NoteProps {
   /** Données de la note */
@@ -41,7 +42,7 @@ interface NoteProps {
 /**
  * Composant Note - affichage maximisé ou minimisé
  */
-export function Note({
+export const Note = memo(function Note({
   note,
   onContentChange,
   onToggleState,
@@ -49,6 +50,7 @@ export function Note({
   className = '',
 }: NoteProps) {
   const [localContent, setLocalContent] = useState(note.content)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const saveTimeoutRef = useRef<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -131,7 +133,7 @@ export function Note({
     >
       {/* Bouton de suppression */}
       <button
-        onClick={onDelete}
+        onClick={() => setShowDeleteConfirm(true)}
         className="
           absolute top-2 right-2
           w-6 h-6
@@ -157,6 +159,20 @@ export function Note({
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
+
+      {/* Modale de confirmation de suppression */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Supprimer la note"
+        message="Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        cancelLabel="Annuler"
+        onConfirm={() => {
+          setShowDeleteConfirm(false)
+          onDelete()
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
 
       {/* Textarea pour le contenu */}
       <textarea
@@ -193,4 +209,4 @@ export function Note({
       </div>
     </div>
   )
-}
+})

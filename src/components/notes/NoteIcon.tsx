@@ -4,6 +4,7 @@
  * See LICENSE file in the project root for full license text
  */
 
+import { memo } from 'react'
 import { NOTE_ICON_SIZE_PX } from '../../core/models/noteConstants'
 
 interface NoteIconProps {
@@ -17,7 +18,7 @@ interface NoteIconProps {
 /**
  * Icône de note minimisée (sticky note)
  */
-export function NoteIcon({ onClick, className = '' }: NoteIconProps) {
+export const NoteIcon = memo(function NoteIcon({ onClick, className = '' }: NoteIconProps) {
   return (
     <button
       onClick={onClick}
@@ -57,4 +58,4 @@ export function NoteIcon({ onClick, className = '' }: NoteIconProps) {
       </svg>
     </button>
   )
-}
+})
