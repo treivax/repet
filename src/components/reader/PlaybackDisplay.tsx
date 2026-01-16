@@ -123,23 +123,31 @@ export function PlaybackDisplay({
       return
     }
 
-    if (!currentItemRef.current) {
-      return
-    }
-
     if (!activeContainerRef.current) {
       return
     }
 
     // Petit délai pour s'assurer que le DOM est rendu
-    setTimeout(() => {
-      if (currentItemRef.current) {
-        currentItemRef.current.scrollIntoView({
+    const scrollTimer = setTimeout(() => {
+      // Essayer d'abord avec la ref, sinon chercher l'élément par data-attribute
+      let targetElement: HTMLDivElement | HTMLElement | null = currentItemRef.current
+
+      if (!targetElement) {
+        // Fallback: chercher par data-playback-index
+        targetElement = activeContainerRef.current?.querySelector(
+          `[data-playback-index="${currentPlaybackIndex}"]`
+        ) as HTMLDivElement | null
+      }
+
+      if (targetElement) {
+        targetElement.scrollIntoView({
           behavior: 'smooth',
           block: 'center',
         })
       }
-    }, 100)
+    }, 150)
+
+    return () => clearTimeout(scrollTimer)
   }, [currentPlaybackIndex, activeContainerRef])
 
   if (playbackSequence.length === 0) {

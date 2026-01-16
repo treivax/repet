@@ -702,12 +702,6 @@ export function PlayScreen() {
   }
 
   // Fonction pour scroller vers une ligne
-  const scrollToLine = (lineIndex: number) => {
-    const element = document.querySelector(`[data-line-index="${lineIndex}"]`)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }
-  }
 
   // Fonction pour arrêter la lecture
   const stopPlayback = useCallback(() => {
@@ -1274,8 +1268,8 @@ export function PlayScreen() {
       }
     })
 
-    // Scroll vers la ligne (l'élément a data-line-index={globalLineIndex})
-    scrollToLine(globalLineIndex)
+    // Note: Le scroll automatique est géré par PlaybackDisplay via currentPlaybackIndex
+    // pour éviter les conflits entre plusieurs systèmes de scroll
   }
 
   /**
@@ -1322,12 +1316,36 @@ export function PlayScreen() {
       goToScene(actIndex, sceneIndex)
       setShowSummary(false)
 
+      // Trouver le premier élément de playback de la scène sélectionnée
+      const firstSceneItem = playbackSequence.find((item) => {
+        if (item.type === 'structure') {
+          const structItem = item as StructurePlaybackItem
+          return structItem.actIndex === actIndex && structItem.sceneIndex === sceneIndex
+        }
+        return false
+      })
+
+      // Si trouvé, scroller vers cet élément
+      if (firstSceneItem) {
+        setTimeout(() => {
+          const element = document.querySelector(
+            `[data-playback-index="${firstSceneItem.index}"]`
+          ) as HTMLElement
+          if (element) {
+            element.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+            })
+          }
+        }, 200)
+      }
+
       // Désactiver le flag après un délai pour permettre le scroll
       setTimeout(() => {
         isScrollingProgrammaticallyRef.current = false
       }, 1500)
     },
-    [stopPlayback, goToScene]
+    [stopPlayback, goToScene, playbackSequence]
   )
 
   const handleClose = () => {
