@@ -114,6 +114,7 @@ export function PlayScreen() {
   const segmentsRef = useRef<TextSegment[]>([])
   const isScrollingProgrammaticallyRef = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const observerTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Fonction pour mettre en pause/reprendre
   const pausePlayback = useCallback(() => {
@@ -247,52 +248,69 @@ export function PlayScreen() {
         return
       }
 
-      // Trouver l'élément le plus visible
-      let maxRatio = 0
-      let targetEntry: IntersectionObserverEntry | undefined
+      // Débouncer les mises à jour pour éviter le scrolling saccadé
+      if (observerTimeoutRef.current) {
+        clearTimeout(observerTimeoutRef.current)
+      }
 
-      for (const entry of entries) {
-        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
-          maxRatio = entry.intersectionRatio
-          targetEntry = entry
+      observerTimeoutRef.current = setTimeout(() => {
+        // Trouver l'élément le plus visible
+        let maxRatio = 0
+        let targetEntry: IntersectionObserverEntry | undefined
+
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio
+            targetEntry = entry
+          }
         }
-      }
 
-      if (!targetEntry) {
-        return
-      }
-
-      const element = targetEntry.target as HTMLElement
-      const playbackIndexStr = element.getAttribute('data-playback-index')
-      const playbackType = element.getAttribute('data-playback-type')
-
-      if (playbackIndexStr === null) {
-        return
-      }
-
-      const playbackIdx = parseInt(playbackIndexStr, 10)
-      const item = playbackSequence[playbackIdx]
-
-      if (!item) {
-        return
-      }
-
-      // Mettre à jour silencieusement le store en fonction du type d'item
-      if (item.type === 'line') {
-        const lineItem = item as LinePlaybackItem
-        const lineIdx = lineItem.lineIndex
-        const line = currentPlay.ast.flatLines[lineIdx]
-        if (line) {
-          goToLine(lineIdx)
+        if (!targetEntry) {
+          return
         }
-      } else if (item.type === 'structure' && playbackType === 'structure') {
-        const structureItem = item as StructurePlaybackItem
-        const actIdx = structureItem.actIndex ?? currentActIndex
-        const sceneIdx = structureItem.sceneIndex ?? currentSceneIndex
-        if (structureItem.structureType === 'scene' && structureItem.sceneIndex !== undefined) {
-          goToScene(actIdx, sceneIdx)
+
+        const element = targetEntry.target as HTMLElement
+        const playbackIndexStr = element.getAttribute('data-playback-index')
+        const playbackType = element.getAttribute('data-playback-type')
+
+        if (playbackIndexStr === null) {
+          return
         }
-      }
+
+        const playbackIdx = parseInt(playbackIndexStr, 10)
+        const item = playbackSequence[playbackIdx]
+
+        if (!item) {
+          return
+        }
+
+        // Mettre à jour silencieusement le store en fonction du type d'item
+        if (item.type === 'line') {
+          const lineItem = item as LinePlaybackItem
+          const lineIdx = lineItem.lineIndex
+
+          // Ne mettre à jour que si la ligne a vraiment changé
+          if (lineIdx !== currentLineIndex) {
+            const line = currentPlay.ast.flatLines[lineIdx]
+            if (line) {
+              goToLine(lineIdx)
+            }
+          }
+        } else if (item.type === 'structure' && playbackType === 'structure') {
+          const structureItem = item as StructurePlaybackItem
+          const actIdx = structureItem.actIndex ?? currentActIndex
+          const sceneIdx = structureItem.sceneIndex ?? currentSceneIndex
+
+          // Ne mettre à jour que si l'acte/scène a vraiment changé
+          if (
+            structureItem.structureType === 'scene' &&
+            structureItem.sceneIndex !== undefined &&
+            (actIdx !== currentActIndex || sceneIdx !== currentSceneIndex)
+          ) {
+            goToScene(actIdx, sceneIdx)
+          }
+        }
+      }, 150) // Débounce de 150ms
     }
 
     const observer = new IntersectionObserver(observerCallback, observerOptions)
@@ -303,8 +321,19 @@ export function PlayScreen() {
 
     return () => {
       observer.disconnect()
+      if (observerTimeoutRef.current) {
+        clearTimeout(observerTimeoutRef.current)
+      }
     }
-  }, [playbackSequence, currentPlay, currentActIndex, currentSceneIndex, goToLine, goToScene])
+  }, [
+    playbackSequence,
+    currentPlay,
+    currentActIndex,
+    currentSceneIndex,
+    currentLineIndex,
+    goToLine,
+    goToScene,
+  ])
 
   // Initialiser le TTS provider avec le bon provider au montage
   useEffect(() => {
@@ -1364,7 +1393,7 @@ export function PlayScreen() {
       // Désactiver le flag après un délai pour permettre le scroll
       setTimeout(() => {
         isScrollingProgrammaticallyRef.current = false
-      }, 1500)
+      }, 800)
     },
     [stopPlayback, goToScene]
   )
