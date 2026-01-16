@@ -214,19 +214,29 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 
 ## ✅ PHASE 5 : Export PDF (TERMINÉE)
 
-**Commit**: `53d8ef8` - Phase 5: Export PDF - Intégration des notes avec styles fidèles
+**Commits** : `53d8ef8` + `ec0fcea` - Phase 5: Export PDF - Intégration notes avec styles fidèles
 
 ### Étape 5.1 : Étendre pdfExportService ✅
 - [x] Charger notes via `NotesStorage`
 - [x] Créer `notesMap` pour lookup O(1)
-- [x] Modifier rendu pour inclure notes après lignes
+- [x] Construire `playbackSequence` pour mapping index globaux
+- [x] Export notes sur **TOUS** types d'éléments :
+  - ✅ **PRESENTATION** (titre) via `AttachableType.ANNOTATION`
+  - ✅ **STRUCTURE** (actes/scènes) via `AttachableType.STRUCTURE`
+  - ✅ **STAGE_DIRECTION** (didascalies) via `AttachableType.ANNOTATION`
+  - ✅ **LINE** (répliques) via `AttachableType.LINE`
 - [x] Fonction `addNote()` créée
 - [x] Décalage position note (margin + 5mm)
 - [x] Styles fidèles (jaune pastel, border, italique)
 - [x] Import NotesStorage, AttachableType, NoteDisplayState
+- [x] Import buildPlaybackSequence pour reconstruction index
 - [x] Option includeNotes dans PDFExportOptions
-- [x] Passage notesMap à addActContent
-- [x] Loop sur lineIndex pour tracking
+- [x] Passage notesMap + playbackSequence à addCoverPage et addActContent
+- [x] Passage play à addActContent pour accès ast
+- [x] Mapping notes PRESENTATION via playbackItem.index
+- [x] Mapping notes STRUCTURE via playbackItem.index (actes + scènes)
+- [x] Mapping notes ANNOTATION (didascalies) via playbackItem.index
+- [x] Calcul globalLineIndex pour mapping LINE
 - [x] Vérification note maximisée et non vide
 - [x] Gestion pagination multi-pages
 - [x] Reset styles après note
@@ -239,15 +249,18 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 - Split text manuel pour wrapping
 - Padding 3mm, noteWidth réduit de 10mm
 - Espacement 3mm après note
+- Reconstruction playbackSequence pour index cohérents avec UI
+- Recherche playbackItem par type et index pour mapping notes
 
 ### Validations Phase 5 ✅
 - [x] Type-check: 0 erreur
 - [x] Lint: 0 erreur
-- [x] Compilation: OK
+- [x] Build offline/online: OK
 - [x] Styles fidèles au rendu écran
 - [x] Pagination gérée correctement
 - [x] Notes maximisées seulement
 - [x] Notes vides ignorées
+- [x] **TOUS** les types d'éléments supportés (PRESENTATION, STRUCTURE, STAGE_DIRECTION, LINE)
 
 ---
 

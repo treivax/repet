@@ -18,8 +18,8 @@ Implémentation complète d'un système de **notes personnelles** permettant aux
 ✅ **Édition** : Auto-save debounced (500ms) + Save on blur  
 ✅ **Minimisation** : Toggle individuel + Menu global "Afficher/Masquer toutes"  
 ✅ **Suppression** : Dialog de confirmation accessible (ESC, ARIA)  
-✅ **Export PDF** : Notes maximisées incluses avec styles fidèles  
-✅ **Persistence** : IndexedDB avec index composite performant  
+✅ **Export PDF** : Notes sur TOUS types (présentation, actes, scènes, didascalies, répliques)  
+✅ **Persistence** : IndexedDB avec index composite performant
 ✅ **Performance** : React.memo, debounce, lookup O(1)  
 ✅ **Accessibilité** : Navigation clavier, ARIA labels, screen reader  
 
@@ -133,11 +133,17 @@ src/
 ---
 
 ### ✅ Phase 5 : Export PDF (100%)
-**Commit** : `53d8ef8`  
-**Durée** : ~3h  
+**Commits** : `53d8ef8` + `ec0fcea`  
+**Durée** : ~4h
 
 - [x] Extension `pdfExportService.ts`
 - [x] Chargement notes via `NotesStorage`
+- [x] Construction `playbackSequence` pour mapping index
+- [x] Export notes sur **TOUS** types d'éléments :
+  - ✅ **PRESENTATION** (titre) via `AttachableType.ANNOTATION`
+  - ✅ **STRUCTURE** (actes/scènes) via `AttachableType.STRUCTURE`
+  - ✅ **STAGE_DIRECTION** (didascalies) via `AttachableType.ANNOTATION`
+  - ✅ **LINE** (répliques) via `AttachableType.LINE`
 - [x] Méthode `addNote()` avec styles fidèles :
   - Fond jaune pastel (#FFF9C4)
   - Bordure jaune (#FEF08A)
@@ -147,6 +153,8 @@ src/
 - [x] Option `includeNotes` dans `PDFExportOptions`
 
 **Tests** : Type-check ✅ | Lint ✅ | Build ✅
+
+**Commit final** : `ec0fcea` - Export PDF complet tous types d'éléments
 
 ---
 
@@ -300,7 +308,6 @@ src/
 ### Limitations Actuelles
 - ⚠️ **Mobile long-press** : Peut interférer avec scroll si mouvement (threshold 10px atténue)
 - ⚠️ **TTS + Notes** : Notes non lues par TTS (comportement volontaire ?)
-- ⚠️ **Export PDF** : Notes sur PRESENTATION/STRUCTURE non incluses (seulement LINE implémenté)
 - ⚠️ **Undo/Redo** : Pas d'historique édition (future enhancement)
 
 ### Améliorations Futures (Post-Phase 7)
@@ -334,9 +341,11 @@ src/
 | `ff65f41` | 2 | Composants UI (useLongPress, Note, NoteIcon) |
 | `e8f11a7` | 3 | Intégration écrans (PlayScreen, renderers) |
 | `a6be758` | 4 | Interactions avancées (ConfirmDialog, React.memo) |
-| `53d8ef8` | 5 | Export PDF avec notes |
+| `53d8ef8` | 5 | Export PDF avec notes (LINE uniquement) |
+| `ec0fcea` | 5 | Export PDF complet (TOUS types) |
 | `9e3a980` | 6 | Setup tests et documentation |
 | `0a2d381` | 6 | Résumé Phase 6 setup |
+| `7d2b3a0` | 6 | Synthèse complète feature |
 
 **Branche** : `new_annotations` (pushée sur `origin`)
 
