@@ -11,6 +11,9 @@ import type { Character } from '../models/Character'
 import type { Line } from '../models/Line'
 import { generateCharacterColor } from '../../utils/colors'
 import { parseTextWithStageDirections } from '../../utils/textParser'
+import { NotesStorage } from '../storage/notesStorage'
+import { AttachableType, NoteDisplayState } from '../models/note'
+import type { Note } from '../models/note'
 
 /**
  * Options pour l'export PDF
@@ -39,6 +42,9 @@ export interface PDFExportOptions {
 
   /** Marge (mm) */
   margin?: number
+
+  /** Inclure les notes dans l'export */
+  includeNotes?: boolean
 }
 
 /**
@@ -70,9 +76,23 @@ export class PDFExportService {
       includeCover = true,
       includeCast = true,
       includePageNumbers = true,
+      includeNotes = true,
       fontSize = this.DEFAULT_FONT_SIZE,
       margin = this.DEFAULT_MARGIN,
     } = options
+
+    // Charger les notes si nécessaire
+    let notes: Note[] = []
+    let notesMap: Map<string, Note> | null = null
+
+    if (includeNotes) {
+      notes = await NotesStorage.getNotesByPlayId(play.id)
+      notesMap = new Map()
+      for (const note of notes) {
+        const key = `${note.attachedToType}:${note.attachedToIndex}`
+        notesMap.set(key, note)
+      }
+    }
 
     // Créer le document PDF
     const pdf = new jsPDF({
@@ -97,7 +117,7 @@ export class PDFExportService {
       // Nouvelle page pour chaque acte
       pdf.addPage()
 
-      this.addActContent(pdf, act, charactersMap, margin, fontSize)
+      this.addActContent(pdf, act, charactersMap, margin, fontSize, notesMap)
     }
 
     // Ajouter les numéros de page
@@ -234,7 +254,8 @@ export class PDFExportService {
     act: Act,
     charactersMap: Record<string, Character>,
     margin: number,
-    fontSize: number
+    fontSize: number,
+    notesMap: Map<string, Note> | null
   ): void {
     let yPosition = margin + 10
 
@@ -263,9 +284,19 @@ export class PDFExportService {
       yPosition += 10
 
       // Parcourir les lignes
-      for (const line of scene.lines) {
+      for (let lineIndex = 0; lineIndex < scene.lines.length; lineIndex++) {
+        const line = scene.lines[lineIndex]
         // Vérifier l'espace disponible avant d'ajouter la ligne
         yPosition = this.addLine(pdf, line, charactersMap, margin, yPosition, fontSize)
+
+        // Ajouter une note si elle existe pour cette ligne
+        if (notesMap) {
+          const noteKey = `${AttachableType.LINE}:${lineIndex}`
+          const note = notesMap.get(noteKey)
+          if (note && note.displayState === NoteDisplayState.MAXIMIZED && note.content.trim()) {
+            yPosition = this.addNote(pdf, note, margin, yPosition, fontSize)
+          }
+        }
       }
 
       yPosition += 5 // Espacement entre scènes
@@ -388,6 +419,85 @@ export class PDFExportService {
     }
 
     return currentY
+  }
+
+  /**
+   * Ajoute une note au PDF avec le style sticky note jaune
+   */
+  private addNote(
+    pdf: jsPDF,
+    note: Note,
+    margin: number,
+    yPosition: number,
+    fontSize: number
+  ): number {
+    let currentY = yPosition
+    const maxY = this.A4_HEIGHT - margin
+
+    // Dimensions de la note
+    const noteMargin = 5
+    const noteWidth = this.A4_WIDTH - 2 * margin - 10 // Légèrement réduit pour décalage visuel
+    const padding = 3
+
+    // Vérifier si on a assez d'espace pour au moins le début de la note
+    const minNoteHeight = 15
+    if (currentY + minNoteHeight > maxY) {
+      pdf.addPage()
+      currentY = margin + 10
+    }
+
+    // Fond jaune pastel (sticky note)
+    pdf.setFillColor(254, 252, 232) // bg-yellow-50
+
+    // Border jaune
+    pdf.setDrawColor(254, 240, 138) // border-yellow-200
+    pdf.setLineWidth(0.3)
+
+    // Calculer la hauteur nécessaire pour le contenu
+    pdf.setFontSize(fontSize - 1)
+    pdf.setFont('helvetica', 'italic')
+    pdf.setTextColor(75, 85, 99) // text-gray-600
+
+    const lines = this.splitTextManually(pdf, note.content, noteWidth - 2 * padding)
+    const lineHeight = 5
+    const noteHeight = Math.max(15, lines.length * lineHeight + 2 * padding + 3)
+
+    // Vérifier si la note entière tient sur la page
+    if (currentY + noteHeight > maxY) {
+      // Si la note est trop longue, la commencer sur une nouvelle page
+      pdf.addPage()
+      currentY = margin + 10
+    }
+
+    // Dessiner le rectangle avec fond et bordure
+    pdf.rect(margin + noteMargin, currentY, noteWidth, noteHeight, 'FD')
+
+    // Ajouter le texte de la note
+    let textY = currentY + padding + 5
+    for (const line of lines) {
+      if (textY + lineHeight > maxY) {
+        // Si on dépasse, continuer sur la page suivante
+        pdf.addPage()
+        currentY = margin + 10
+        textY = currentY + padding + 5
+
+        // Redessiner le fond sur la nouvelle page
+        pdf.setFillColor(254, 252, 232)
+        pdf.setDrawColor(254, 240, 138)
+        pdf.rect(margin + noteMargin, currentY, noteWidth, lineHeight + padding, 'FD')
+      }
+
+      pdf.text(line, margin + noteMargin + padding, textY, { align: 'left', charSpace: 0 })
+      textY += lineHeight
+    }
+
+    // Réinitialiser les styles
+    pdf.setFont('helvetica', 'normal')
+    pdf.setTextColor(0, 0, 0)
+    pdf.setDrawColor(0, 0, 0)
+
+    // Retourner la position Y après la note avec un petit espacement
+    return textY + 3
   }
 
   /**

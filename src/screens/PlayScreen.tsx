@@ -1402,6 +1402,7 @@ export function PlayScreen() {
         includeCover: true,
         includeCast: true,
         includePageNumbers: true,
+        includeNotes: true,
         theme: 'light', // Toujours clair pour l'impression
       })
     } catch (error) {

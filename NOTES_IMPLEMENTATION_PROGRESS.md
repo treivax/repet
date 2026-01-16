@@ -179,19 +179,36 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 
 ---
 
-## ⏳ PHASE 4 : Interactions Avancées (À FAIRE)
+## ✅ PHASE 4 : Interactions Avancées (TERMINÉE)
 
-### Étape 4.1 : Confirmation Suppression
-- [ ] Composant `ConfirmDialog`
-- [ ] Modale centrée
-- [ ] Texte explicite
-- [ ] Boutons Annuler/Confirmer
-- [ ] Fermeture ESC/overlay
+**Commit**: `a6be758` - Phase 4: Interactions Avancées - ConfirmDialog et Optimisations
 
-### Étape 4.2 : Optimisations
-- [ ] React.memo sur Note
-- [ ] React.memo sur NoteIcon
-- [ ] Profiling DevTools
+### Étape 4.1 : Confirmation Suppression ✅
+- [x] Composant `ConfirmDialog` créé
+- [x] Modale centrée avec overlay semi-transparent
+- [x] Texte explicite et personnalisable
+- [x] Boutons Annuler/Confirmer (gris/rouge)
+- [x] Fermeture ESC/overlay (handleKeyDown)
+- [x] Accessibilité (role="dialog", aria-modal, aria-labelledby)
+- [x] Thème clair/sombre
+- [x] Intégration dans Note.tsx
+- [x] Remplacement window.confirm()
+- [x] State showDeleteConfirm
+
+### Étape 4.2 : Optimisations ✅
+- [x] React.memo sur Note
+- [x] React.memo sur NoteIcon
+- [x] Import memo depuis 'react'
+- [x] Pattern: export const X = memo(function X() {...})
+
+### Validations Phase 4 ✅
+- [x] Type-check: 0 erreur
+- [x] Lint: 0 erreur
+- [x] Compilation: OK
+- [x] Copyright présent
+- [x] Accessibilité (ARIA, keyboard)
+- [x] Thème dark/light
+- [x] Performance optimisée
 
 ---
 
@@ -249,25 +266,26 @@ Implémentation de la fonctionnalité Notes/Annotations suivant le plan strict d
 | Phase 1 | ✅ DONE | 7 fichiers créés, 5 modifiés | Type-check ✅ Lint ✅ |
 | Phase 2 | ✅ DONE | 4 fichiers créés, 2 modifiés | Type-check ✅ Lint ✅ |
 | Phase 3 | ✅ DONE | 2 fichiers modifiés (4 composants) | Type-check ✅ Lint ✅ |
-| Phase 4 | ⏳ TODO | 0/2 | - |
+| Phase 4 | ✅ DONE | 1 fichier créé, 2 modifiés | Type-check ✅ Lint ✅ |
 | Phase 5 | ⏳ TODO | 0/1 | - |
 | Phase 6 | ⏳ TODO | - | 0/20 tests |
 | Phase 7 | ⏳ TODO | 0/3 | - |
 
-**Total**: 3/7 phases complétées (43%)
+**Total**: 4/7 phases complétées (57%)
 
 ---
 
 ## 🎯 Prochaine Étape
 
-**PHASE 4 : Interactions Avancées**
+**PHASE 5 : Export PDF**
 
-1. Créer composant ConfirmDialog pour confirmation suppression
-2. Intégrer ConfirmDialog dans composant Note
-3. Optimiser avec React.memo (Note, NoteIcon)
-4. Profiling performance si nécessaire
-5. Valider compilation, lint, tests manuels
-6. Commit Phase 4
+1. Étendre pdfExportService pour charger les notes
+2. Créer fonction renderNoteInPDF
+3. Intégrer notes dans rendu de chaque élément
+4. Styles fidèles (jaune pastel, border, italique)
+5. Position décalée pour lisibilité
+6. Valider export PDF avec notes
+7. Commit Phase 5
 
 ---
 
