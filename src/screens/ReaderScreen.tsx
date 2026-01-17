@@ -26,6 +26,7 @@ import { pdfExportService } from '../core/export/pdfExportService'
 import { downloadPlayAsText } from '../core/export/textExportService'
 import { buildPlaybackSequence } from '../utils/playbackSequence'
 import type { PlaybackItem, LinePlaybackItem, StructurePlaybackItem } from '../core/models/types'
+import { NotesProvider } from '../components/notes'
 
 /**
  * Écran de lecture focalisée (mode lecteur)
@@ -507,24 +508,26 @@ export function ReaderScreen() {
       {/* Main content */}
       <div className="flex-1 overflow-hidden" data-testid="text-display-container">
         {currentPlay && playSettings ? (
-          <PlaybackDisplay
-            playbackSequence={playbackSequence}
-            flatLines={currentPlay.ast.flatLines}
-            readingMode={playSettings.readingMode}
-            userCharacterId={userCharacter?.id}
-            hideUserLines={playSettings.hideUserLines}
-            showBefore={playSettings.showBefore}
-            showAfter={playSettings.showAfter}
-            currentPlaybackIndex={currentPlaybackIndex}
-            playingLineIndex={playingLineIndex}
-            playedItems={playedItems}
-            readLinesSet={readLinesSet}
-            charactersMap={charactersMap}
-            playTitle={getPlayTitle(currentPlay)}
-            onCardClick={undefined}
-            onLineClick={undefined}
-            containerRef={containerRef}
-          />
+          <NotesProvider playId={playId!}>
+            <PlaybackDisplay
+              playbackSequence={playbackSequence}
+              flatLines={currentPlay.ast.flatLines}
+              readingMode={playSettings.readingMode}
+              userCharacterId={userCharacter?.id}
+              hideUserLines={playSettings.hideUserLines}
+              showBefore={playSettings.showBefore}
+              showAfter={playSettings.showAfter}
+              currentPlaybackIndex={currentPlaybackIndex}
+              playingLineIndex={playingLineIndex}
+              playedItems={playedItems}
+              readLinesSet={readLinesSet}
+              charactersMap={charactersMap}
+              playTitle={getPlayTitle(currentPlay)}
+              onCardClick={undefined}
+              onLineClick={undefined}
+              containerRef={containerRef}
+            />
+          </NotesProvider>
         ) : (
           <div className="flex items-center justify-center h-full">
             <p className="text-gray-500 dark:text-gray-400">Aucun contenu à afficher</p>

@@ -17,6 +17,292 @@ import type {
 } from '../../core/models/types'
 import { LineRenderer } from './LineRenderer'
 import { StageDirectionCard, StructureCard, PresentationCard } from '../play/PlaybackCards'
+import { useNotes, getNoteMapKey } from '../../hooks/useNotes'
+import { useLongPress } from '../../hooks/useLongPress'
+import { AttachableType } from '../../core/models/note'
+import { Note } from '../notes/Note'
+
+/**
+ * Composant pour rendre un item de présentation avec notes
+ */
+function PresentationItemRenderer({
+  item,
+  isCurrentItem,
+  hasBeenPlayed,
+  onCardClick,
+  charactersMap,
+  wrapperRef,
+}: {
+  item: PresentationPlaybackItem
+  isCurrentItem: boolean
+  hasBeenPlayed: boolean
+  onCardClick?: (index: number) => void
+  charactersMap: Record<string, Character>
+  wrapperRef?: React.RefObject<HTMLDivElement>
+}) {
+  const { notesMap, createNote, updateNoteContent, toggleNoteDisplayState, deleteNote } = useNotes()
+  const noteKey = getNoteMapKey(AttachableType.ANNOTATION, item.index)
+  const existingNote = notesMap.get(noteKey)
+
+  const handleLongPress = async () => {
+    if (!existingNote) {
+      await createNote(AttachableType.ANNOTATION, item.index)
+    }
+  }
+
+  const longPressHandlers = useLongPress({ onLongPress: handleLongPress })
+
+  return (
+    <div className="mb-6">
+      <div
+        ref={wrapperRef}
+        data-playback-index={item.index}
+        data-playback-type="presentation"
+        {...longPressHandlers}
+      >
+        <PresentationCard
+          item={item}
+          isPlaying={isCurrentItem}
+          hasBeenPlayed={hasBeenPlayed}
+          onClick={onCardClick ? () => onCardClick(item.index) : undefined}
+          charactersMap={charactersMap}
+        />
+      </div>
+      {existingNote && (
+        <Note
+          note={existingNote}
+          onContentChange={(content) => updateNoteContent(existingNote.id, content)}
+          onToggleState={() => toggleNoteDisplayState(existingNote.id)}
+          onDelete={async () => {
+            if (confirm('Supprimer cette note ?')) {
+              await deleteNote(existingNote.id)
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Composant pour rendre un item de structure avec notes
+ */
+function StructureItemRenderer({
+  item,
+  isCurrentItem,
+  hasBeenPlayed,
+  onCardClick,
+  wrapperRef,
+}: {
+  item: StructurePlaybackItem
+  isCurrentItem: boolean
+  hasBeenPlayed: boolean
+  onCardClick?: (index: number) => void
+  wrapperRef?: React.RefObject<HTMLDivElement>
+}) {
+  const { notesMap, createNote, updateNoteContent, toggleNoteDisplayState, deleteNote } = useNotes()
+  const noteKey = getNoteMapKey(AttachableType.STRUCTURE, item.index)
+  const existingNote = notesMap.get(noteKey)
+
+  const handleLongPress = async () => {
+    if (!existingNote) {
+      await createNote(AttachableType.STRUCTURE, item.index)
+    }
+  }
+
+  const longPressHandlers = useLongPress({ onLongPress: handleLongPress })
+
+  return (
+    <div className="mb-6">
+      <div
+        ref={wrapperRef}
+        data-playback-index={item.index}
+        data-playback-type="structure"
+        data-structure-type={item.structureType}
+        {...longPressHandlers}
+      >
+        <StructureCard
+          item={item}
+          isPlaying={isCurrentItem}
+          hasBeenPlayed={hasBeenPlayed}
+          onClick={onCardClick ? () => onCardClick(item.index) : undefined}
+        />
+      </div>
+      {existingNote && (
+        <Note
+          note={existingNote}
+          onContentChange={(content) => updateNoteContent(existingNote.id, content)}
+          onToggleState={() => toggleNoteDisplayState(existingNote.id)}
+          onDelete={async () => {
+            if (confirm('Supprimer cette note ?')) {
+              await deleteNote(existingNote.id)
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Composant pour rendre un item de didascalie avec notes
+ */
+function StageDirectionItemRenderer({
+  item,
+  isCurrentItem,
+  hasBeenPlayed,
+  onCardClick,
+  wrapperRef,
+}: {
+  item: StageDirectionPlaybackItem
+  isCurrentItem: boolean
+  hasBeenPlayed: boolean
+  onCardClick?: (index: number) => void
+  wrapperRef?: React.RefObject<HTMLDivElement>
+}) {
+  const { notesMap, createNote, updateNoteContent, toggleNoteDisplayState, deleteNote } = useNotes()
+  const noteKey = getNoteMapKey(AttachableType.ANNOTATION, item.index)
+  const existingNote = notesMap.get(noteKey)
+
+  const handleLongPress = async () => {
+    if (!existingNote) {
+      await createNote(AttachableType.ANNOTATION, item.index)
+    }
+  }
+
+  const longPressHandlers = useLongPress({ onLongPress: handleLongPress })
+
+  return (
+    <div className="mb-4">
+      <div
+        ref={wrapperRef}
+        data-playback-index={item.index}
+        data-playback-type="stage-direction"
+        {...longPressHandlers}
+      >
+        <StageDirectionCard
+          item={item}
+          isPlaying={isCurrentItem}
+          hasBeenPlayed={hasBeenPlayed}
+          onClick={onCardClick ? () => onCardClick(item.index) : undefined}
+        />
+      </div>
+      {existingNote && (
+        <Note
+          note={existingNote}
+          onContentChange={(content) => updateNoteContent(existingNote.id, content)}
+          onToggleState={() => toggleNoteDisplayState(existingNote.id)}
+          onDelete={async () => {
+            if (confirm('Supprimer cette note ?')) {
+              await deleteNote(existingNote.id)
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/**
+ * Composant pour rendre un item de réplique avec notes
+ */
+function LineItemRenderer({
+  item,
+  line,
+  isCurrentItem,
+  isPlaying,
+  hasBeenRead,
+  readingMode,
+  userCharacterId,
+  hideUserLines,
+  showBefore,
+  showAfter,
+  charactersMap,
+  onLineClick,
+  isPaused,
+  progressPercentage,
+  elapsedTime,
+  estimatedDuration,
+  isGenerating,
+  wrapperRef,
+}: {
+  item: LinePlaybackItem
+  line: Line
+  isCurrentItem: boolean
+  isPlaying: boolean
+  hasBeenRead: boolean
+  readingMode: ReadingMode
+  userCharacterId?: string
+  hideUserLines: boolean
+  showBefore: boolean
+  showAfter: boolean
+  charactersMap: Record<string, Character>
+  onLineClick?: (lineIndex: number) => void
+  isPaused?: boolean
+  progressPercentage?: number
+  elapsedTime?: number
+  estimatedDuration?: number
+  isGenerating?: boolean
+  wrapperRef?: React.RefObject<HTMLDivElement>
+}) {
+  const { notesMap, createNote, updateNoteContent, toggleNoteDisplayState, deleteNote } = useNotes()
+  const noteKey = getNoteMapKey(AttachableType.LINE, item.lineIndex)
+  const existingNote = notesMap.get(noteKey)
+
+  const handleLongPress = async () => {
+    if (!existingNote) {
+      await createNote(AttachableType.LINE, item.lineIndex)
+    }
+  }
+
+  const longPressHandlers = useLongPress({ onLongPress: handleLongPress })
+
+  return (
+    <div
+      className={`transition-opacity ${
+        isCurrentItem ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
+      }`}
+    >
+      <div
+        ref={wrapperRef}
+        data-playback-index={item.index}
+        data-playback-type="line"
+        data-line-index={item.lineIndex}
+        {...longPressHandlers}
+      >
+        <LineRenderer
+          line={line}
+          readingMode={readingMode}
+          userCharacterId={userCharacterId}
+          hideUserLines={hideUserLines}
+          showBefore={showBefore}
+          showAfter={showAfter}
+          isPlaying={isPlaying}
+          hasBeenRead={hasBeenRead}
+          charactersMap={charactersMap}
+          onClick={onLineClick ? () => onLineClick(item.lineIndex) : undefined}
+          isPaused={isPaused}
+          progressPercentage={isPlaying ? progressPercentage : 0}
+          elapsedTime={isPlaying ? elapsedTime : 0}
+          estimatedDuration={isPlaying ? estimatedDuration : 0}
+          isGenerating={isPlaying ? isGenerating : false}
+        />
+      </div>
+      {existingNote && (
+        <Note
+          note={existingNote}
+          onContentChange={(content) => updateNoteContent(existingNote.id, content)}
+          onToggleState={() => toggleNoteDisplayState(existingNote.id)}
+          onDelete={async () => {
+            if (confirm('Supprimer cette note ?')) {
+              await deleteNote(existingNote.id)
+            }
+          }}
+        />
+      )}
+    </div>
+  )
+}
 
 interface Props {
   /** Séquence complète d'éléments de lecture */
@@ -232,67 +518,42 @@ export function PlaybackDisplay({
           const wrapperRef = isCurrentItem ? currentItemRef : undefined
 
           switch (item.type) {
-            case 'presentation': {
-              const presentationItem = item as PresentationPlaybackItem
+            case 'presentation':
               return (
-                <div
+                <PresentationItemRenderer
                   key={`playback-${item.index}`}
-                  ref={wrapperRef}
-                  data-playback-index={item.index}
-                  data-playback-type="presentation"
-                  className="mb-6"
-                >
-                  <PresentationCard
-                    item={presentationItem}
-                    isPlaying={isCurrentItem}
-                    hasBeenPlayed={hasBeenPlayed}
-                    onClick={onCardClick ? () => onCardClick(item.index) : undefined}
-                    charactersMap={charactersMap}
-                  />
-                </div>
+                  item={item as PresentationPlaybackItem}
+                  isCurrentItem={isCurrentItem}
+                  hasBeenPlayed={hasBeenPlayed}
+                  onCardClick={onCardClick}
+                  charactersMap={charactersMap}
+                  wrapperRef={wrapperRef}
+                />
               )
-            }
 
-            case 'structure': {
-              const structureItem = item as StructurePlaybackItem
+            case 'structure':
               return (
-                <div
+                <StructureItemRenderer
                   key={`playback-${item.index}`}
-                  ref={wrapperRef}
-                  data-playback-index={item.index}
-                  data-playback-type="structure"
-                  data-structure-type={structureItem.structureType}
-                  className="mb-6"
-                >
-                  <StructureCard
-                    item={structureItem}
-                    isPlaying={isCurrentItem}
-                    hasBeenPlayed={hasBeenPlayed}
-                    onClick={onCardClick ? () => onCardClick(item.index) : undefined}
-                  />
-                </div>
+                  item={item as StructurePlaybackItem}
+                  isCurrentItem={isCurrentItem}
+                  hasBeenPlayed={hasBeenPlayed}
+                  onCardClick={onCardClick}
+                  wrapperRef={wrapperRef}
+                />
               )
-            }
 
-            case 'stage-direction': {
-              const stageDirectionItem = item as StageDirectionPlaybackItem
+            case 'stage-direction':
               return (
-                <div
+                <StageDirectionItemRenderer
                   key={`playback-${item.index}`}
-                  ref={wrapperRef}
-                  data-playback-index={item.index}
-                  data-playback-type="stage-direction"
-                  className="mb-4"
-                >
-                  <StageDirectionCard
-                    item={stageDirectionItem}
-                    isPlaying={isCurrentItem}
-                    hasBeenPlayed={hasBeenPlayed}
-                    onClick={onCardClick ? () => onCardClick(item.index) : undefined}
-                  />
-                </div>
+                  item={item as StageDirectionPlaybackItem}
+                  isCurrentItem={isCurrentItem}
+                  hasBeenPlayed={hasBeenPlayed}
+                  onCardClick={onCardClick}
+                  wrapperRef={wrapperRef}
+                />
               )
-            }
 
             case 'line': {
               const lineItem = item as LinePlaybackItem
@@ -308,34 +569,27 @@ export function PlaybackDisplay({
               const hasBeenRead = readLinesSet.has(lineItem.lineIndex)
 
               return (
-                <div
+                <LineItemRenderer
                   key={`playback-${item.index}`}
-                  ref={wrapperRef}
-                  data-playback-index={item.index}
-                  data-playback-type="line"
-                  data-line-index={lineItem.lineIndex}
-                  className={`transition-opacity ${
-                    isCurrentItem ? 'opacity-100' : hasBeenRead ? 'opacity-60' : 'opacity-80'
-                  }`}
-                >
-                  <LineRenderer
-                    line={line}
-                    readingMode={readingMode}
-                    userCharacterId={userCharacterId}
-                    hideUserLines={hideUserLines}
-                    showBefore={showBefore}
-                    showAfter={showAfter}
-                    isPlaying={isPlaying}
-                    hasBeenRead={hasBeenRead}
-                    charactersMap={charactersMap}
-                    onClick={onLineClick ? () => onLineClick(lineItem.lineIndex) : undefined}
-                    isPaused={isPaused}
-                    progressPercentage={isPlaying ? progressPercentage : 0}
-                    elapsedTime={isPlaying ? elapsedTime : 0}
-                    estimatedDuration={isPlaying ? estimatedDuration : 0}
-                    isGenerating={isPlaying ? isGenerating : false}
-                  />
-                </div>
+                  item={lineItem}
+                  line={line}
+                  isCurrentItem={isCurrentItem}
+                  isPlaying={isPlaying}
+                  hasBeenRead={hasBeenRead}
+                  readingMode={readingMode}
+                  userCharacterId={userCharacterId}
+                  hideUserLines={hideUserLines}
+                  showBefore={showBefore}
+                  showAfter={showAfter}
+                  charactersMap={charactersMap}
+                  onLineClick={onLineClick}
+                  isPaused={isPaused}
+                  progressPercentage={progressPercentage}
+                  elapsedTime={elapsedTime}
+                  estimatedDuration={estimatedDuration}
+                  isGenerating={isGenerating}
+                  wrapperRef={wrapperRef}
+                />
               )
             }
 
