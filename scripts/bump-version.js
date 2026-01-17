@@ -24,8 +24,12 @@
  *   npm run bump-version major  # 0.1.0 → 1.0.0
  */
 
-const fs = require('fs')
-const path = require('path')
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Couleurs pour la console
 const colors = {
@@ -150,10 +154,7 @@ function createChangelogEntry(version) {
 
   if (fs.existsSync(changelogPath)) {
     const changelog = fs.readFileSync(changelogPath, 'utf-8')
-    const updatedChangelog = changelog.replace(
-      /# Changelog\n/,
-      `# Changelog\n${entry}`
-    )
+    const updatedChangelog = changelog.replace(/# Changelog\n/, `# Changelog\n${entry}`)
     fs.writeFileSync(changelogPath, updatedChangelog)
     logSuccess('CHANGELOG.md mis à jour')
   } else {

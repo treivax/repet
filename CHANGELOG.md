@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.0] - 2026-01-17
+
+### Added
+- **Système complet d'annotations et de notes** 📝
+  - Ajout de notes sur répliques, didascalies, titres, actes et scènes
+  - Interface intuitive : long-press (mobile) et clic-droit (desktop)
+  - Stockage persistant avec IndexedDB et auto-synchronisation
+  - Export PDF incluant les notes avec styling fidèle
+  - Gestion CRUD complète des notes (créer, lire, modifier, supprimer)
+  - Composant NotesProvider pour gestion centralisée
+  - Hook useLongPress pour interactions tactiles
+  - Composant ConfirmDialog pour confirmations utilisateur
+  - Documentation complète (spec_notes.md, guides de test, validation)
+
+### Changed
+- **Refonte de PlaybackDisplay** pour supporter les annotations
+  - Intégration du NotesProvider dans ReaderScreen et PlayScreen
+  - Ajout d'indicateurs visuels pour éléments annotés
+  - Amélioration de l'interface utilisateur pour notes contextuelles
+- **Export PDF amélioré** avec intégration des notes
+  - Notes affichées sous chaque élément annoté
+  - Styles visuels fidèles (couleurs, icônes)
+  - Pagination optimisée pour préserver lisibilité
+
+### Fixed
+- Correctifs de syntaxe JSON dans public/voices/manifest.json
+- Optimisations de performance pour affichage de notes multiples
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
