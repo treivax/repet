@@ -169,12 +169,8 @@ export default defineConfig({
       workbox: {
         // Nettoyer les anciens caches lors de l'activation
         cleanupOutdatedCaches: true,
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,mjs}'],
-        // Exclure les très gros fichiers du precache (seront chargés à la demande)
-        globIgnores: [
-          '**/voices/**/*.onnx', // Modèles vocaux (~60-76 MB chacun)
-          '**/wasm/ort-wasm-simd-threaded*.wasm', // WASM threadé volumineux
-        ],
+        // Inclure TOUS les fichiers nécessaires pour le mode offline (y compris .onnx)
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,json,mjs,onnx,wasm,data}'],
         maximumFileSizeToCacheInBytes: 100 * 1024 * 1024, // 100 MB
         // Runtime caching strategies
         runtimeCaching: [
@@ -209,15 +205,14 @@ export default defineConfig({
             },
           },
           {
-            // Cache des modèles vocaux (Network First pour toujours avoir la dernière version)
+            // Cache des modèles vocaux (CacheFirst pour mode offline - fichiers déjà précachés)
             urlPattern: /.*\/voices\/.*\.(onnx|json)$/,
-            handler: 'NetworkFirst',
+            handler: 'CacheFirst',
             options: {
               cacheName: `voice-models-cache-v${APP_VERSION}`,
-              networkTimeoutSeconds: 30,
               expiration: {
                 maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year (fichiers immuables)
               },
               cacheableResponse: {
                 statuses: [0, 200],
